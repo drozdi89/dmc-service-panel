@@ -1,6 +1,6 @@
 import {
   CODE_GENERATOR_TEMPLATES_PATH,
-  codeGeneratorTemplateMutations,
+  useCodeGeneratorTemplateActions,
   isSameCodeGeneratorTemplateFormDialog,
   resetCodeGeneratorTemplateFormUiStore,
   useCodeGeneratorTemplateFormUiStore,
@@ -17,7 +17,7 @@ import { useCallback, useEffect, useRef } from 'react';
  *
  * Subscribes to {@link useCodeGeneratorTemplateFormUiStore}, renders
  * {@link CodeGeneratorTemplateFormModal} with preferred `mode` + `templateId`
- * (modal self-loads detail), saves via {@link codeGeneratorTemplateMutations},
+ * (modal self-loads detail), saves via {@link useCodeGeneratorTemplateActions},
  * writes `lastSaved` when `consumerId` is set, then closes on «Сохранить» or
  * keeps open on «Применить» (create → edit). Mount once in `AppProviders`.
  *
@@ -35,7 +35,7 @@ export function CodeGeneratorTemplateFormModalHost() {
   const mountGenerationRef = useRef(0);
 
 
-  const { saveMutation } = codeGeneratorTemplateMutations({});
+  const { saveMutation } = useCodeGeneratorTemplateActions();
 
 
   const open = dialog.kind !== 'none';

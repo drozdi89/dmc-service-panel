@@ -85,6 +85,7 @@ export type {
   ScaleWorkplaceLabels,
   ScaleWorkplacesConfiguration
 } from './model/types';
+export { useLineActions } from './hooks';
 export * from './queries';
 export * from './ui';
 

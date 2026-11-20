@@ -3,7 +3,7 @@ import {
   buildLinkedResourceNameMap,
   fetchPrintStations,
   formatLinkedResourceId,
-  printStationMutations,
+  usePrintStationActions,
   printStationQueries,
   usePrintStationFormUiStore,
   type PrintStation,
@@ -31,7 +31,7 @@ export default function PrintStationsPage() {
   const openCreate = usePrintStationFormUiStore((s) => s.openCreate);
   const openEdit = usePrintStationFormUiStore((s) => s.openEdit);
 
-  const { deleteMutation, handleDelete } = printStationMutations();
+  const { deleteMutation, handleDelete } = usePrintStationActions();
 
   const printersLookup = useDevicesLookupQuery({
     ...LINKED_LOOKUP_PARAMS,

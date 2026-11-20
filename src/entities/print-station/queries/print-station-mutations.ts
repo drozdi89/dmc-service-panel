@@ -1,25 +1,23 @@
 import { useIdempotentMutation } from '@/shared/hooks/useIdempotentMutation';
 import { useQueryClient } from '@tanstack/react-query';
-import { App } from 'antd';
 import { useCallback } from 'react';
 import { type PrintStation } from '../model/types';
 import { printStationQueries } from './print-station-queries';
 
+export type PrintStationMutationHandlers = {
+  onSaveSuccess?: () => void;
+  onSaveError?: (error: Error) => void;
+  onDeleteSuccess?: () => void;
+  onDeleteError?: (error: Error) => void;
+};
+
 /**
- * Create / update / delete mutations for print stations.
+ * Create / update / delete mutations for print stations (React Query only).
  *
- * On success invalidates {@link printStationQueries.keys.all()} so list and
- * lookup refresh after save.
+ * On success invalidates {@link printStationQueries.keys.all()}.
  */
-export const printStationMutations = ({
-  callbackSave,
-  callbackDelete,
-}: {
-  callbackSave?: () => void;
-  callbackDelete?: () => void;
-} = {}) => {
+export function usePrintStationMutations(handlers?: PrintStationMutationHandlers) {
   const queryClient = useQueryClient();
-  const { message, modal } = App.useApp();
 
   const invalidatePrintStations = useCallback(() => {
     void queryClient.invalidateQueries({
@@ -30,51 +28,31 @@ export const printStationMutations = ({
   const saveMutation = useIdempotentMutation<PrintStation>({
     onSuccess: () => {
       invalidatePrintStations();
-      message.success('Станция печати сохранена');
-      callbackSave?.();
+      handlers?.onSaveSuccess?.();
     },
     onError: (error) => {
-      message.error(error.message || 'Не удалось сохранить станцию печати');
+      handlers?.onSaveError?.(
+        error instanceof Error ? error : new Error(String(error)),
+      );
     },
   });
 
   const deleteMutation = useIdempotentMutation<string>({
     onSuccess: () => {
       invalidatePrintStations();
-      message.success('Станция печати удалена');
-      callbackDelete?.();
+      handlers?.onDeleteSuccess?.();
     },
     onError: (error) => {
-      message.error(error.message || 'Не удалось удалить станцию печати');
+      handlers?.onDeleteError?.(
+        error instanceof Error ? error : new Error(String(error)),
+      );
     },
   });
-
-  const handleDelete = useCallback(
-    (record: PrintStation) => {
-      modal.confirm({
-        title: 'Удалить выбранную станцию печати?',
-        content: `Станция «${record.name}» будет удалена.`,
-        okText: 'Удалить',
-        okType: 'danger',
-        cancelText: 'Отмена',
-        okButtonProps: { loading: deleteMutation.isPending },
-        onOk: async () => {
-          await deleteMutation.mutateAsync({
-            path: '/api/v2/print_stations/',
-            method: 'DELETE',
-            body: { station_id: [record.station_id] },
-          });
-        },
-      });
-    },
-    [deleteMutation, modal],
-  );
 
   return {
     saveMutation,
     deleteMutation,
-    handleDelete,
     /** Invalidates list + lookup under `printStationQueries.keys.all()`. */
     invalidatePrintStations,
   };
-};
+}

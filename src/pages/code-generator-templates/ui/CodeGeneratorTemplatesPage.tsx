@@ -1,5 +1,5 @@
 import {
-  codeGeneratorTemplateMutations,
+  useCodeGeneratorTemplateActions,
   codeGeneratorTemplateQueries,
   fetchCodeGeneratorTemplates,
   useCodeGeneratorTemplateFormUiStore,
@@ -38,7 +38,7 @@ export default function CodeGeneratorTemplatesPage() {
   const openCreate = useCodeGeneratorTemplateFormUiStore((s) => s.openCreate);
   const openEdit = useCodeGeneratorTemplateFormUiStore((s) => s.openEdit);
 
-  const { deleteMutation, handleDelete } = codeGeneratorTemplateMutations({});
+  const { deleteMutation, handleDelete } = useCodeGeneratorTemplateActions();
 
   const onEdit = useCallback(
     (record: CodeGeneratorTemplate) => {

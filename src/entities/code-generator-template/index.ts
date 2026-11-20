@@ -41,6 +41,7 @@ export type {
   DeleteCodeGeneratorTemplatesPayload,
   UpdateCodeGeneratorTemplatePayload
 } from './model/types';
+export { useCodeGeneratorTemplateActions } from './hooks';
 export * from './queries';
 export * from './ui';
 

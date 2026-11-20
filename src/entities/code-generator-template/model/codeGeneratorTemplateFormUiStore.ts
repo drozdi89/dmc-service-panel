@@ -81,7 +81,7 @@ export function isSameCodeGeneratorTemplateFormDialog(
 /**
  * UI-intent store for code-generator-template create/edit dialog (domain state in entity).
  *
- * Persist / list / detail stay in React Query (`codeGeneratorTemplateMutations`).
+ * Persist / list / detail stay in React Query (`useCodeGeneratorTemplateMutations` / actions).
  * The feature form Host subscribes and saves; entity pickers dispatch open/consume.
  */
 export const useCodeGeneratorTemplateFormUiStore =

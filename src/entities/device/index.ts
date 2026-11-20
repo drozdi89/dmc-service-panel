@@ -48,18 +48,24 @@ export type {
   DeviceListItem,
   DeviceRef, DevicesListParams, DeviceType
 } from './model/types';
+export { useDeviceActions, useDeviceFormSave } from './hooks';
 export {
-  DEVICE_QUERY_ENTRY, DEVICE_SCALES_LOOKUP_PREFIX, DEVICE_SCALES_PREFIX, deviceDetailQueryKey,
-  deviceDetailQueryOptions, deviceMutations, deviceQueries,
+  DEVICE_QUERY_ENTRY,
+  DEVICE_SCALES_LOOKUP_PREFIX,
+  DEVICE_SCALES_PREFIX,
+  deviceDetailQueryKey,
+  deviceDetailQueryOptions,
+  deviceQueries,
   invalidateDeviceQueries,
   persistDeviceFormValues,
   scalesLookupQueryKey,
   scalesLookupQueryOptions,
   useDeviceDetailQuery,
-  useDeviceFormSave,
+  useDeviceMutations,
   useDevicesListQuery,
   useDevicesLookupQuery,
-  useScalesLookupQuery
+  useScalesLookupQuery,
+  type DeviceMutationHandlers,
 } from './queries';
 export * from './ui';
 

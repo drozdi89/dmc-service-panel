@@ -3,7 +3,7 @@ import {
   fetchProductsList,
   useProductFormUiStore,
   useProductGroupsQuery,
-  useSetProductArchivedMutation,
+  useSetProductArchivedActions,
   type Product,
   type ProductsListParams,
 } from '@/entities/product';
@@ -13,7 +13,7 @@ import { DebouncedTableFilterDropdown } from '@/shared/ui/DebouncedTableFilterDr
 import { ServerDataTable } from '@/shared/ui/ServerDataTable';
 import { ButtonLoading } from '@/shared/ui/loading';
 import { EditOutlined, InboxOutlined, RollbackOutlined } from '@ant-design/icons';
-import { Button, Modal, Space, Switch, Tag, Tooltip, Typography, message } from 'antd';
+import { Button, Modal, Space, Switch, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { FilterDropdownProps, FilterValue } from 'antd/es/table/interface';
 import { useCallback, useMemo, useState } from 'react';
@@ -64,12 +64,7 @@ export default function ProductsPage() {
 
   const { data: productGroups = [] } = useProductGroupsQuery();
 
-  const archiveMutation = useSetProductArchivedMutation({
-    onSuccess: (product) => {
-      message.success(product.archived ? 'Продукция архивирована' : 'Продукция восстановлена');
-    },
-    onError: (error) => message.error(error.message),
-  });
+  const archiveMutation = useSetProductArchivedActions();
 
   const extraParams = useMemo(
     () => ({

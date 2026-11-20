@@ -1,52 +1,55 @@
 import { useIdempotentMutation } from '@/shared/hooks/useIdempotentMutation';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { App } from 'antd';
 import { useCallback } from 'react';
 import { type LineListItem } from '../model/types';
 import { lineQueries } from './line-queries';
 
+export type LineMutationHandlers = {
+  onSaveSuccess?: () => void;
+  onSaveError?: (error: Error) => void;
+  onDeleteSuccess?: () => void;
+  onDeleteError?: (error: Error) => void;
+};
+
 /**
  * Invalidates all line entity queries (list, lookup, detail, settings).
- *
- * @param queryClient - TanStack Query client.
  */
 export function invalidateLineQueries(queryClient: QueryClient): Promise<void> {
   return queryClient.invalidateQueries({ queryKey: lineQueries.keys.all() });
 }
 
 /**
- * CRUD mutation helpers for production lines (delete + simple list-row save).
+ * List-row CRUD mutations for lines (React Query only).
  * Full editor save orchestration lives in `services/line-service`.
  */
-export const lineMutations = ({
-  callbackSave,
-  callbackDelete,
-}: {
-  callbackSave?: () => void;
-  callbackDelete?: () => void;
-} = {}) => {
+export function useLineMutations(handlers?: LineMutationHandlers) {
   const queryClient = useQueryClient();
-  const { message, modal } = App.useApp();
+
+  const invalidate = useCallback(() => {
+    void invalidateLineQueries(queryClient);
+  }, [queryClient]);
 
   const saveMutation = useIdempotentMutation<LineListItem>({
     onSuccess: () => {
-      void invalidateLineQueries(queryClient);
-      message.success('Линия сохранена');
-      callbackSave?.();
+      invalidate();
+      handlers?.onSaveSuccess?.();
     },
     onError: (error) => {
-      message.error(error.message || 'Не удалось сохранить линию');
+      handlers?.onSaveError?.(
+        error instanceof Error ? error : new Error(String(error)),
+      );
     },
   });
 
   const deleteMutation = useIdempotentMutation<string>({
     onSuccess: () => {
-      void invalidateLineQueries(queryClient);
-      message.success('Линия удалена');
-      callbackDelete?.();
+      invalidate();
+      handlers?.onDeleteSuccess?.();
     },
     onError: (error) => {
-      message.error(error.message || 'Не удалось удалить линию');
+      handlers?.onDeleteError?.(
+        error instanceof Error ? error : new Error(String(error)),
+      );
     },
   });
 
@@ -70,31 +73,9 @@ export const lineMutations = ({
     [saveMutation],
   );
 
-  const handleDelete = useCallback(
-    (record: LineListItem) => {
-      modal.confirm({
-        title: 'Удалить линию?',
-        content: `Линия «${record.linename}» будет удалена без возможности восстановления.`,
-        okText: 'Удалить',
-        okType: 'danger',
-        cancelText: 'Отмена',
-        okButtonProps: { loading: deleteMutation.isPending },
-        onOk: async () => {
-          await deleteMutation.mutateAsync({
-            path: '/api/v2/lines/',
-            method: 'DELETE',
-            body: { id_lines: [record.lineid] },
-          });
-        },
-      });
-    },
-    [deleteMutation, modal],
-  );
-
   return {
     saveMutation,
     deleteMutation,
     handleSubmit,
-    handleDelete,
   };
-};
+}

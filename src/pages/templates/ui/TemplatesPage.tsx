@@ -1,6 +1,6 @@
 import {
   fetchPrintTemplates,
-  printTemplateMutations,
+  usePrintTemplateActions,
   printTemplateQueries,
   usePrintTemplateFormUiStore,
   type PrintTemplate,
@@ -34,7 +34,7 @@ export default function TemplatesPage() {
   const openCreate = usePrintTemplateFormUiStore((s) => s.openCreate);
   const openEdit = usePrintTemplateFormUiStore((s) => s.openEdit);
 
-  const { deleteMutation, handleDelete } = printTemplateMutations();
+  const { deleteMutation, handleDelete } = usePrintTemplateActions();
 
   const columns = useMemo<ColumnsType<PrintTemplate>>(
     () => [

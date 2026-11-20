@@ -1,7 +1,7 @@
 export {
   invalidateProductQueries,
   invalidateProductRelatedQueries,
-  useProductFormSave,
+  useProductSaveMutation,
   useSetProductArchivedMutation,
   type SetProductArchivedVariables,
 } from './product-mutations';

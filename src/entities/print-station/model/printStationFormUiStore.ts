@@ -81,7 +81,7 @@ export function isSamePrintStationFormDialog(
 /**
  * UI-intent store for print-station create/edit dialog (domain state in entity).
  *
- * Persist / list / detail stay in React Query (`printStationMutations`).
+ * Persist / list / detail stay in React Query (`usePrintStationMutations` / actions).
  * The feature form Host subscribes and saves; entity pickers dispatch
  * open/consume.
  */

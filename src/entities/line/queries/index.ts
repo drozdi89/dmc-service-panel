@@ -1,4 +1,8 @@
-export { invalidateLineQueries, lineMutations } from './line-mutations';
+export {
+  invalidateLineQueries,
+  useLineMutations,
+  type LineMutationHandlers,
+} from './line-mutations';
 export {
   LINE_QUERY_ENTRY,
   lineAllowPrintedDmQueryOptions,

@@ -1,6 +1,6 @@
 import {
   fetchLinesList,
-  lineMutations,
+  useLineActions,
   lineQueries,
   useLineFormUiStore,
   type LineListItem,
@@ -17,7 +17,7 @@ import { useMemo } from 'react';
  * Create/edit opens via {@link useLineFormUiStore} → {@link import('@/widgets/line').LineFormModalHost}.
  */
 export default function LinesListPage() {
-  const { deleteMutation, handleDelete } = lineMutations();
+  const { deleteMutation, handleDelete } = useLineActions();
   const openCreate = useLineFormUiStore((s) => s.openCreate);
   const openEdit = useLineFormUiStore((s) => s.openEdit);
 

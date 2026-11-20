@@ -19,7 +19,7 @@ vi.mock('@/entities/print-station', async () => {
   return {
     ...store,
     ...mapping,
-    printStationMutations: () => ({
+    usePrintStationActions: () => ({
       saveMutation: {
         mutateAsync,
         isPending: false,

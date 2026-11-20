@@ -1,6 +1,6 @@
 import {
   isSamePrintTemplateFormDialog,
-  printTemplateMutations,
+  usePrintTemplateActions,
   resetPrintTemplateFormUiStore,
   usePrintTemplateFormUiStore,
   type PrintTemplate,
@@ -15,7 +15,7 @@ import { useCallback, useEffect, useRef } from 'react';
  * App-level host for print-template create/edit.
  *
  * Subscribes to {@link usePrintTemplateFormUiStore}, renders
- * {@link TemplateFormModal}, saves via {@link printTemplateMutations}
+ * {@link TemplateFormModal}, saves via {@link usePrintTemplateActions}
  * (invalidates list/lookup), writes `lastSaved` when `consumerId` is set,
  * then closes on «Сохранить» or keeps open on «Применить» (create → edit).
  * Mount once in {@link import('@/App').AppProviders}.
@@ -32,7 +32,7 @@ export function TemplateFormModalHost() {
   const mountGenerationRef = useRef(0);
 
 
-  const { saveMutation } = printTemplateMutations();
+  const { saveMutation } = usePrintTemplateActions();
 
 
   const open = dialog.kind !== 'none';
@@ -113,7 +113,7 @@ export function TemplateFormModalHost() {
             .openEdit(saved.id, submitted.consumerId);
         }
       } catch {
-        // Errors are surfaced by printTemplateMutations.onError.
+        // Errors are surfaced by usePrintTemplateActions save handlers.
       }
     },
     [close, saveMutation, setLastSaved],

@@ -1,50 +1,52 @@
 import { useIdempotentMutation } from '@/shared/hooks/useIdempotentMutation';
 import { useQueryClient } from '@tanstack/react-query';
-import { App } from 'antd';
 import { useCallback } from 'react';
 import { CODE_GENERATOR_TEMPLATES_PATH } from '../api/api';
 import type { CodeGeneratorTemplate } from '../model/types';
 import { codeGeneratorTemplateQueries } from './code-generator-template-queries';
 
+export type CodeGeneratorTemplateMutationHandlers = {
+  onSaveSuccess?: () => void;
+  onSaveError?: (error: Error) => void;
+  onDeleteSuccess?: () => void;
+  onDeleteError?: (error: Error) => void;
+};
+
 /**
- * Create / update / delete mutations for code generator templates.
- *
- * Invalidates `codeGeneratorTemplateQueries.keys.all()` on success.
- * API errors (including system-template delete) surface via `message.error`.
+ * Create / update / delete mutations for code generator templates (React Query only).
  */
-export const codeGeneratorTemplateMutations = ({
-  callbackSave,
-  callbackDelete,
-}: {
-  callbackSave?: () => void;
-  callbackDelete?: () => void;
-}) => {
+export function useCodeGeneratorTemplateMutations(
+  handlers?: CodeGeneratorTemplateMutationHandlers,
+) {
   const queryClient = useQueryClient();
-  const { message, modal } = App.useApp();
+
+  const invalidate = useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: codeGeneratorTemplateQueries.keys.all(),
+    });
+  }, [queryClient]);
 
   const saveMutation = useIdempotentMutation<CodeGeneratorTemplate>({
     onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: codeGeneratorTemplateQueries.keys.all(),
-      });
-      message.success('Шаблон сохранён');
-      callbackSave?.();
+      invalidate();
+      handlers?.onSaveSuccess?.();
     },
     onError: (error) => {
-      message.error(error.message || 'Не удалось сохранить шаблон');
+      handlers?.onSaveError?.(
+        error instanceof Error ? error : new Error(String(error)),
+      );
     },
   });
 
   const deleteMutation = useIdempotentMutation<string>({
     onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: codeGeneratorTemplateQueries.keys.all(),
-      });
-      message.success('Шаблон удалён');
-      callbackDelete?.();
+      invalidate();
+      handlers?.onDeleteSuccess?.();
     },
     onError: (error) => {
-      message.error(error.message || 'Не удалось удалить шаблон');
+      handlers?.onDeleteError?.(
+        error instanceof Error ? error : new Error(String(error)),
+      );
     },
   });
 
@@ -68,31 +70,9 @@ export const codeGeneratorTemplateMutations = ({
     [saveMutation],
   );
 
-  const handleDelete = useCallback(
-    (record: CodeGeneratorTemplate) => {
-      modal.confirm({
-        title: 'Удалить шаблон?',
-        content: `Шаблон «${record.name}» будет удалён без возможности восстановления.`,
-        okText: 'Удалить',
-        okType: 'danger',
-        cancelText: 'Отмена',
-        okButtonProps: { loading: deleteMutation.isPending },
-        onOk: () => {
-          void deleteMutation.mutateAsync({
-            path: CODE_GENERATOR_TEMPLATES_PATH,
-            method: 'DELETE',
-            body: { id_code_generator_templates: [record.id] },
-          });
-        },
-      });
-    },
-    [deleteMutation, modal],
-  );
-
   return {
     saveMutation,
     deleteMutation,
     handleSubmit,
-    handleDelete,
   };
-};
+}

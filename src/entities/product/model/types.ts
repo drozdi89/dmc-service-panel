@@ -94,38 +94,27 @@ export const EMPTY_PRODUCT_FORM_REMOVED_IDS: ProductFormRemovedIds = {
   articles_removed: [],
 };
 
-/** Nested aggregate create form values (gtin supplied by Host/section). */
-export interface AggregateFormValues {
-  id?: number | string;
-  level: number;
-  name: string;
-  short_name: string;
-  aggr_gtin?: string | null;
-  size: number;
-  rows: number;
-  width_mm: number;
-  template_id?: number | null;
-  code_generator_template_id?: number | null;
-  print_only?: boolean;
-  plain_template_id?: number | null;
-}
+/**
+ * Nested aggregate sub-modal: API create shape without parent `gtin`
+ * (supplied on persist). `id` may be a client key before save.
+ */
+export type AggregateFormValues = Omit<ProductAggregateCreatePayload, 'gtin' | 'id'> & {
+  id?: ProductAggregate['id'] | string;
+  gtin?: ProductAggregateCreatePayload['gtin'];
+};
 
-/** Certificate form values. */
-export interface CertificateFormValues {
-  cert_id?: number | string | null;
-  cert_type: CertificateType;
-  cert_number: string;
-  /** API string or Dayjs in DatePicker; normalize keeps `YYYY-MM-DD`. */
+/** Certificate sub-modal: API row + DatePicker / Switch conveniences. */
+export type CertificateFormValues = Omit<
+  ProductCertificate,
+  'cert_date' | 'cert_id' | 'gtin' | 'priority'
+> & {
+  cert_id?: ProductCertificate['cert_id'] | string;
   cert_date: Dayjs | string;
-  well_number?: string;
-  /** Switch may store boolean; mapped to 0/1 on save. */
-  priority?: number | boolean;
-}
+  priority?: ProductCertificate['priority'] | boolean;
+};
 
-/** Licence form values. */
-export interface LicenceFormValues {
-  lic_id?: number | string | null;
-  lic_number: string;
-  /** DatePicker Dayjs in UI; formatted to `YYYY-MM-DD` on submit. */
+/** Licence sub-modal: API row + DatePicker convenience. */
+export type LicenceFormValues = Omit<ProductLicence, 'lic_date' | 'lic_id' | 'gtin'> & {
+  lic_id?: ProductLicence['lic_id'] | string;
   lic_date: Dayjs | string;
-}
+};

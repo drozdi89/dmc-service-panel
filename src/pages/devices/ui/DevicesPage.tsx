@@ -1,7 +1,7 @@
 import {
   ALL_DEVICE_TYPES,
   DEVICE_TYPE_LABELS,
-  deviceMutations,
+  useDeviceActions,
   deviceQueries,
   deviceRowKey,
   fetchDevicesList,
@@ -28,7 +28,7 @@ export default function DevicesPage() {
   const openCreate = useDeviceFormUiStore((s) => s.openCreate);
   const openEdit = useDeviceFormUiStore((s) => s.openEdit);
 
-  const { deleteMutation, handleDelete } = deviceMutations({});
+  const { deleteMutation, handleDelete } = useDeviceActions();
 
   const listExtraParams = useMemo(
     () => ({

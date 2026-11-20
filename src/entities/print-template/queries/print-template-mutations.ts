@@ -1,25 +1,21 @@
 import { useIdempotentMutation } from '@/shared/hooks/useIdempotentMutation';
 import { useQueryClient } from '@tanstack/react-query';
-import { App } from 'antd';
 import { useCallback } from 'react';
 import { type PrintTemplate } from '../model/types';
 import { printTemplateQueries } from './print-template-queries';
 
+export type PrintTemplateMutationHandlers = {
+  onSaveSuccess?: () => void;
+  onSaveError?: (error: Error) => void;
+  onDeleteSuccess?: () => void;
+  onDeleteError?: (error: Error) => void;
+};
+
 /**
- * Create / update / delete mutations for print templates.
- *
- * On success invalidates {@link printTemplateQueries.keys.all()} so list and
- * lookup (`['print-templates', 'lookup', …]`) refresh after save.
+ * Create / update / delete mutations for print templates (React Query only).
  */
-export const printTemplateMutations = ({
-  callbackSave,
-  callbackDelete,
-}: {
-  callbackSave?: () => void;
-  callbackDelete?: () => void;
-} = {}) => {
+export function usePrintTemplateMutations(handlers?: PrintTemplateMutationHandlers) {
   const queryClient = useQueryClient();
-  const { message, modal } = App.useApp();
 
   const invalidatePrintTemplates = useCallback(() => {
     void queryClient.invalidateQueries({
@@ -30,22 +26,24 @@ export const printTemplateMutations = ({
   const saveMutation = useIdempotentMutation<PrintTemplate>({
     onSuccess: () => {
       invalidatePrintTemplates();
-      message.success('Шаблон сохранён');
-      callbackSave?.();
+      handlers?.onSaveSuccess?.();
     },
     onError: (error) => {
-      message.error(error.message || 'Не удалось сохранить шаблон');
+      handlers?.onSaveError?.(
+        error instanceof Error ? error : new Error(String(error)),
+      );
     },
   });
 
   const deleteMutation = useIdempotentMutation<string>({
     onSuccess: () => {
       invalidatePrintTemplates();
-      message.success('Шаблон удалён');
-      callbackDelete?.();
+      handlers?.onDeleteSuccess?.();
     },
     onError: (error) => {
-      message.error(error.message || 'Не удалось удалить шаблон');
+      handlers?.onDeleteError?.(
+        error instanceof Error ? error : new Error(String(error)),
+      );
     },
   });
 
@@ -75,33 +73,11 @@ export const printTemplateMutations = ({
     [saveMutation],
   );
 
-  const handleDelete = useCallback(
-    (record: PrintTemplate) => {
-      modal.confirm({
-        title: 'Удалить шаблон?',
-        content: `Шаблон «${record.name}» будет удалён без возможности восстановления.`,
-        okText: 'Удалить',
-        okType: 'danger',
-        cancelText: 'Отмена',
-        okButtonProps: { loading: deleteMutation.isPending },
-        onOk: async () => {
-          await deleteMutation.mutateAsync({
-            path: '/api/v2/print_templates/',
-            method: 'DELETE',
-            body: { id_print_templates: [record.id] },
-          });
-        },
-      });
-    },
-    [deleteMutation, modal],
-  );
-
   return {
     saveMutation,
     deleteMutation,
     handleSubmit,
-    handleDelete,
     /** Invalidates list + lookup under `printTemplateQueries.keys.all()`. */
     invalidatePrintTemplates,
   };
-};
+}

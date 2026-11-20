@@ -81,7 +81,7 @@ export function isSamePrintTemplateFormDialog(
 /**
  * UI-intent store for print-template create/edit dialog (domain state in entity).
  *
- * Persist / list / detail stay in React Query (`printTemplateMutations`).
+ * Persist / list / detail stay in React Query (`usePrintTemplateMutations` / actions).
  * The feature form Host subscribes and saves; entity pickers dispatch
  * open/consume.
  */

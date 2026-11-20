@@ -73,10 +73,10 @@ src/
 |---------|------------|
 | `api/` | HTTP (`apiRequest` / `apiRequestData`, `fetch*`, `create*`, `update*`) |
 | `model/` | Алиасы схем API, константы, `*FormUiStore` (Zustand) |
-| `queries/` | Хуки сущности поверх `@/shared/queries` (`factoryQuery` / `factoryMutation` / `useInvalidatingMutation`) |
+| `queries/` | **Только серверный кэш React Query:** ключи, `queryOptions`, обёртки `factoryQuery` / `factoryMutation` / `useInvalidatingMutation`, `mutationFn`, инвалидация. Без UI-событий. |
+| `hooks/` | **Сценарии и UI-события:** тосты, `modal.confirm`, оркестрация сохранения, флаги busy для экрана/Host. Могут вызывать хуки и функции из `queries/`. |
 | `ui/` | Виджеты сущности (select и т.п.) |
 | `lib/` | Хелперы слайса |
-| `hooks/` | Хуки сущности, если не хватает `queries/` |
 
 Публичный API слайса — через `index.ts`:
 
@@ -105,10 +105,12 @@ Deep-import (`@/entities/product/api/...`) в новом коде не испо�
 
 ### React Query (server cache)
 
-- Списки, lookup, detail и простые мутации — в `entities/*/queries`, через `@/shared/queries`.
+- **`entities/*/queries/` — только «идея запроса» через RQ:** что читать/писать, с каким ключом, как инвалидировать. Здесь живут `keys`, `*QueryOptions`, `factoryQuery` / `factoryMutation`, `useInvalidatingMutation` с `mutationFn` и `invalidate`. Не класть `App.useApp()`, `message.*`, `modal.confirm`, навигацию и другую реакцию на действие пользователя.
+- **`entities/*/hooks/` — события и сценарии:** хуки вроде `use*FormSave`, `use*PageActions`, которые берут `mutate` / `mutateAsync` из `queries/` и навешивают тосты, confirm, локальный `isPending` для UI. `queries/` не импортирует `hooks/`; `hooks/` импортирует `queries/` (и `api/` при чистых функциях без RQ).
+- Списки, lookup, detail и тонкие мутации — в `entities/*/queries`, через `@/shared/queries`.
 - `factoryQuery`: ключи `all` / `list` / `lookup` / `detail` (`queriesOptionsKeys`). `fetchList` и `fetchLookup` — разные функции: список и lookup ходят на свои эндпоинты. Оба возвращают `PaginatedResponse` (массив в `response`). Хуки списка и lookup идут через `useServerListQuery` (ключ `[...entry, scope, params]`, предыдущая страница остаётся на экране). Detail — `useQuery`, fetcher `(id, signal)`; если fetcher вернул сырой конверт, `select: selectEnvelopeData`.
 - `selectListItems` читает `page.response`. Конверт `{ success, data }` к этому моменту уже снят `apiRequestData`.
-- `factoryMutation` — create / update / delete одного ресурса с полем `id`: после успеха инвалидирует `keys.all()` и кладёт запись в detail-кэш. Тосты остаются в feature. Составное сохранение (вложенные строки, idempotency, «Применить») пишется в `entities/*/queries` и само инвалидирует `keys.all()`.
+- `factoryMutation` — create / update / delete одного ресурса с полем `id`: после успеха инвалидирует `keys.all()` и кладёт запись в detail-кэш. Тосты и confirm — в `entities/*/hooks` или feature/Host, не в `queries/`. Составное сохранение (вложенные строки, idempotency) — логика в `queries/` или `api/`; побочные UI-эффекты после успеха — в `hooks/`.
 - `useInvalidatingMutation` — мутации singleton / batch без поля `id` в ответе: после успеха инвалидирует переданный `invalidate: QueryKey[]`, затем вызывает `onSuccess` вызывающего. Используется в `entities/*/queries` (integration, parameters, licence) и в `services/*/model/queries.ts`.
 - Сценарии без UI, которые оркеструют несколько entity (сохранение линии, CRPT-шаблоны продуктов), держат query/mutation-хуки в `services/*/model/queries.ts`, а не в features/pages.
 - `defineQueryOptions` задаёт `staleTime` / `gcTime` / `retry` точечно. `factoryQuery` эти тайминги на все запросы не навешивает.
@@ -169,7 +171,7 @@ HTTP только в `entities/*/api` и, если сценарий без UI, �
 ## 8. Creating new slices
 
 ```bash
-mkdir -p src/entities/<name>/{api,model,queries,ui,lib}
+mkdir -p src/entities/<name>/{api,model,queries,hooks,ui,lib}
 mkdir -p src/features/<name>-form/ui
 mkdir -p src/pages/<name>/ui
 # widgets/<name> — если нужен Host модалки на всё приложение
@@ -190,7 +192,7 @@ mkdir -p src/pages/<name>/ui
 ## 10. Golden rules
 
 1. **Import only downward.** Публичный API слайса — `index.ts`.
-2. **RQ for server, Zustand for UI.** UI-store домена — в `entities/<domain>/model`.
+2. **RQ for server, Zustand for UI.** Кэш и мутации — в `entities/<domain>/queries`; тосты/confirm/сценарий save — в `entities/<domain>/hooks` (hooks вызывают queries). UI-store домена — в `entities/<domain>/model`.
 3. **Форма получает объект API.** Дополнительные переменные в объект формы не класть.
 4. **Контракт — `schema.d.ts`.** `openapi.json` неполный; `schema.d.ts` не править руками.
 5. **antd — UI-kit проекта.**
@@ -202,7 +204,7 @@ mkdir -p src/pages/<name>/ui
 Перед планом или новым экраном:
 
 - Какой FSD-слой затронут и что он импортирует вниз?
-- Серверные данные — React Query в `entities/*/queries` через `@/shared/queries`. Флаги диалога — Zustand в `entities/*/model`.
+- Серверные данные — React Query в `entities/*/queries` через `@/shared/queries`; UI-события и композиция save — в `entities/*/hooks`. Флаги диалога — Zustand в `entities/*/model`.
 - Публичный API слайса — `index.ts`.
 - HTTP — в `entities/*/api`. Тип запроса и ответа — схема из `schema.d.ts`; пробел спецификации закрывается расширением этого типа, не новой моделью формы.
 - В форму уходит объект API. Поля, которых в этом объекте нет, в форму не добавляются.

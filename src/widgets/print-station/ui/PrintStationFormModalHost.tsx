@@ -2,7 +2,7 @@ import {
   isSamePrintStationFormDialog,
   mapFormValuesToCreatePayload,
   mapFormValuesToUpdatePayload,
-  printStationMutations,
+  usePrintStationActions,
   resetPrintStationFormUiStore,
   usePrintStationFormUiStore,
   type CreatePrintStationPayload,
@@ -18,7 +18,7 @@ import { useCallback, useEffect, useRef } from 'react';
  * App-level host for print-station create/edit.
  *
  * Subscribes to {@link usePrintStationFormUiStore}, renders
- * {@link PrintStationFormModal}, saves via {@link printStationMutations}
+ * {@link PrintStationFormModal}, saves via {@link usePrintStationActions}
  * (invalidates list/lookup), writes `lastSaved` when `consumerId` is set,
  * then closes on «Сохранить» or keeps open on «Применить» (create → edit).
  * Mount once in {@link AppProviders}.
@@ -35,7 +35,7 @@ export function PrintStationFormModalHost() {
   const mountGenerationRef = useRef(0);
 
 
-  const { saveMutation } = printStationMutations();
+  const { saveMutation } = usePrintStationActions();
 
 
   const open = dialog.kind !== 'none';
@@ -110,7 +110,7 @@ export function PrintStationFormModalHost() {
             .openEdit(saved.station_id, submitted.consumerId);
         }
       } catch {
-        // Errors are surfaced by printStationMutations.onError.
+        // Errors are surfaced by usePrintStationActions save handlers.
       }
     },
     [close, saveMutation, setLastSaved],

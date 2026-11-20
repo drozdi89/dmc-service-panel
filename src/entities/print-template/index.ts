@@ -24,6 +24,7 @@ export type {
   PrintTemplate,
   UpdatePrintTemplatePayload
 } from './model/types';
+export { usePrintTemplateActions } from './hooks';
 export * from './queries';
 export * from './ui';
 
