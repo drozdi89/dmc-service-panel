@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FACTORY_QUERY_SCOPES } from '@/shared/lib/factory-query';
+import { FACTORY_QUERY_SCOPES } from '@/shared/queries';
 import { codeGeneratorTemplateQueries } from './code-generator-template-queries';
 
 describe('codeGeneratorTemplateQueries keys', () => {

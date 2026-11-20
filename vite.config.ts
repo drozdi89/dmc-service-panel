@@ -22,7 +22,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      port: 5173,
+      host: env['VITE_SERVER_HOST'] || true,
+			port: parseInt(env['VITE_SERVER_PORT'] || '3400', 10) || 3400,
+			open: env['VITE_SERVER_OPEN'] === 'true',
       proxy: {
         '/api': {
           target: apiTarget,

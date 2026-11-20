@@ -2,7 +2,7 @@ import {
   factoryQuery,
   type FactoryDetailQueryHookOptions,
   type FactoryQueryOptionsResult,
-} from '@/shared/lib/factory-query';
+} from '@/shared/queries';
 import {
   useQuery,
   type UseQueryOptions,

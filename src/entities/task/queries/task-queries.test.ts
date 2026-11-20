@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FACTORY_QUERY_SCOPES } from '@/shared/lib/factory-query';
+import { FACTORY_QUERY_SCOPES } from '@/shared/queries';
 import { DEFAULT_TASKS_LIST_PARAMS } from '../model/types';
 import { TASK_QUERY_ENTRY, taskQueryKeys } from './task-queries';
 

@@ -4,7 +4,7 @@ import {
   type FactoryDetailQueryHookOptions,
   type FactoryListQueryHookOptions,
   type FactoryQueryOptionsResult,
-} from '@/shared/lib/factory-query';
+} from '@/shared/queries';
 import type { PaginatedResponse } from '@/shared/types/listQuery';
 import {
   useQuery,

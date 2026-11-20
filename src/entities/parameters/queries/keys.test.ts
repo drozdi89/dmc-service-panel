@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FACTORY_QUERY_SCOPES } from '@/shared/lib/factory-query';
+import { FACTORY_QUERY_SCOPES } from '@/shared/queries';
 import { factoryNumbersQueries } from './factory-numbers';
 import {
   FACTORY_NUMBERS_QUERY_KEY,

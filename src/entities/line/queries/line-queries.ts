@@ -7,7 +7,7 @@ import {
   factoryQuery,
   type FactoryDetailQueryHookOptions,
   type FactoryQueryOptionsResult,
-} from '@/shared/lib/factory-query';
+} from '@/shared/queries';
 import type { ListQueryParams } from '@/shared/types/listQuery';
 import {
   fetchLineAllowPrintedDm,

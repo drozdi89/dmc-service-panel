@@ -3,7 +3,7 @@ import {
   useQuery,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import { FACTORY_QUERY_SCOPES } from '@/shared/lib/factory-query';
+import { FACTORY_QUERY_SCOPES } from '@/shared/queries';
 import { fetchTaskList } from '../api/api';
 import type { TaskListResponse, TasksListQuery } from '../model/types';
 

@@ -1,0 +1,209 @@
+---
+name: frontend-architecture
+alwaysApply: true
+description: Feature-Sliced Design for the DMC Service Panel Vite SPA (src/). Use when creating features, entities, pages, forms, or changing app structure.
+---
+
+# Feature-Sliced Design (FSD) — DMC Service Panel (`src/`)
+
+**Корень кода:** `src/` (React + TypeScript + Vite).  
+Алиас: `@/*` → `src/*`. Production `base`: `/admin/`.
+
+Стек: **Ant Design (antd)**, **React Query** (`@tanstack/react-query`), **Zustand** (UI-state), **Axios**, **react-router**.  
+Не копировать Next.js / RSC / MobX-паттерны из других репозиториев.  
+UI-kit проекта — **antd**. Другие UI-библиотеки не подключать.
+
+## 1. Layer hierarchy (STRICT — bottom to top)
+
+```
+app/ → pages, layouts, widgets, features, services, entities, shared
+pages/ → layouts, widgets, features, services, entities, shared
+layouts/ → widgets, features, services, entities, shared
+widgets/ → features, services, entities, shared
+features/ → services, entities, shared
+services/ → entities, shared
+entities/ → shared
+shared/ → (только внешние библиотеки, без импортов из проекта)
+```
+
+Слой `services/` — оркестрация без UI (`integration-service`, `line-service`). Не плодить сервис без сценария, который не помещается в entity.  
+Слой `modules/` **запрещён**.
+
+**IMPORTANT:** импорты **только вниз**.  
+- Feature не импортирует другие features.  
+- Entity не импортирует services / features / widgets / pages.  
+- Shared не импортирует ничего из `src/` выше себя.  
+- ESLint `boundaries/entry-point`: публичный API слайса — `index.ts`.
+
+## 2. Project structure (`src/`)
+
+```
+src/
+├── main.tsx                 # Vite entry: AppProviders + BrowserRouter
+├── App.tsx                  # App (useRoutes) + AppProviders
+├── openapi.json             # частичная OpenAPI 3.1 (не весь бэкенд)
+├── app/                     # routes, menuRegistry, AdminShell
+├── pages/                   # экран: routes.ts + ui/*Page
+├── layouts/admin-layout/    # sider / header / content
+├── widgets/                 # *FormModalHost, один раз в AppProviders
+├── features/                # сценарий UI (форма, drawer, секция)
+├── services/                # оркестрация без UI
+├── entities/                # домен: api, model, queries, ui, lib
+└── shared/
+    ├── api/                 # client, schema.d.ts, types, headers, listQuery
+    ├── queries/             # factoryQuery, factoryMutation, ключи, defineQueryOptions
+    ├── lib/                 # admin-routing, даты; factory-query — реэкспорт @/shared/queries
+    ├── hooks/               # useServerListQuery, useIdempotentMutation, …
+    ├── model/               # кросс-доменные типы (resource form bridge)
+    ├── ui/                  # обёртки antd (таблица, picker, модалки)
+    ├── types/               # list query contract
+    ├── validation/
+    └── vars/
+```
+
+Слайсы сущности: `product`, `device`, `line`, `print-station`, `print-template`, `code-generator-template`, `integration`, `parameters`, `licence`, `task`.  
+Сценарии: `*-form`, `line-editor`, `integration-*`, `parameters-*`, `licence-*`, `task-list`.  
+Экраны: `parameters`, `integrations`, `manager`, `products`, `devices`, `templates`, `code-generator-templates`, `lines`, `print-stations`, `licences`.
+
+Отдельного сегмента `stores/` нет. Zustand домена — в `entities/<domain>/model`. Фабрики серверного кэша — `@/shared/queries` (`factoryQuery`, `factoryMutation`). `@/shared/lib/factory-query` только реэкспортирует их.
+
+## 3. Slice segments
+
+| Segment | Назначение |
+|---------|------------|
+| `api/` | HTTP (`apiRequest` / `apiRequestData`, `fetch*`, `create*`, `update*`) |
+| `model/` | Алиасы схем API, константы, `*FormUiStore` (Zustand) |
+| `queries/` | Хуки сущности поверх `@/shared/queries` (`factoryQuery` / `factoryMutation`) |
+| `ui/` | Виджеты сущности (select и т.п.) |
+| `lib/` | Хелперы слайса |
+| `hooks/` | Хуки сущности, если не хватает `queries/` |
+
+Публичный API слайса — через `index.ts`:
+
+```tsx
+import { useProductDetailQuery, useProductFormUiStore } from '@/entities/product'
+```
+
+Deep-import (`@/entities/product/api/...`) в новом коде не использовать.
+
+## 4. Layer responsibilities
+
+| Layer | Responsibility |
+|-------|----------------|
+| `app/` | Сборка маршрутов и меню, оболочка админки |
+| `pages/` | Экран: `routes.ts` + композиция features. Свой `routes` и пункт меню |
+| `layouts/` | `AdminLayout`: sider / header / content |
+| `widgets/` | Host модалки ресурса. Монтируется один раз в `AppProviders` |
+| `features/` | Разметка сценария (форма, drawer, секция). Данные и сохранение — из entity |
+| `services/` | Оркестрация нескольких entity без UI |
+| `entities/` | Контракт API, запросы, UI-store диалога, примитивы сущности |
+| `shared/` | Клиент, фабрика запросов, UI-kit, общие типы |
+
+Страница открывает форму через `openCreate` / `openEdit` entity-store. Host в `AppProviders` подписан на store, рендерит feature-форму и сохраняет через мутацию entity. Повторно Host на странице списка не монтировать.
+
+## 5. Server state vs UI state
+
+### React Query (server cache)
+
+- Списки, lookup, detail и простые мутации — в `entities/*/queries`, через `@/shared/queries`.
+- `factoryQuery`: ключи `all` / `list` / `lookup` / `detail` (`queriesOptionsKeys`). `fetchList` и `fetchLookup` — разные функции: список и lookup ходят на свои эндпоинты. Оба возвращают `PaginatedResponse` (массив в `response`). Хуки списка и lookup идут через `useServerListQuery` (ключ `[...entry, scope, params]`, предыдущая страница остаётся на экране). Detail — `useQuery`, fetcher `(id, signal)`; если fetcher вернул сырой конверт, `select: selectEnvelopeData`.
+- `selectListItems` читает `page.response`. Конверт `{ success, data }` к этому моменту уже снят `apiRequestData`.
+- `factoryMutation` — create / update / delete одного ресурса с полем `id`: после успеха инвалидирует `keys.all()` и кладёт запись в detail-кэш. Тосты остаются в feature. Составное сохранение (вложенные строки, idempotency, «Применить») пишется в `entities/*/queries` и само инвалидирует `keys.all()`.
+- `defineQueryOptions` задаёт `staleTime` / `gcTime` / `retry` точечно. `factoryQuery` эти тайминги на все запросы не навешивает.
+- Серверный список целиком в Zustand не дублировать.
+
+### Zustand (UI state)
+
+- Диалог формы (`none` | `create` | `edit`), `consumerId`, `lastSaved` — в `entities/<domain>/model/*FormUiStore.ts`.
+- Общие типы моста — `ResourceFormDialog` / `ResourceFormSubmitOptions` в `@/shared/model`.
+- «Сохранить» закрывает диалог (`close: true`). «Применить» оставляет его открытым (`close: false`); после create Host переводит диалог в edit.
+- Доменный store в `features/` не класть: его открывают страница, picker и Host.
+
+## 6. Форма = объект API
+
+В форму передаётся объект, который вернул API. Имена полей формы — поля этой схемы.
+
+```tsx
+const [form] = Form.useForm<Product>()
+
+form.setFieldsValue(product) // product — запись из GET, тип components['schemas'][...]
+```
+
+- Тип формы — алиас схемы (`Product`, `DataMarkCredentials`, …) или сама схема `components['schemas']['…']`.
+- Тело создания и обновления — схема create/update из того же контракта (или тот же объект, если бэкенд принимает его).
+- Пустые значения и формат дат приводятся на границе `entities/*/api` или в `queries` при сборке тела запроса.
+
+В объект формы не добавляются переменные, которых нет в объекте API: отдельные `*FormValues`, переименованные поля, UI-алиасы, списки `*_removed`, временные id, флаги только для экрана.
+
+Состояние сценария живёт рядом с формой, не внутри неё:
+
+- открытие диалога, `consumerId`, `lastSaved` — Zustand `*FormUiStore`;
+- id записей, которые нужно удалить отдельным запросом, и прочий UI-контекст — локальный state компонента или тот же store.
+
+Если в OpenAPI нет поля, которое API реально отдаёт, тип сущности расширяется от схемы (`Schema & { field?: … }`) с комментарием, что спецификация неполная. Форма получает уже этот объект. Выдуманные поля, которых нет ни в спецификации, ни в ответе API, в тип и в форму не добавлять.
+
+## 7. Контракт API
+
+| Файл | Роль |
+|------|------|
+| `src/openapi.json` | Частичная спецификация OpenAPI 3.1. Не все эндпоинты и поля бэкенда в ней есть |
+| `src/shared/api/schema.d.ts` | Типы клиента, сгенерированные `openapi-typescript`. Вручную не править |
+
+Импорт: `components`, `paths`, `operations` из `@/shared/api` (реэкспорт `@/shared/api/types`).
+
+В `entities/*/model` схема получает доменное имя:
+
+```ts
+import type { components } from '@/shared/api'
+
+export type Product = components['schemas']['GetProductsSchema']
+export type ProductUpdatePayload = components['schemas']['UpdateProductsSchema']
+```
+
+Новый эндпоинт описывается в OpenAPI, затем типы перегенерируются (`generate:api-types`). Пока поля нет в `schema.d.ts`, код опирается на то, что спецификация неполная: узкое расширение типа сущности, а не параллельная модель формы.
+
+HTTP только в `entities/*/api` и, если сценарий без UI, в `services/*/model`. Feature ходит в API через хуки и функции entity.
+
+## 8. Creating new slices
+
+```bash
+mkdir -p src/entities/<name>/{api,model,queries,ui,lib}
+mkdir -p src/features/<name>-form/ui
+mkdir -p src/pages/<name>/ui
+# widgets/<name> — если нужен Host модалки на всё приложение
+```
+
+- `entities/<name>/index.ts` — публичный API.
+- `pages/<name>/routes.ts` — `createAdminRoute` + пункт меню; подключить в `app/menuRegistry.ts`.
+- Формы и таблицы — antd. Повторяемые обёртки — `@/shared/ui` или `entities/*/ui`.
+- Host модалки ресурса — `widgets/<name>`, один mount в `AppProviders`.
+
+## 9. Routing & providers
+
+- Vite SPA + `react-router`: маршруты в `app/routes.tsx`, страницы лениво из `pages/*/routes.ts`.
+- Оболочка — `AdminShell` → `layouts/admin-layout`.
+- `AppProviders`: `QueryClientProvider`, antd `ConfigProvider` (`ruRU`) + `App`, Host-ы форм.
+- `BrowserRouter` — в `main.tsx`.
+
+## 10. Golden rules
+
+1. **Import only downward.** Публичный API слайса — `index.ts`.
+2. **RQ for server, Zustand for UI.** UI-store домена — в `entities/<domain>/model`.
+3. **Форма получает объект API.** Дополнительные переменные в объект формы не класть.
+4. **Контракт — `schema.d.ts`.** `openapi.json` неполный; `schema.d.ts` не править руками.
+5. **antd — UI-kit проекта.**
+
+## 11. Architecture proposals
+
+Источник истины — код в `src/`. `src/ARCHITECTURE.md` — краткая карта слоёв; при расхождении верен код и это правило.
+
+Перед планом или новым экраном:
+
+- Какой FSD-слой затронут и что он импортирует вниз?
+- Серверные данные — React Query в `entities/*/queries` через `@/shared/queries`. Флаги диалога — Zustand в `entities/*/model`.
+- Публичный API слайса — `index.ts`.
+- HTTP — в `entities/*/api`. Тип запроса и ответа — схема из `schema.d.ts`; пробел спецификации закрывается расширением этого типа, не новой моделью формы.
+- В форму уходит объект API. Поля, которых в этом объекте нет, в форму не добавляются.
+- Нет `feature → feature`, `entity → feature/widget/page`, нет слоя `modules/`.
+- Новый экран: `pages/` + feature + entity (api/queries). Маршрут — в `pages/*/routes.ts` и `app/menuRegistry.ts`. Host модалки — в `widgets/` и `AppProviders`.
+- Смешанная задача backend+UI: сначала сверить путь и схему с `src/openapi.json` / `schema.d.ts`, затем UI.

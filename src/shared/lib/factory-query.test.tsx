@@ -12,7 +12,7 @@ import {
 	factoryQuery,
 	selectEnvelopeData,
 	selectListItems,
-} from './factory-query';
+} from '@/shared/queries';
 
 interface Item {
 	id: number;

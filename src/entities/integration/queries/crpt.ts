@@ -3,7 +3,7 @@ import {
   type UseQueryOptions,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import { factoryQuery } from '@/shared/lib/factory-query';
+import { factoryQuery } from '@/shared/queries';
 import type { ListQueryParams } from '@/shared/types/listQuery';
 import {
   fetchCrptOrganization,
