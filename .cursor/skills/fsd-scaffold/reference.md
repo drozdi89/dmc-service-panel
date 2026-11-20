@@ -5,7 +5,7 @@
 | Сценарий | Смотреть |
 |----------|----------|
 | Простой CRUD + Host | `widgets/print-station`, `entities/print-station` |
-| factoryMutation | `entities/print-template/queries/print-template-mutations.ts` |
+| factoryQuery + factoryMutation (merged) | `entities/print-template/queries/print-template-queries.ts` |
 | Модалка с табами + visibility | `features/product-form` + `ProductFormModalTabs` |
 | useWatch под Form | `features/print-station-form/ui/PrintStationFormFields.tsx` |
 | Сложная форма (линия) | `features/line-editor`, `services/line-service` |

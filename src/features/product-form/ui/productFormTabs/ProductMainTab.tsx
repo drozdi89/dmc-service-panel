@@ -58,7 +58,7 @@ export function ProductMainTab({
     assortmentRequired,
     volumeRequired,
     showWeightBounds,
-  } = useMemo(() => visibility ??visibilityFormControl(values), [visibility, values]);
+  } = useMemo(() => visibility ?? visibilityFormControl(values), [visibility, values]);
 
   const measureUnit = Form.useWatch('measure_unit', form) as string | undefined;
   const contractCommissioning = Form.useWatch(
@@ -72,7 +72,7 @@ export function ProductMainTab({
   /** Reset PG-change tracking when another product is loaded into the form. */
   useEffect(() => {
     prevPgRef.current = undefined;
-  }, [_product?.gtin, isEdit]);
+  }, [product?.gtin, isEdit]);
 
   /**
    * Desktop `pg_changed` → `show_hide_vsd_control`: force checkbox to

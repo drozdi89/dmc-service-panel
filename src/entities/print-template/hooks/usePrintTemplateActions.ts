@@ -1,7 +1,7 @@
 import { App } from 'antd';
 import { useCallback } from 'react';
 import { type PrintTemplate } from '../model/types';
-import { printTemplateFactory } from '../queries/print-template-mutations';
+import { printTemplateQueries } from '../queries';
 
 /**
  * Print template save/delete with toasts and delete confirmation.
@@ -15,7 +15,7 @@ export function usePrintTemplateActions({
 } = {}) {
   const { message, modal } = App.useApp();
 
-  const createMutation = printTemplateFactory.useCreateMutation({
+  const createMutation = printTemplateQueries.useCreateMutation({
     onSuccess: () => {
       message.success('Шаблон сохранён');
       callbackSave?.();
@@ -25,7 +25,7 @@ export function usePrintTemplateActions({
     },
   });
 
-  const updateMutation = printTemplateFactory.useUpdateMutation({
+  const updateMutation = printTemplateQueries.useUpdateMutation({
     onSuccess: () => {
       message.success('Шаблон сохранён');
       callbackSave?.();
@@ -35,7 +35,7 @@ export function usePrintTemplateActions({
     },
   });
 
-  const deleteMutation = printTemplateFactory.useDeleteMutation({
+  const deleteMutation = printTemplateQueries.useDeleteMutation({
     onSuccess: () => {
       message.success('Шаблон удалён');
       callbackDelete?.();
