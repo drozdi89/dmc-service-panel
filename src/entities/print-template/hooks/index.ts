@@ -1,1 +1,1 @@
-export { usePrintTemplateActions } from './usePrintTemplateActions';
+export * from './usePrintTemplateActions';

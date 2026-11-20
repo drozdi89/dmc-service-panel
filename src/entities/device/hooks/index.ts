@@ -1,2 +1,2 @@
-export { useDeviceActions } from './useDeviceActions';
-export { useDeviceFormSave } from './useDeviceFormSave';
+export * from './useDeviceActions';
+export * from './useDeviceFormSave';

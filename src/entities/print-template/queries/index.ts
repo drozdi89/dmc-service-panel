@@ -1,3 +1,3 @@
-export { printTemplateFactory } from './print-template-mutations';
-export { printTemplateQueries } from './print-template-queries';
+export * from './print-template-mutations';
+export * from './print-template-queries';
 

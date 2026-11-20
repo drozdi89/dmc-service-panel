@@ -1,17 +1,6 @@
-export {
-  PrintTemplateCreateButton,
-  type PrintTemplateCreateButtonProps,
-} from './PrintTemplateCreateButton';
-export {
-  PrintTemplateEditButton,
-  type PrintTemplateEditButtonProps,
-} from './PrintTemplateEditButton';
-export {
-  PrintTemplateResourcePicker,
-  type PrintTemplateResourcePickerProps,
-} from './PrintTemplateResourcePicker';
-export {
-  PrintTemplateResourceListEditor,
-  type PrintTemplateResourceListEditorProps,
-} from './PrintTemplateResourceListEditor';
-export { SelectPrintTemplate } from './SelectPrintTemplate';
+export * from './PrintTemplateCreateButton';
+export * from './PrintTemplateEditButton';
+export * from './PrintTemplateResourceListEditor';
+export * from './PrintTemplateResourcePicker';
+export * from './SelectPrintTemplate';
+

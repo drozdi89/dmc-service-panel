@@ -1,1 +1,1 @@
-export { useLineActions } from './useLineActions';
+export * from './useLineActions';

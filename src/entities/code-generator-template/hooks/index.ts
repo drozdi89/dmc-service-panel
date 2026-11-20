@@ -1,1 +1,1 @@
-export { useCodeGeneratorTemplateActions } from './useCodeGeneratorTemplateActions';
+export * from './useCodeGeneratorTemplateActions';

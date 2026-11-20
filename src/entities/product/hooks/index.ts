@@ -1,2 +1,2 @@
-export { useProductFormSave } from './useProductFormSave';
-export { useSetProductArchivedActions } from './useSetProductArchivedActions';
+export * from './useProductFormSave';
+export * from './useSetProductArchivedActions';
