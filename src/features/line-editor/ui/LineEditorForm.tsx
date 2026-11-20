@@ -1,0 +1,116 @@
+import {
+  computeLineEditorVisibility,
+  type LineEditorFormState,
+} from '@/entities/line';
+import type { FormInstance, TabsProps } from 'antd';
+import { Form, Tabs } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
+import { LineAggregationTab } from './LineAggregationTab';
+import { LineFavouriteProductsTab } from './LineFavouriteProductsTab';
+import { LineMainTab } from './LineMainTab';
+import { LineIdentityFields } from './lineFormSections/LineIdentityFields';
+
+/**
+ * Registers a Form field without UI so `preserve` / `getFieldsValue(true)`
+ * keep list values across tab switches (and future `destroyInactiveTabPane`).
+ */
+function FormStoreField(_props: {
+  value?: unknown;
+  onChange?: (value: unknown) => void;
+}): null {
+  return null;
+}
+
+/** Props for the full-screen line editor Form shell (tabs + visibility). */
+export interface LineEditorFormProps {
+  disabled?: boolean;
+  /** Whether the editor is creating a new line. */
+  isNew: boolean;
+  /**
+   * Defaults applied once on mount via Form `initialValues`.
+   * Remount with a new `key` (line id / `'new'`) to load another line;
+   * do not pass a fresh object on every query refetch.
+   */
+  initialValues: LineEditorFormState;
+  /**
+   * Receives the Form instance so the page can `getFieldsValue(true)` on save
+   * and `Form.useWatch('name', form)` for the title.
+   * Called with `null` on unmount so the page clears a detached handle.
+   */
+  onFormReady?: (form: FormInstance<LineEditorFormState> | null) => void;
+}
+
+/**
+ * Line editor Form shell: owns `Form.useForm`, Tabs, and active-tab reset when
+ * aggregation/products tabs hide. Tab bodies read/write via Form instance.
+ *
+ * Mount with `key={lineId}` (or `'new'`) so create→edit remounts cleanly.
+ * Used inside {@link LineFormModal}; device/template Hosts stay app-mounted.
+ */
+export function LineEditorForm({
+  isNew,
+  disabled,
+  initialValues,
+  onFormReady,
+}: LineEditorFormProps) {
+  const [form] = Form.useForm<LineEditorFormState>();
+  const [activeTab, setActiveTab] = useState('main');
+
+  const watchedValues = Form.useWatch([], form) as LineEditorFormState | undefined;
+  const visibility = useMemo(
+    () =>
+      computeLineEditorVisibility(
+        {
+          ...initialValues,
+          ...(watchedValues ?? {}),
+        },
+        isNew,
+      ),
+    [initialValues, isNew, watchedValues],
+  );
+
+  useEffect(() => {
+    onFormReady?.(form);
+    return () => {
+      onFormReady?.(null);
+    };
+  }, [form, onFormReady]);
+
+  const tabItems = useMemo((): NonNullable<TabsProps['items']> => {
+    return [{
+      key: 'main',
+      label: 'Основные',
+      children: <LineMainTab isNew={isNew} visibility={visibility} />,
+    }, {
+      key: 'aggregation',
+      label: 'Агрегация',
+      children: <LineAggregationTab visibility={visibility} />,
+    }, {
+      key: 'products',
+      label: 'Продукция',
+      children: (
+        <LineFavouriteProductsTab visibility={visibility} />
+      ),
+    }];
+  }, [isNew, visibility]);
+
+  return (
+    <Form form={form} component={false} layout="horizontal" initialValues={initialValues} disabled={disabled}>
+      <LineIdentityFields visibility={visibility} />
+      <Form.Item name="aggregation_levels" hidden preserve noStyle>
+        <FormStoreField />
+      </Form.Item>
+      <Form.Item name="deleted_aggregation_level_ids" hidden preserve noStyle>
+        <FormStoreField />
+      </Form.Item>
+      <Form.Item name="favourite_gtins" hidden preserve noStyle>
+        <FormStoreField />
+      </Form.Item>
+      {visibility.showExtendedTabs && <Tabs size="small" activeKey={activeTab} onChange={setActiveTab} items={tabItems} styles={{
+        header: {
+          marginBottom: 4,
+        }
+      }} />}
+    </Form>
+  );
+}

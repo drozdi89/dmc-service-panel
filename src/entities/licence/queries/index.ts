@@ -1,0 +1,27 @@
+export {
+  CLIENTS_QUERY_ENTRY,
+  LICENCE_QUERY_ROOT,
+  MACT_LICENCES_QUERY_KEY,
+  MACT_PERSONAL_ACCOUNT_QUERY_KEY,
+  MACT_SUBSCRIPTION_QUERY_KEY,
+  REGISTERED_CLIENTS_QUERY_KEY,
+} from './keys';
+export {
+  clientQueries,
+  DEFAULT_MACT_LICENCES_PAGE_SIZE,
+  mactLicencesQueryOptions,
+  mactPersonalAccountQueryOptions,
+  mactSubscriptionQueryOptions,
+  registeredClientsQueryOptions,
+  useClientDetailQuery,
+  useClientsListQuery,
+  useClientsLookupQuery,
+  useMactLicencesQuery,
+  useMactPersonalAccountQuery,
+  useMactSubscriptionQuery,
+  useRegisteredClientsQuery,
+  type MactLicencesQueryOptions,
+  type MactPersonalAccountQueryOptions,
+  type MactSubscriptionQueryOptions,
+  type RegisteredClientsQueryOptions,
+} from './licence-queries';
