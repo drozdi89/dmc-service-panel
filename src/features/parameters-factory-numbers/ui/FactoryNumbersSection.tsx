@@ -1,6 +1,6 @@
 import {
   FACTORY_NUMBERS_QUERY_KEY,
-  factoryNumbersMutations,
+  factoryNumbersQueries,
   fetchFactoryNumbers,
   type FactoryNumberRow,
 } from '@/entities/parameters';
@@ -27,7 +27,7 @@ export function FactoryNumbersSection() {
 
   const showSaveError = (error: Error) => message.error(error.message || 'Ошибка сохранения');
 
-  const createMutation = factoryNumbersMutations.useCreateMutation({
+  const createMutation = factoryNumbersQueries.useCreateMutation({
     onSuccess: () => {
       message.success('Заводской номер добавлен');
       setModalOpen(false);
@@ -35,7 +35,7 @@ export function FactoryNumbersSection() {
     onError: showSaveError,
   });
 
-  const updateMutation = factoryNumbersMutations.useUpdateMutation({
+  const updateMutation = factoryNumbersQueries.useUpdateMutation({
     onSuccess: () => {
       message.success('Заводской номер обновлён');
       setModalOpen(false);
@@ -43,7 +43,7 @@ export function FactoryNumbersSection() {
     onError: showSaveError,
   });
 
-  const deleteMutation = factoryNumbersMutations.useDeleteMutation({
+  const deleteMutation = factoryNumbersQueries.useDeleteMutation({
     onSuccess: () => {
       message.success('Заводской номер удалён');
     },

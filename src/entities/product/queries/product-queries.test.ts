@@ -36,6 +36,11 @@ describe('productQueries keys', () => {
     ]);
   });
 
+  it('exposes create/update mutation hooks on the merged API', () => {
+    expect(typeof productQueries.useCreateMutation).toBe('function');
+    expect(typeof productQueries.useUpdateMutation).toBe('function');
+  });
+
   it('builds related keys for groups / certificates / licences / aggregates', () => {
     const gtin = '04601234567890';
 

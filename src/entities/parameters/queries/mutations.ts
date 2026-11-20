@@ -1,45 +1,26 @@
 import { createIdempotencyKey } from '@/shared/api';
 import {
-  factoryMutation,
   useInvalidatingMutation,
   type EntityMutationOptions,
 } from '@/shared/queries';
 import {
-  createFactoryNumber,
-  deleteFactoryNumbers,
   saveFtpConfiguration,
   saveMarkingOptionsBatch,
   saveTeleBotSetting,
   saveWatchdogConfiguration,
-  updateFactoryNumber,
 } from '../api/api';
 import type {
-  FactoryNumberRow,
   FtpConfiguration,
   MarkingOptionEntry,
   TeleBotSettingRow,
   WatchdogConfiguration,
 } from '../model/types';
 import {
-  FACTORY_NUMBERS_QUERY_KEY,
   FTP_QUERY_KEY,
   SETTINGS_BUNDLE_QUERY_KEY,
   TELE_BOT_QUERY_KEY,
   WATCHDOG_QUERY_KEY,
 } from './keys';
-
-/** Create / update / delete mutations for factory numbers. */
-export const factoryNumbersMutations = factoryMutation<FactoryNumberRow, number>({
-  entry: FACTORY_NUMBERS_QUERY_KEY,
-  fetchCreate: ({ factory_number = '', is_default = false }) =>
-    createFactoryNumber({ factory_number, is_default }, createIdempotencyKey()),
-  fetchUpdate: (id, { factory_number, is_default }) =>
-    updateFactoryNumber(id, { factory_number, is_default }, createIdempotencyKey()),
-  fetchDelete: async (id) => {
-    await deleteFactoryNumbers([id], createIdempotencyKey());
-    return null;
-  },
-});
 
 /** Upserts marking options (settings bundle) in one batch. */
 export function useSaveMarkingOptionsMutation(

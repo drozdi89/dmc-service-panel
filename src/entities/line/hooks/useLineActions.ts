@@ -1,7 +1,7 @@
 import { App } from 'antd';
 import { useCallback } from 'react';
 import type { LineListItem } from '../model/types';
-import { lineListFactory } from '../queries/line-mutations';
+import { lineQueries } from '../queries';
 
 /**
  * Line list delete/save with toasts and delete confirmation.
@@ -15,7 +15,7 @@ export function useLineActions({
 } = {}) {
   const { message, modal } = App.useApp();
 
-  const createMutation = lineListFactory.useCreateMutation({
+  const createMutation = lineQueries.useCreateMutation({
     onSuccess: () => {
       message.success('Линия сохранена');
       callbackSave?.();
@@ -25,7 +25,7 @@ export function useLineActions({
     },
   });
 
-  const updateMutation = lineListFactory.useUpdateMutation({
+  const updateMutation = lineQueries.useUpdateMutation({
     onSuccess: () => {
       message.success('Линия сохранена');
       callbackSave?.();
@@ -35,7 +35,7 @@ export function useLineActions({
     },
   });
 
-  const deleteMutation = lineListFactory.useDeleteMutation({
+  const deleteMutation = lineQueries.useDeleteMutation({
     onSuccess: () => {
       message.success('Линия удалена');
       callbackDelete?.();

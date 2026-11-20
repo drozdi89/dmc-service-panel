@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { FACTORY_QUERY_SCOPES } from '@/shared/queries';
-import { codeGeneratorTemplateQueries } from './code-generator-template-queries';
+import {
+  CODE_GENERATOR_TEMPLATE_QUERY_ENTRY,
+  codeGeneratorTemplateQueries,
+} from './code-generator-template-queries';
 
 describe('codeGeneratorTemplateQueries keys', () => {
   it('uses entry code-generator-templates with list / lookup / detail scopes', () => {
     const params = { size: 20, number: 0, q: 'sscc' };
 
+    expect(CODE_GENERATOR_TEMPLATE_QUERY_ENTRY).toEqual(['code-generator-templates']);
     expect(codeGeneratorTemplateQueries.keys.all()).toEqual([
-      'code-generator-templates',
+      ...CODE_GENERATOR_TEMPLATE_QUERY_ENTRY,
     ]);
     expect(codeGeneratorTemplateQueries.keys.list()).toEqual([
       'code-generator-templates',
@@ -32,5 +36,11 @@ describe('codeGeneratorTemplateQueries keys', () => {
       FACTORY_QUERY_SCOPES.detail,
       12,
     ]);
+  });
+
+  it('exposes CRUD mutation hooks on the merged API', () => {
+    expect(typeof codeGeneratorTemplateQueries.useCreateMutation).toBe('function');
+    expect(typeof codeGeneratorTemplateQueries.useUpdateMutation).toBe('function');
+    expect(typeof codeGeneratorTemplateQueries.useDeleteMutation).toBe('function');
   });
 });

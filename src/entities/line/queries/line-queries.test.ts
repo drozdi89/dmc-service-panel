@@ -14,7 +14,7 @@ describe('line query keys', () => {
     const params = { size: 50, number: 0, q: 'line' };
 
     expect(LINE_QUERY_ENTRY).toEqual(['lines']);
-    expect(lineQueries.keys.all()).toEqual(['lines']);
+    expect(lineQueries.keys.all()).toEqual([...LINE_QUERY_ENTRY]);
     expect(lineQueries.keys.list()).toEqual(['lines', FACTORY_QUERY_SCOPES.list]);
     expect(lineQueries.keys.list(params)).toEqual([
       'lines',
@@ -55,5 +55,11 @@ describe('line query keys', () => {
       'lines',
       'printed-dm-raw',
     ]);
+  });
+
+  it('exposes list-row CRUD mutation hooks on the merged API', () => {
+    expect(typeof lineQueries.useCreateMutation).toBe('function');
+    expect(typeof lineQueries.useUpdateMutation).toBe('function');
+    expect(typeof lineQueries.useDeleteMutation).toBe('function');
   });
 });

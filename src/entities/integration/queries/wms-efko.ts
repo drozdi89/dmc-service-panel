@@ -1,10 +1,17 @@
+import { createIdempotencyKey } from '@/shared/api';
+import { useInvalidatingMutation, type EntityMutationOptions } from '@/shared/queries';
 import {
   useQuery,
   type UseQueryOptions,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import { fetchAllLines, fetchWmsEfkoSettings } from '../api/api';
-import type { LineListItem, WmsEfkoSettings } from '../model/types';
+import {
+  fetchAllLines,
+  fetchWmsEfkoSettings,
+  saveWmsEfkoSettings,
+  testWmsEfkoConnection,
+} from '../api/api';
+import type { LineListItem, WmsEfkoSettings, WmsEfkoSettingsPayload } from '../model/types';
 import { WMS_EFKO_LINES_QUERY_KEY, WMS_EFKO_QUERY_KEY } from './keys';
 
 /** Query options for WMS (Efko) exchange settings. */
@@ -61,5 +68,29 @@ export function useAllLinesQuery(
     queryKey: WMS_EFKO_LINES_QUERY_KEY,
     queryFn: fetchAllLines,
     ...options,
+  });
+}
+
+export function useSaveWmsEfkoSettingsMutation(
+  options?: EntityMutationOptions<unknown, WmsEfkoSettingsPayload>,
+) {
+  return useInvalidatingMutation({
+    ...options,
+    invalidate: [WMS_EFKO_QUERY_KEY],
+    mutationFn: (payload: WmsEfkoSettingsPayload) =>
+      saveWmsEfkoSettings(payload, createIdempotencyKey()),
+  });
+}
+
+export function useTestWmsEfkoConnectionMutation(
+  options?: EntityMutationOptions<{ ok: boolean }, WmsEfkoSettingsPayload>,
+) {
+  return useInvalidatingMutation({
+    ...options,
+    invalidate: [WMS_EFKO_QUERY_KEY],
+    mutationFn: async (payload: WmsEfkoSettingsPayload) => {
+      await saveWmsEfkoSettings(payload, createIdempotencyKey());
+      return testWmsEfkoConnection(createIdempotencyKey());
+    },
   });
 }

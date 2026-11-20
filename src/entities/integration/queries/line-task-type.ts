@@ -1,9 +1,16 @@
+import { createIdempotencyKey } from '@/shared/api';
+import { useInvalidatingMutation, type EntityMutationOptions } from '@/shared/queries';
 import {
   useQuery,
   type UseQueryOptions,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import { fetchAllLines, fetchLineOptions } from '../api/api';
+import {
+  createLineOptions,
+  fetchAllLines,
+  fetchLineOptions,
+  updateLineOptions,
+} from '../api/api';
 import type { LineOptions, LineTaskTypeRow } from '../model/types';
 import { LINE_TASK_TYPES_QUERY_KEY, lineOptionsQueryKey } from './keys';
 
@@ -99,5 +106,39 @@ export function useLineOptionsQuery(
   return useQuery({
     ...lineOptionsQueryOptions(lineid),
     ...options,
+  });
+}
+
+export function useSaveLineTaskTypesMutation(
+  options?: EntityMutationOptions<number, LineTaskTypeRow[]>,
+) {
+  return useInvalidatingMutation({
+    ...options,
+    invalidate: [LINE_TASK_TYPES_QUERY_KEY],
+    mutationFn: async (changed: LineTaskTypeRow[]) => {
+      await Promise.all(
+        changed.map((row) => {
+          const key = createIdempotencyKey();
+          if (row.hasOptions) {
+            return updateLineOptions(row.lineid, { reserve_disabled: row.reserve_disabled }, key);
+          }
+          return createLineOptions(
+            {
+              lineid: row.lineid,
+              reserve_disabled: row.reserve_disabled,
+              must_scan_before_start: false,
+              cam_disable: false,
+              cam_hide: false,
+              ask_befor_task: false,
+              control_task_date: false,
+              validate_ean: false,
+              can_add_task: false,
+            },
+            key,
+          );
+        }),
+      );
+      return changed.length;
+    },
   });
 }

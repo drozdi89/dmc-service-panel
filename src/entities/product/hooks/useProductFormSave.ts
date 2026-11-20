@@ -2,12 +2,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { App } from 'antd';
 import { useCallback, useState } from 'react';
 import type { Product, ProductFormSubmitValues } from '../model/types';
-import { persistProductFormValues } from '../queries/product-persist';
-import { productQueries } from '../queries/product-queries';
 import {
   invalidateProductQueries,
   invalidateProductRelatedQueries,
 } from '../queries/product-mutations';
+import { persistProductFormValues } from '../queries/product-persist';
+import { productQueries } from '../queries/product-queries';
 
 /**
  * Nested picker / list save: full multi-step persist + invalidate, returns saved {@link Product}.

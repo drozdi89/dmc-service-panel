@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { QueryClient } from '@tanstack/react-query';
 import type { DeviceDetail, DeviceFormValues } from '../model/deviceFormMapping';
-import { invalidateDeviceQueries, persistDeviceFormValues } from './device-mutations';
+import { invalidateDeviceQueries, persistDeviceFormValues } from './device-queries';
 
 describe('invalidateDeviceQueries', () => {
   it('invalidates list/lookup entry and device-detail prefix', async () => {

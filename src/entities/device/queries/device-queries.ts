@@ -1,6 +1,9 @@
+import { createIdempotencyKey } from '@/shared/api';
 import { useServerListQuery } from '@/shared/hooks/useServerListQuery';
 import {
   factoryQuery,
+  useInvalidatingMutation,
+  type EntityMutationOptions,
   type FactoryDetailQueryHookOptions,
   type FactoryListQueryHookOptions,
   type FactoryQueryOptionsResult,
@@ -8,17 +11,26 @@ import {
 import type { PaginatedResponse } from '@/shared/types/listQuery';
 import {
   useQuery,
+  type QueryClient,
   type UseQueryResult,
 } from '@tanstack/react-query';
 import {
+  createDevice,
+  deleteDevice,
   fetchDeviceDetail,
   fetchDevicesList,
   fetchDevicesLookup,
   fetchScalesLookup,
+  updateDevice,
   type ScalesLookupParams,
 } from '../api/api';
-import type { DeviceDetail } from '../model/deviceFormMapping';
-import type { DeviceListItem, DeviceType, DevicesListParams } from '../model/types';
+import {
+  mapDeviceDetailToRef,
+  mapFormValuesToPayload,
+  type DeviceDetail,
+  type DeviceFormValues,
+} from '../model/deviceFormMapping';
+import type { DeviceListItem, DeviceRef, DeviceType, DevicesListParams } from '../model/types';
 
 /**
  * Canonical TanStack Query entry for the device entity.
@@ -169,3 +181,64 @@ export const useDevicesListQuery = deviceQueries.useListQuery;
 
 /** @see deviceQueries.useLookupQuery */
 export const useDevicesLookupQuery = deviceQueries.useLookupQuery;
+
+/**
+ * Invalidates device list / lookup and detail prefix `['device-detail', …]`.
+ */
+export async function invalidateDeviceQueries(queryClient: QueryClient): Promise<void> {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: deviceQueries.keys.all() }),
+    queryClient.invalidateQueries({ queryKey: ['device-detail'] }),
+  ]);
+}
+
+const DEVICE_DETAIL_QUERY_KEY = ['device-detail'] as const;
+
+/** Saves device form values (create or update). */
+export function useSaveDeviceMutation(
+  options?: EntityMutationOptions<
+    DeviceDetail,
+    { values: DeviceFormValues; editId?: number }
+  >,
+) {
+  return useInvalidatingMutation({
+    ...options,
+    invalidate: [deviceQueries.keys.all(), DEVICE_DETAIL_QUERY_KEY],
+    mutationFn: ({ values, editId }) => {
+      const type = values.device_type;
+      const payload = mapFormValuesToPayload(values);
+      const resolvedEditId = editId ?? values.id;
+      const key = createIdempotencyKey();
+      if (resolvedEditId !== undefined) {
+        return updateDevice(type, resolvedEditId, payload, key);
+      }
+      return createDevice(type, payload, key);
+    },
+  });
+}
+
+/** Deletes a device list row. */
+export function useDeleteDeviceMutation(
+  options?: EntityMutationOptions<string, DeviceListItem>,
+) {
+  return useInvalidatingMutation({
+    ...options,
+    invalidate: [deviceQueries.keys.all(), DEVICE_DETAIL_QUERY_KEY],
+    mutationFn: (record) =>
+      deleteDevice(record.device_type, record.id, createIdempotencyKey()),
+  });
+}
+
+/**
+ * POST/PATCH device form values and map the response to {@link DeviceRef}.
+ */
+export async function persistDeviceFormValues(
+  save: (variables: { values: DeviceFormValues; editId?: number }) => Promise<DeviceDetail>,
+  values: DeviceFormValues,
+  editId?: number,
+): Promise<DeviceRef> {
+  const detail = await save({ values, editId });
+  const type = values.device_type;
+  const ref = mapDeviceDetailToRef(type, detail);
+  return { device_type: type, id: ref.id, name: ref.name };
+}

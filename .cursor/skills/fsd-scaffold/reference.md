@@ -59,16 +59,16 @@ export function ExampleFormModalHost() {
 
 Подключение: `import { ExampleFormModalHost } from '@/widgets/example'` в `AppProviders`.
 
-## Entity mutation
+## Entity queries (read + CRUD)
 
 ```ts
-export const exampleFactory = factoryMutation({
-  keys: exampleQueryKeys,
-  fetchCreate: createExample,
-  fetchUpdate: updateExample,
-  fetchDelete: deleteExample,
-  normalizeId: (item) => item.id,
-});
+export const EXAMPLE_QUERY_ENTRY = ['examples'] as const;
+
+const queryApi = factoryQuery({ entry: EXAMPLE_QUERY_ENTRY, … });
+const mutationApi = factoryMutation({ entry: EXAMPLE_QUERY_ENTRY, … });
+
+export const exampleQueries = { ...queryApi, ...mutationApi };
 ```
 
-Тосты — в `hooks/useExampleActions.ts`, не в `queries/*-mutations.ts`.
+Один файл в `entities/<name>/queries/` (или доменный файл + `keys.ts` для integration/parameters).
+Тосты — в `hooks/use*Actions.ts`; `useInvalidatingMutation` — рядом с queries той же сущности (device, integration).

@@ -1,9 +1,16 @@
+import { createIdempotencyKey } from '@/shared/api';
+import { useInvalidatingMutation, type EntityMutationOptions } from '@/shared/queries';
 import {
   useQuery,
   type UseQueryOptions,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import { fetchUtraceSettings } from '../api/api';
+import {
+  createUtraceSettings,
+  deleteUtraceSettings,
+  fetchUtraceSettings,
+  saveUtraceSettings,
+} from '../api/api';
 import type { UtraceSettings } from '../model/types';
 import { UTRACE_QUERY_KEY } from './keys';
 
@@ -40,5 +47,35 @@ export function useUtraceSettingsQuery(
   return useQuery({
     ...utraceQueryOptions(),
     ...options,
+  });
+}
+
+export interface SaveUtraceSettingsVariables {
+  currentInn?: string | null;
+  settings: UtraceSettings;
+}
+
+export function useSaveUtraceSettingsMutation(
+  options?: EntityMutationOptions<unknown, SaveUtraceSettingsVariables>,
+) {
+  return useInvalidatingMutation({
+    ...options,
+    invalidate: [UTRACE_QUERY_KEY],
+    mutationFn: ({ currentInn, settings }: SaveUtraceSettingsVariables) => {
+      const key = createIdempotencyKey();
+      return currentInn
+        ? saveUtraceSettings(currentInn, settings, key)
+        : createUtraceSettings(settings, key);
+    },
+  });
+}
+
+export function useDeleteUtraceSettingsMutation(
+  options?: EntityMutationOptions<{ deleted: number }, void>,
+) {
+  return useInvalidatingMutation({
+    ...options,
+    invalidate: [UTRACE_QUERY_KEY],
+    mutationFn: () => deleteUtraceSettings(createIdempotencyKey()),
   });
 }

@@ -1,4 +1,6 @@
+import { createIdempotencyKey } from '@/shared/api';
 import {
+  factoryMutation,
   factoryQuery,
   type FactoryDetailQueryHookOptions,
   type FactoryQueryOptionsResult,
@@ -18,6 +20,8 @@ import {
   fetchProductSetContents,
   fetchProductsList,
   fetchProductsLookup,
+  createProduct,
+  updateProduct,
   type ProductsListParams,
 } from '../api/api';
 import type {
@@ -27,8 +31,17 @@ import type {
   ProductCertificate,
   ProductContents,
   ProductGroupOption,
-  ProductLicence
+  ProductLicence,
+  ProductCreatePayload,
+  ProductUpdatePayload,
 } from '../model/types';
+
+/** Product row with `id` (= gtin) for {@link factoryMutation} detail cache. */
+export type ProductMutationItem = Product & { id: string };
+
+function withProductMutationId(row: Product): ProductMutationItem {
+  return { ...row, id: row.gtin };
+}
 
 /**
  * Canonical TanStack Query entry for the product entity.
@@ -51,15 +64,32 @@ export const PRODUCT_QUERY_ENTRY = ['products'] as const;
 /** Scope suffix AsyncSelect appends after the groups prefix. */
 const PRODUCT_GROUPS_SELECT_SCOPE = 'select' as const;
 
-/**
- * List / lookup / detail helpers via {@link factoryQuery}.
- */
-export const productQueries = factoryQuery<Product, ProductsListParams, string>({
+const productQueryApi = factoryQuery<Product, ProductsListParams, string>({
   entry: PRODUCT_QUERY_ENTRY,
   fetchList: fetchProductsList,
   fetchLookup: fetchProductsLookup,
   fetchDetail: fetchProduct,
 });
+
+const productMutationApi = factoryMutation<ProductMutationItem, string>({
+  entry: PRODUCT_QUERY_ENTRY,
+  fetchCreate: (data) =>
+    createProduct(data as ProductCreatePayload, createIdempotencyKey()).then(
+      withProductMutationId,
+    ),
+  fetchUpdate: (id, data) =>
+    updateProduct(id, data as ProductUpdatePayload, createIdempotencyKey()).then(
+      withProductMutationId,
+    ),
+});
+
+/**
+ * List / lookup / detail + create / update (full form save — {@link product-persist}).
+ */
+export const productQueries = {
+  ...productQueryApi,
+  ...productMutationApi,
+};
 
 /**
  * Extra query-key builders for product groups and GTIN-scoped related lists.

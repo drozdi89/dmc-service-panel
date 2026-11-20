@@ -1,7 +1,7 @@
 import { App } from 'antd';
 import { useCallback } from 'react';
 import { type PrintStation } from '../model/types';
-import { printStationFactory } from '../queries/print-station-mutations';
+import { printStationQueries } from '../queries';
 
 /**
  * Print station save/delete with toasts and delete confirmation.
@@ -15,7 +15,7 @@ export function usePrintStationActions({
 } = {}) {
   const { message, modal } = App.useApp();
 
-  const createMutation = printStationFactory.useCreateMutation({
+  const createMutation = printStationQueries.useCreateMutation({
     onSuccess: () => {
       message.success('Станция печати сохранена');
       callbackSave?.();
@@ -25,7 +25,7 @@ export function usePrintStationActions({
     },
   });
 
-  const updateMutation = printStationFactory.useUpdateMutation({
+  const updateMutation = printStationQueries.useUpdateMutation({
     onSuccess: () => {
       message.success('Станция печати сохранена');
       callbackSave?.();
@@ -35,7 +35,7 @@ export function usePrintStationActions({
     },
   });
 
-  const deleteMutation = printStationFactory.useDeleteMutation({
+  const deleteMutation = printStationQueries.useDeleteMutation({
     onSuccess: () => {
       message.success('Станция печати удалена');
       callbackDelete?.();

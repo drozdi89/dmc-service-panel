@@ -1,9 +1,16 @@
+import { createIdempotencyKey } from '@/shared/api';
+import { useInvalidatingMutation, type EntityMutationOptions } from '@/shared/queries';
 import {
   useQuery,
   type UseQueryOptions,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import { fetchDataMarkCredentials } from '../api/api';
+import {
+  createDataMarkCredentials,
+  deleteDataMarkCredentials,
+  fetchDataMarkCredentials,
+  saveDataMarkCredentials,
+} from '../api/api';
 import type { DataMarkCredentials } from '../model/types';
 import { DATAMARK_QUERY_KEY } from './keys';
 
@@ -40,5 +47,38 @@ export function useDataMarkCredentialsQuery(
   return useQuery({
     ...datamarkQueryOptions(),
     ...options,
+  });
+}
+
+/** Variables for {@link useSaveDataMarkCredentialsMutation}. */
+export interface SaveDataMarkCredentialsVariables {
+  currentUnp?: string | null;
+  credentials: DataMarkCredentials;
+}
+
+/** Creates or updates DataMark credentials. */
+export function useSaveDataMarkCredentialsMutation(
+  options?: EntityMutationOptions<unknown, SaveDataMarkCredentialsVariables>,
+) {
+  return useInvalidatingMutation({
+    ...options,
+    invalidate: [DATAMARK_QUERY_KEY],
+    mutationFn: ({ currentUnp, credentials }: SaveDataMarkCredentialsVariables) => {
+      const key = createIdempotencyKey();
+      return currentUnp
+        ? saveDataMarkCredentials(currentUnp, credentials, key)
+        : createDataMarkCredentials(credentials, key);
+    },
+  });
+}
+
+/** Deletes DataMark credentials by UNP. */
+export function useDeleteDataMarkCredentialsMutation(
+  options?: EntityMutationOptions<string, string>,
+) {
+  return useInvalidatingMutation({
+    ...options,
+    invalidate: [DATAMARK_QUERY_KEY],
+    mutationFn: (unp: string) => deleteDataMarkCredentials([unp], createIdempotencyKey()),
   });
 }

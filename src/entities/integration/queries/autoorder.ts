@@ -1,9 +1,11 @@
+import { createIdempotencyKey } from '@/shared/api';
+import { useInvalidatingMutation, type EntityMutationOptions } from '@/shared/queries';
 import {
   useQuery,
   type UseQueryOptions,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import { fetchAutoorderOptions } from '../api/api';
+import { fetchAutoorderOptions, saveAutoorderOptions } from '../api/api';
 import type { AutoorderOptions } from '../model/types';
 import { AUTOORDER_QUERY_KEY } from './keys';
 
@@ -35,5 +37,16 @@ export function useAutoorderOptionsQuery(
   return useQuery({
     ...autoorderQueryOptions(),
     ...options,
+  });
+}
+
+export function useSaveAutoorderOptionsMutation(
+  options?: EntityMutationOptions<{ updated_products: number }, AutoorderOptions>,
+) {
+  return useInvalidatingMutation({
+    ...options,
+    invalidate: [AUTOORDER_QUERY_KEY],
+    mutationFn: (payload: AutoorderOptions) =>
+      saveAutoorderOptions(payload, createIdempotencyKey()),
   });
 }

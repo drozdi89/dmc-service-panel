@@ -1,7 +1,7 @@
 import { App } from 'antd';
 import { useCallback } from 'react';
 import type { CodeGeneratorTemplate } from '../model/types';
-import { codeGeneratorTemplateFactory } from '../queries/code-generator-template-mutations';
+import { codeGeneratorTemplateQueries } from '../queries';
 
 /**
  * Code generator template save/delete with toasts and delete confirmation.
@@ -15,7 +15,7 @@ export function useCodeGeneratorTemplateActions({
 } = {}) {
   const { message, modal } = App.useApp();
 
-  const createMutation = codeGeneratorTemplateFactory.useCreateMutation({
+  const createMutation = codeGeneratorTemplateQueries.useCreateMutation({
     onSuccess: () => {
       message.success('Шаблон сохранён');
       callbackSave?.();
@@ -25,7 +25,7 @@ export function useCodeGeneratorTemplateActions({
     },
   });
 
-  const updateMutation = codeGeneratorTemplateFactory.useUpdateMutation({
+  const updateMutation = codeGeneratorTemplateQueries.useUpdateMutation({
     onSuccess: () => {
       message.success('Шаблон сохранён');
       callbackSave?.();
@@ -35,7 +35,7 @@ export function useCodeGeneratorTemplateActions({
     },
   });
 
-  const deleteMutation = codeGeneratorTemplateFactory.useDeleteMutation({
+  const deleteMutation = codeGeneratorTemplateQueries.useDeleteMutation({
     onSuccess: () => {
       message.success('Шаблон удалён');
       callbackDelete?.();

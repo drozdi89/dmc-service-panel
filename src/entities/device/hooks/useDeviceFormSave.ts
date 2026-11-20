@@ -5,7 +5,7 @@ import type { DeviceRef } from '../model/types';
 import {
   persistDeviceFormValues,
   useSaveDeviceMutation,
-} from '../queries/device-mutations';
+} from '../queries';
 
 /**
  * Nested picker/list save: POST/PATCH + invalidate lookup/list, returns {@link DeviceRef}.

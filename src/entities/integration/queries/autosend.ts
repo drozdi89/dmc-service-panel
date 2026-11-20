@@ -1,9 +1,11 @@
+import { createIdempotencyKey } from '@/shared/api';
+import { useInvalidatingMutation, type EntityMutationOptions } from '@/shared/queries';
 import {
   useQuery,
   type UseQueryOptions,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import { fetchAutosendSettings } from '../api/api';
+import { fetchAutosendSettings, saveAutosendSettings } from '../api/api';
 import type { AutosendSettingsPayload } from '../model/types';
 import { AUTOSEND_QUERY_KEY } from './keys';
 
@@ -40,5 +42,19 @@ export function useAutosendSettingsQuery(
   return useQuery({
     ...autosendQueryOptions(),
     ...options,
+  });
+}
+
+export function useSaveAutosendSettingsMutation(
+  options?: EntityMutationOptions<
+    Awaited<ReturnType<typeof saveAutosendSettings>>,
+    AutosendSettingsPayload
+  >,
+) {
+  return useInvalidatingMutation({
+    ...options,
+    invalidate: [AUTOSEND_QUERY_KEY],
+    mutationFn: (payload: AutosendSettingsPayload) =>
+      saveAutosendSettings(payload, createIdempotencyKey()),
   });
 }

@@ -1,14 +1,23 @@
+import { createIdempotencyKey } from '@/shared/api';
+import {
+  factoryQuery,
+  useInvalidatingMutation,
+  type EntityMutationOptions,
+} from '@/shared/queries';
 import {
   useQuery,
   type UseQueryOptions,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import { factoryQuery } from '@/shared/queries';
 import type { ListQueryParams } from '@/shared/types/listQuery';
 import {
+  createCrptOrganization,
+  deleteCrptOrganizations,
   fetchCrptOrganization,
   fetchCrptOrganizations,
   fetchServerActivation,
+  saveOrgCrptTemplateIdx,
+  updateCrptOrganization,
 } from '../api/api';
 import type { CrptOrganization, ServerActivationInfo } from '../model/types';
 import { CRPT_ORGS_QUERY_KEY, SERVER_ACTIVATION_QUERY_KEY } from './keys';
@@ -62,5 +71,49 @@ export function useServerActivationQuery(
   return useQuery({
     ...serverActivationQueryOptions(),
     ...options,
+  });
+}
+
+export interface SaveCrptOrganizationVariables {
+  mode: 'create' | 'edit';
+  organization: CrptOrganization;
+}
+
+export interface SaveCrptOrganizationResult {
+  templateError: Error | null;
+}
+
+export function useSaveCrptOrganizationMutation(
+  options?: EntityMutationOptions<SaveCrptOrganizationResult, SaveCrptOrganizationVariables>,
+) {
+  return useInvalidatingMutation({
+    ...options,
+    invalidate: [CRPT_ORGS_QUERY_KEY],
+    mutationFn: async ({ mode, organization }: SaveCrptOrganizationVariables) => {
+      const { crpt_template_idx: templateIdx, ...body } = organization;
+      const key = createIdempotencyKey();
+      if (mode === 'edit') {
+        const { inn, ...updateBody } = body;
+        await updateCrptOrganization(inn, updateBody, key);
+      } else {
+        await createCrptOrganization(body, key);
+      }
+      try {
+        await saveOrgCrptTemplateIdx(body.inn, templateIdx ?? 0);
+        return { templateError: null };
+      } catch (error) {
+        return { templateError: error instanceof Error ? error : new Error(String(error)) };
+      }
+    },
+  });
+}
+
+export function useDeleteCrptOrganizationMutation(
+  options?: EntityMutationOptions<string, string>,
+) {
+  return useInvalidatingMutation({
+    ...options,
+    invalidate: [CRPT_ORGS_QUERY_KEY],
+    mutationFn: (inn: string) => deleteCrptOrganizations([inn], createIdempotencyKey()),
   });
 }

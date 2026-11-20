@@ -5,7 +5,7 @@ import {
   persistDeviceFormValues,
   useDeleteDeviceMutation,
   useSaveDeviceMutation,
-} from '../queries/device-mutations';
+} from '../queries';
 import type { DeviceFormValues } from '../model/deviceFormMapping';
 
 /**

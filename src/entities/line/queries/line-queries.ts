@@ -1,20 +1,26 @@
+import { createIdempotencyKey } from '@/shared/api';
 import {
   useQuery,
+  type QueryClient,
   type UseQueryOptions,
   type UseQueryResult,
 } from '@tanstack/react-query';
 import {
+  factoryMutation,
   factoryQuery,
   type FactoryDetailQueryHookOptions,
   type FactoryQueryOptionsResult,
 } from '@/shared/queries';
 import type { ListQueryParams } from '@/shared/types/listQuery';
 import {
+  createLine,
+  deleteLines,
   fetchLineAllowPrintedDm,
   fetchLineConfiguration,
   fetchLinePrintedDmRaw,
   fetchLinesList,
   fetchLinesLookup,
+  updateLine,
 } from '../api/api';
 import type { LineConfiguration, LineListItem } from '../model/types';
 
@@ -32,11 +38,45 @@ export const LINE_QUERY_ENTRY = ['lines'] as const;
  * so configuration is exposed via {@link useLineConfigurationQuery}, not
  * `lineQueries.useDetailQuery`.
  */
-export const lineQueries = factoryQuery<LineListItem, ListQueryParams, number>({
+/** Line list row with `id` for {@link factoryMutation} detail cache. */
+export type LineListMutationItem = LineListItem & { id: number };
+
+function withLineListMutationId(row: LineListItem): LineListMutationItem {
+  return { ...row, id: row.lineid };
+}
+
+const lineListQueryApi = factoryQuery<LineListItem, ListQueryParams, number>({
   entry: LINE_QUERY_ENTRY,
   fetchList: fetchLinesList,
   fetchLookup: fetchLinesLookup,
 });
+
+const lineListMutationApi = factoryMutation<LineListMutationItem, number>({
+  entry: LINE_QUERY_ENTRY,
+  fetchCreate: (data) =>
+    createLine(data as Partial<LineListItem>, createIdempotencyKey()).then(withLineListMutationId),
+  fetchUpdate: (id, data) =>
+    updateLine(id, data as Partial<LineListItem>, createIdempotencyKey()).then(
+      withLineListMutationId,
+    ),
+  fetchDelete: async (id) => {
+    await deleteLines([id], createIdempotencyKey());
+    return null;
+  },
+});
+
+/**
+ * List / lookup + list-row CRUD. Full editor save — `services/line-service`.
+ */
+export const lineQueries = {
+  ...lineListQueryApi,
+  ...lineListMutationApi,
+};
+
+/** Invalidates all queries under {@link LINE_QUERY_ENTRY}. */
+export async function invalidateLineQueries(queryClient: QueryClient): Promise<void> {
+  return queryClient.invalidateQueries({ queryKey: lineQueries.keys.all() });
+}
 
 /** Extra query-key builders for line settings / marking options (under `lines` entry). */
 export const lineSettingsQueryKeys = {
