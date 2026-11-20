@@ -8,7 +8,6 @@ import {
   useProductContentsQuery,
   useProductDetailQuery,
   useProductLicencesQuery,
-  visibilityFormControl,
   type ProductFormRemovedIds,
   type ProductFormSubmitValues,
   type ProductFormValues,
@@ -16,18 +15,9 @@ import {
 import type { ResourceFormSubmitOptions } from '@/shared/model/resourceFormUiBridge';
 import { resourceFormModalFooter } from '@/shared/ui/ResourceFormModalFooter';
 import { LoadingOverlay } from '@/shared/ui/loading';
-import { Alert, Form, Modal, Tabs } from 'antd';
+import { Alert, Form, Modal } from 'antd';
 import { useEffect, useState } from 'react';
-import {
-  ProductAdditionalTab,
-  ProductAggregatesTab,
-  ProductArticlesTab,
-  ProductCertificatesTab,
-  ProductCompoundTab,
-  ProductControllerParamsTab,
-  ProductLicencesTab,
-  ProductMainTab
-} from './productFormTabs';
+import { ProductFormModalTabs } from './ProductFormModalTabs';
 
 /**
  * Props for product create/edit modal (ResourcePicker-ready).
@@ -69,7 +59,6 @@ export function ProductFormModal({
 }: ProductFormModalProps) {
   const isEdit = mode === 'edit';
   const [form] = Form.useForm<ProductFormValues>();
-  const [activeTab, setActiveTab] = useState('main');
   const [removedIds, setRemovedIds] = useState<ProductFormRemovedIds>(
     EMPTY_PRODUCT_FORM_REMOVED_IDS,
   );
@@ -102,12 +91,8 @@ export function ProductFormModal({
     enabled: canLoad,
   });
 
-  const visibility = visibilityFormControl(form.getFieldsValue());
-
   useEffect(() => {
     if (!open) {
-      form.resetFields();
-      setActiveTab('main');
       setRemovedIds(EMPTY_PRODUCT_FORM_REMOVED_IDS);
       return;
     }
@@ -146,25 +131,29 @@ export function ProductFormModal({
   ]);
 
   useEffect(() => {
-    if (aggregatesQuery.data !== undefined) {
-      form.setFieldValue('aggregates', [...aggregatesQuery.data]);
+    if (!open || aggregatesQuery.data === undefined) {
+      return;
     }
-  }, [aggregatesQuery.data, form]);
+    form.setFieldValue('aggregates', [...aggregatesQuery.data]);
+  }, [aggregatesQuery.data, form, open]);
   useEffect(() => {
-    if (certsQuery.data !== undefined) {
-      form.setFieldValue('certificates', [...certsQuery.data]);
+    if (!open || certsQuery.data === undefined) {
+      return;
     }
-  }, [certsQuery.data, form]);
+    form.setFieldValue('certificates', [...certsQuery.data]);
+  }, [certsQuery.data, form, open]);
   useEffect(() => {
-    if (licencesQuery.data !== undefined) {
-      form.setFieldValue('licences', [...licencesQuery.data]);
+    if (!open || licencesQuery.data === undefined) {
+      return;
     }
-  }, [licencesQuery.data, form]);
+    form.setFieldValue('licences', [...licencesQuery.data]);
+  }, [licencesQuery.data, form, open]);
   useEffect(() => {
-    if (articlesQuery.data !== undefined) {
-      form.setFieldValue('articles', [...articlesQuery.data]);
+    if (!open || articlesQuery.data === undefined) {
+      return;
     }
-  }, [articlesQuery.data, form]);
+    form.setFieldValue('articles', [...articlesQuery.data]);
+  }, [articlesQuery.data, form, open]);
 
   const resolvedTitle =
     title ?? (isEdit ? `Продукция ${gtin ?? ''}` : 'Новая продукция');
@@ -179,6 +168,7 @@ export function ProductFormModal({
   return (
     <Modal
       open={open}
+      destroyOnHidden={false}
       title={resolvedTitle}
       width='calc(100vw - 2rem)'
       onCancel={onCancel}
@@ -219,154 +209,21 @@ export function ProductFormModal({
             style={{ marginBottom: 16 }}
           />
         ) : null}
-        <Form form={form} labelCol={{ span: 8 }}>
-          <Form.Item name="pg" hidden></Form.Item>
-          <Form.Item name="type" hidden></Form.Item>
-          <Tabs
-            activeKey={activeTab}
-            onChange={setActiveTab}
-            items={[
-              {
-                key: 'main',
-                label: 'Основное',
-                forceRender: true,
-                children: (
-                  <ProductMainTab form={form} isEdit={isEdit} product={product} visibility={visibility} />
-                ),
-              },
-              {
-                key: 'additional',
-                label: 'Дополнительные',
-                forceRender: true,
-                children: (
-                  <ProductAdditionalTab
-                    form={form}
-                    isEdit={isEdit}
-                    product={product}
-                    visibility={visibility}
-                  />
-                ),
-              },
-              visibility.showCompound ? {
-                key: 'compound',
-                label: 'Состав',
-                forceRender: true,
-                children: (
-                  <ProductCompoundTab
-                    contents={contentsQuery.data ?? []}
-                    loading={contentsQuery.isFetching}
-                  />
-                ),
-              } : {},
-              {
-                key: 'aggregates',
-                label: 'Фасовка',
-                forceRender: true,
-                children: (
-                  <ProductAggregatesTab
-                    gtin={gtin}
-                    form={form}
-                    isEdit={isEdit}
-                    loading={aggregatesQuery.isFetching}
-                    visibility={visibility}
-                    itemsRemoved={removedIds.aggregates_removed}
-                    onItemsRemovedChange={(next) =>
-                      setRemovedIds((prev) => ({
-                        ...prev,
-                        aggregates_removed: next,
-                      }))
-                    }
-                  />
-                ),
-              },
-              {
-                key: 'certs',
-                label: 'Разреш. док.',
-                forceRender: true,
-                children: (
-                  <ProductCertificatesTab
-                    form={form}
-                    gtin={gtin}
-                    isEdit={isEdit}
-                    loading={certsQuery.isFetching}
-                    visibility={visibility}
-                    itemsRemoved={removedIds.certificates_removed}
-                    onItemsRemovedChange={(next) =>
-                      setRemovedIds((prev) => ({
-                        ...prev,
-                        certificates_removed: next,
-                      }))
-                    }
-                  />
-                ),
-              },
-              {
-                key: 'licences',
-                label: 'Лицензии',
-                forceRender: true,
-                children: (
-                  <ProductLicencesTab
-                    form={form}
-                    gtin={gtin}
-                    isEdit={isEdit}
-                    loading={licencesQuery.isFetching}
-                    visibility={visibility}
-                    itemsRemoved={removedIds.licences_removed}
-                    onItemsRemovedChange={(next) =>
-                      setRemovedIds((prev) => ({
-                        ...prev,
-                        licences_removed: next,
-                      }))
-                    }
-                  />
-                ),
-              },
-              {
-                key: 'controllers',
-                label: 'Параметры',
-                forceRender: true,
-                children: (
-                  <ProductControllerParamsTab
-                    form={form}
-                    gtin={gtin}
-                    isEdit={!productLoading}
-                    loading={productLoading}
-                    visibility={visibility}
-                    aggregatesRemoved={removedIds.aggregates_removed}
-                    itemsRemoved={removedIds.controller_params_removed}
-                    onItemsRemovedChange={(next) =>
-                      setRemovedIds((prev) => ({
-                        ...prev,
-                        controller_params_removed: next,
-                      }))
-                    }
-                  />
-                ),
-              },
-              {
-                key: 'articles',
-                label: 'Артикулы',
-                forceRender: true,
-                children: (
-                  <ProductArticlesTab
-                    form={form}
-                    gtin={gtin}
-                    isEdit={!productLoading}
-                    loading={articlesQuery.isFetching}
-                    visibility={visibility}
-                    itemsRemoved={removedIds.articles_removed}
-                    onItemsRemovedChange={(next) =>
-                      setRemovedIds((prev) => ({
-                        ...prev,
-                        articles_removed: next,
-                      }))
-                    }
-                  />
-                ),
-              },
-            ]}
-          />
-        </Form>
+        <ProductFormModalTabs
+          form={form}
+          isEdit={isEdit}
+          product={product}
+          gtin={gtin}
+          contents={contentsQuery.data}
+          contentsLoading={contentsQuery.isFetching}
+          aggregatesLoading={aggregatesQuery.isFetching}
+          certsLoading={certsQuery.isFetching}
+          licencesLoading={licencesQuery.isFetching}
+          productLoading={productLoading}
+          articlesLoading={articlesQuery.isFetching}
+          removedIds={removedIds}
+          onRemovedIdsChange={setRemovedIds}
+        />
       </LoadingOverlay>
     </Modal>
   );

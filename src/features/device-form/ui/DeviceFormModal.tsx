@@ -93,6 +93,7 @@ export function DeviceFormModal({
   return (
     <Modal
       open={open}
+      destroyOnHidden={false}
       title={resolvedTitle}
       width={760}
       onCancel={onCancel}

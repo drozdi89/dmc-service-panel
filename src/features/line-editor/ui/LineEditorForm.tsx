@@ -22,6 +22,97 @@ function FormStoreField(_props: {
   return null;
 }
 
+type LineEditorFormBodyProps = Omit<LineEditorFormProps, 'onFormReady'>;
+
+function LineEditorFormBody({
+  isNew,
+  initialValues,
+  initialResourceLabels,
+}: LineEditorFormBodyProps) {
+  const form = Form.useFormInstance<LineEditorFormState>();
+  const [activeTab, setActiveTab] = useState('main');
+  const [resourceLabels, setResourceLabels] =
+    useState<LineEditorResourceLabels>(initialResourceLabels);
+
+  useEffect(() => {
+    setResourceLabels(initialResourceLabels);
+  }, [initialResourceLabels]);
+
+  const watchedValues = Form.useWatch([], form) as LineEditorFormState | undefined;
+  const visibility = useMemo(
+    () =>
+      computeLineEditorVisibility(
+        {
+          ...initialValues,
+          ...(watchedValues ?? {}),
+        },
+        isNew,
+      ),
+    [initialValues, isNew, watchedValues],
+  );
+
+  const tabItems = useMemo((): NonNullable<TabsProps['items']> => {
+    return [
+      {
+        key: 'main',
+        label: 'Основные',
+        children: (
+          <LineMainTab
+            isNew={isNew}
+            visibility={visibility}
+            resourceLabels={resourceLabels}
+            onResourceLabelsChange={setResourceLabels}
+          />
+        ),
+      },
+      {
+        key: 'aggregation',
+        label: 'Агрегация',
+        children: (
+          <LineAggregationTab
+            visibility={visibility}
+            resourceLabels={resourceLabels}
+            onResourceLabelsChange={setResourceLabels}
+          />
+        ),
+      },
+      {
+        key: 'products',
+        label: 'Продукция',
+        children: <LineFavouriteProductsTab visibility={visibility} />,
+      },
+    ];
+  }, [isNew, resourceLabels, visibility]);
+
+  return (
+    <>
+      <LineIdentityFields visibility={visibility} />
+      <Form.Item name="aggregation_levels" hidden preserve noStyle>
+        <FormStoreField />
+      </Form.Item>
+      <Form.Item name="deleted_aggregation_level_ids" hidden preserve noStyle>
+        <FormStoreField />
+      </Form.Item>
+      <Form.Item name="favourite_gtins" hidden preserve noStyle>
+        <FormStoreField />
+      </Form.Item>
+      {visibility.showExtendedTabs && (
+        <Tabs
+          size="small"
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={tabItems}
+          styles={{
+            header: {
+              marginBottom: 4,
+            },
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 /** Props for the full-screen line editor Form shell (tabs + visibility). */
 export interface LineEditorFormProps {
   disabled?: boolean;
@@ -60,26 +151,6 @@ export function LineEditorForm({
   onFormReady,
 }: LineEditorFormProps) {
   const [form] = Form.useForm<LineEditorFormState>();
-  const [activeTab, setActiveTab] = useState('main');
-  const [resourceLabels, setResourceLabels] =
-    useState<LineEditorResourceLabels>(initialResourceLabels);
-
-  useEffect(() => {
-    setResourceLabels(initialResourceLabels);
-  }, [initialResourceLabels]);
-
-  const watchedValues = Form.useWatch([], form) as LineEditorFormState | undefined;
-  const visibility = useMemo(
-    () =>
-      computeLineEditorVisibility(
-        {
-          ...initialValues,
-          ...(watchedValues ?? {}),
-        },
-        isNew,
-      ),
-    [initialValues, isNew, watchedValues],
-  );
 
   useEffect(() => {
     onFormReady?.(form);
@@ -87,39 +158,6 @@ export function LineEditorForm({
       onFormReady?.(null);
     };
   }, [form, onFormReady]);
-
-  const tabItems = useMemo((): NonNullable<TabsProps['items']> => {
-    return [
-      {
-        key: 'main',
-        label: 'Основные',
-        children: (
-          <LineMainTab
-            isNew={isNew}
-            visibility={visibility}
-            resourceLabels={resourceLabels}
-            onResourceLabelsChange={setResourceLabels}
-          />
-        ),
-      },
-      {
-        key: 'aggregation',
-        label: 'Агрегация',
-        children: (
-          <LineAggregationTab
-            visibility={visibility}
-            resourceLabels={resourceLabels}
-            onResourceLabelsChange={setResourceLabels}
-          />
-        ),
-      },
-      {
-        key: 'products',
-        label: 'Продукция',
-        children: <LineFavouriteProductsTab visibility={visibility} />,
-      },
-    ];
-  }, [isNew, resourceLabels, visibility]);
 
   return (
     <Form
@@ -129,29 +167,12 @@ export function LineEditorForm({
       initialValues={initialValues}
       disabled={disabled}
     >
-      <LineIdentityFields visibility={visibility} />
-      <Form.Item name="aggregation_levels" hidden preserve noStyle>
-        <FormStoreField />
-      </Form.Item>
-      <Form.Item name="deleted_aggregation_level_ids" hidden preserve noStyle>
-        <FormStoreField />
-      </Form.Item>
-      <Form.Item name="favourite_gtins" hidden preserve noStyle>
-        <FormStoreField />
-      </Form.Item>
-      {visibility.showExtendedTabs && (
-        <Tabs
-          size="small"
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={tabItems}
-          styles={{
-            header: {
-              marginBottom: 4,
-            },
-          }}
-        />
-      )}
+      <LineEditorFormBody
+        isNew={isNew}
+        disabled={disabled}
+        initialValues={initialValues}
+        initialResourceLabels={initialResourceLabels}
+      />
     </Form>
   );
 }

@@ -101,8 +101,6 @@ export function TemplateFormModal({
 
   useEffect(() => {
     if (!open) {
-      form.resetFields();
-      printingForm.resetFields();
       return;
     }
 
@@ -125,6 +123,7 @@ export function TemplateFormModal({
   return (
     <Modal
       open={open}
+      destroyOnHidden={false}
       title={resolvedTitle}
       width={720}
       onCancel={onCancel}

@@ -133,7 +133,7 @@ export function ProductLicencesTab({
   return (
     <>
       <Form.Item name="licences" hidden></Form.Item>
-      <Space direction="vertical" style={{ width: '100%' }}>
+      <Space orientation="vertical" style={{ width: '100%' }}>
         <ButtonLoading type="primary" disabled={!isEdit} onClick={() => {
           setModalOpen(true)
           subForm.resetFields();

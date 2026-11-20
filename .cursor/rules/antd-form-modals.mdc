@@ -1,0 +1,54 @@
+---
+description: Ant Design Form и Host-модалки (useForm, useWatch, AppProviders). При создании или правке *FormModal*, *FormModalHost, форм с useWatch.
+globs: src/features/**/*.{tsx,ts},src/widgets/**/*.{tsx,ts}
+alwaysApply: false
+---
+
+# Ant Design Form — модалки и Host
+
+## Always-mounted Host (`App.tsx` → `AppProviders`)
+
+- Один `*FormModalHost` на ресурс; страницы только диспатчат `entities/*/model/*FormUiStore`.
+- У `Modal` из Host: **`destroyOnHidden={false}`**, чтобы `<Form form={…}>` не размонтировался при `open={false}`.
+- В `useEffect` при **`!open`**: сбрасывать только **React state** (вкладки, labels). **Не** вызывать `form.resetFields()` / `setFieldsValue` / `getFieldsValue` на закрытой модалке.
+- Гидратация полей — в том же `useEffect` с `if (!open) return` и ветками create/edit.
+
+## `useWatch` и производные от формы
+
+- `Form.useWatch`, `getFieldsValue`, `visibilityFormControl(…)` — только **под** `<Form form={instance}>`:
+  - вложенный компонент + `Form.useFormInstance()`;
+  - не в том же компоненте, где `const [form] = Form.useForm()`, **до** `return <Form form={form}>`.
+- Заголовок модалки с `useWatch` — отдельный child (как `LineModalTitleName`), только когда instance уже зарегистрирован.
+
+## Слои (кратко)
+
+| Что | Где |
+|-----|-----|
+| Разметка модалки | `features/<name>-form/ui/*FormModal.tsx` |
+| Save, store, toast | `widgets/<name>/ui/*FormModalHost.tsx` |
+| RQ мутации | `entities/<name>/queries` (`factoryMutation`) |
+| Confirm / save UI | `entities/<name>/hooks` |
+| Диалог create/edit | `entities/<name>/model/*FormUiStore.ts` |
+
+Форма = объект API; без выдуманных полей. Подробный чеклист нового слайса — skill **fsd-scaffold** (`.cursor/skills/fsd-scaffold/SKILL.md`).
+
+## Антипаттерны
+
+```tsx
+// ❌ Host закрыт, Form размонтирован
+useEffect(() => {
+  if (!open) form.resetFields();
+}, [open, form]);
+
+// ❌ useWatch вне дерева Form
+const v = Form.useWatch('id', form);
+return <Modal><Form form={form}>…</Form></Modal>;
+
+// ✅
+function FormBody() {
+  const form = Form.useFormInstance();
+  const id = Form.useWatch('id', form);
+  return …;
+}
+return <Modal destroyOnHidden={false}><Form form={form}><FormBody /></Form></Modal>;
+```

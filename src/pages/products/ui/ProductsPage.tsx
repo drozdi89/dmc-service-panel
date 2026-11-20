@@ -235,7 +235,7 @@ export default function ProductsPage() {
   );
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
       <Template.Title>
         <Typography.Title level={4} style={{ margin: 0 }}>
           Продукция

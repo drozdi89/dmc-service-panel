@@ -33,7 +33,7 @@ export function TelegramSection({
 
   return (
     <Form form={form} layout="vertical" onFinish={onSave}>
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         <Form.Item name="is_activ" valuePropName="checked" noStyle>
           <Checkbox>Включить Telegram-уведомления</Checkbox>
         </Form.Item>

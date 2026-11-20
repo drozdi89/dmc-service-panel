@@ -170,6 +170,8 @@ HTTP только в `entities/*/api` и, если сценарий без UI, �
 
 ## 8. Creating new slices
 
+Агент: при **новом слое / экране / FormModal / Host** читать skill `.cursor/skills/fsd-scaffold/SKILL.md` (чеклист + `npm run lint:fsd` после). Формы в модалках — `.cursor/rules/antd-form-modals.mdc`.
+
 ```bash
 mkdir -p src/entities/<name>/{api,model,queries,hooks,ui,lib}
 mkdir -p src/features/<name>-form/ui

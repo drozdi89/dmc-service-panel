@@ -232,7 +232,7 @@ export default function LicencesPage() {
           }
           const days = daysUntil(lic.valid_until);
           return (
-            <Space direction="vertical" size={0}>
+            <Space orientation="vertical" size={0}>
               <Tag color="success">Активна</Tag>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 до {formatDate(lic.valid_until)}
@@ -322,7 +322,7 @@ export default function LicencesPage() {
     : '—';
 
   return (
-    <Space direction="vertical" size="medium" style={{ width: '100%', paddingTop: 16 }}>
+    <Space orientation="vertical" size="medium" style={{ width: '100%', paddingTop: 16 }}>
         <Template.Title>
           <Typography.Title level={3} style={{ margin: 0 }}>
             Лицензии

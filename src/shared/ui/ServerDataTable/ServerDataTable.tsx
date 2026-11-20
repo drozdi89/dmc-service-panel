@@ -403,7 +403,7 @@ export function ServerDataTable<T extends object>(props: ServerDataTableProps<T>
   );
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       {showToolbar ? (
         <Space wrap>
           {!searchInColumn ? (

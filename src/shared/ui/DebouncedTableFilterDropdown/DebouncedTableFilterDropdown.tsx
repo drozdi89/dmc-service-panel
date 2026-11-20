@@ -62,7 +62,7 @@ export function DebouncedTableFilterDropdown({
           Сбросить
         </Button>
       </div>
-      <Space direction="vertical" style={{ padding: '0.5rem' }}>
+      <Space orientation="vertical" style={{ padding: '0.5rem' }}>
         {(filters ?? []).map((filter) => {
           const value = filter.value as Key;
           const checked = selectedKeys.some((key) => String(key) === String(value));

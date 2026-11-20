@@ -32,7 +32,7 @@ export function StatisticsSection({
 
   return (
     <Form form={form} layout="vertical" onFinish={onSave}>
-      <Space direction="vertical" size="small">
+      <Space orientation="vertical" size="small">
         <Form.Item name="disable_statistics" valuePropName="checked" noStyle>
           <Checkbox>Отключить сбор статистики</Checkbox>
         </Form.Item>

@@ -207,7 +207,7 @@ export function LineAggregationTab({
       : undefined;
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Space wrap>
         <Dropdown menu={{ items: addMenuItems, onClick: handleAddMenu }}>
           <Button type="primary" icon={<PlusOutlined />}>

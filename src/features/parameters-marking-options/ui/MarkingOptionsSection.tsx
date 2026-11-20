@@ -113,7 +113,7 @@ export function MarkingOptionsSection({
         <InputNumber min={0} max={9_999_999} style={{ width: '100%' }} />
       </Form.Item>
 
-      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="small" style={{ width: '100%' }}>
         <Form.Item name="use_special_numbers" valuePropName="checked" noStyle>
           <Checkbox>Использовать номера партии и варки в заданиях</Checkbox>
         </Form.Item>

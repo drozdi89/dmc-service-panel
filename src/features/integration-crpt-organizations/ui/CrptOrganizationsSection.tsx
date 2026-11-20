@@ -230,7 +230,7 @@ export function CrptOrganizationsSection() {
 
   return (
     <>
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         {orgCountLabel ? (
           <Typography.Text type="secondary">{orgCountLabel}</Typography.Text>
         ) : null}

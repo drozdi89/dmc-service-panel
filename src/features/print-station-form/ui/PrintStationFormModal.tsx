@@ -1,4 +1,4 @@
-import { DeviceResourcePicker, fetchDeviceDetail } from '@/entities/device';
+import { fetchDeviceDetail } from '@/entities/device';
 import {
   DEFAULT_PRINT_STATION_FORM_VALUES,
   mapPrintStationToFormValues,
@@ -6,12 +6,13 @@ import {
   type CreatePrintStationPayload,
   type PrintStationResourceLabels,
 } from '@/entities/print-station';
-import { fetchPrintTemplateById, PrintTemplateResourcePicker } from '@/entities/print-template';
+import { fetchPrintTemplateById } from '@/entities/print-template';
 import type { ResourceFormSubmitOptions } from '@/shared/model/resourceFormUiBridge';
 import { resourceFormModalFooter } from '@/shared/ui/ResourceFormModalFooter';
 import { LoadingOverlay } from '@/shared/ui/loading';
-import { Divider, Form, Input, InputNumber, Modal, Typography } from 'antd';
+import { Form, Modal, Typography } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
+import { PrintStationFormFields } from './PrintStationFormFields';
 
 /**
  * Props for print station create/edit modal.
@@ -126,7 +127,6 @@ export function PrintStationFormModal({
 
   useEffect(() => {
     if (!open) {
-      form.resetFields();
       setResourceLabels({});
       return;
     }
@@ -143,10 +143,6 @@ export function PrintStationFormModal({
     }
   }, [form, isEdit, loadedStation, open, resolveResourceLabels]);
 
-  const printerId = Form.useWatch('printer', form) as number | null | undefined;
-  const cameraId = Form.useWatch('camera', form) as number | null | undefined;
-  const templateId = Form.useWatch('template_id', form) as number | null | undefined;
-
   const fieldsDisabled = isLoadError;
   const modalLoading = loading || (isEdit && isLoadingStation);
   const submitDisabled =
@@ -155,6 +151,7 @@ export function PrintStationFormModal({
   return (
     <Modal
       open={open}
+      destroyOnHidden={false}
       title={resolvedTitle}
       width={560}
       onCancel={onCancel}
@@ -189,129 +186,12 @@ export function PrintStationFormModal({
             Не удалось загрузить станцию печати. Закройте окно и попробуйте снова.
           </Typography.Text>
         ) : (
-          <Form
+          <PrintStationFormFields
             form={form}
-            layout="horizontal"
-            disabled={isLoadError}
-            initialValues={DEFAULT_PRINT_STATION_FORM_VALUES}
-          >
-            <Form.Item
-              name="name"
-              label="Наименование станции"
-              rules={[{ required: true, message: 'Укажите наименование станции печати' }]}
-              style={{ marginBottom: 0 }}
-            >
-              <Input />
-            </Form.Item>
-
-            
-            <Divider titlePlacement='start' style={{ margin: 0 }}>
-              <Typography.Text strong>Печать</Typography.Text>
-            </Divider>
-
-            {/*
-              ResourcePickers own their value/onChange; keep ids in the form store
-              via setFieldValue + hidden items.
-            */}
-            <Form.Item label="Принтер" name="printer" style={{ marginBottom: 4 }}>
-              <DeviceResourcePicker
-                types={['printer']}
-                deviceType="printer"
-                lockDeviceType
-                value={printerId ?? undefined}
-                valueLabel={resourceLabels.printerName}
-                disabled={fieldsDisabled}
-                allowClear
-                placeholder="Не используется"
-                onChange={(nextValue, option) => {
-                  const id =
-                    nextValue === null || nextValue === undefined
-                      ? null
-                      : Number(nextValue);
-                  form.setFieldValue('printer', id);
-                  setResourceLabels((prev) => ({
-                    ...prev,
-                    printerName: option?.label,
-                  }));
-                }}
-              />
-            </Form.Item>
-
-            <Form.Item label="Шаблон этикетки" name="template_id" style={{ marginBottom: 4 }}>
-              <PrintTemplateResourcePicker
-                value={templateId ?? undefined}
-                valueLabel={resourceLabels.templateName}
-                disabled={fieldsDisabled}
-                allowClear
-                placeholder="Не используется"
-                onChange={(nextValue, option) => {
-                  const id =
-                    nextValue === null || nextValue === undefined
-                      ? null
-                      : Number(nextValue);
-                  form.setFieldValue('template_id', id);
-                  setResourceLabels((prev) => ({
-                    ...prev,
-                    templateName: option?.label,
-                  }));
-                }}
-              />
-            </Form.Item>
-
-            
-            <Divider style={{ margin: 0 }}>
-              <Typography.Text strong>Контроль</Typography.Text>
-            </Divider>
-
-            <Form.Item
-              label="Камера"
-              tooltip="Камера, считывающая нанесённые на продукцию коды маркировки"
-              style={{ marginBottom: 4 }}
-            >
-              <DeviceResourcePicker
-                types={['camera']}
-                deviceType="camera"
-                lockDeviceType
-                value={cameraId ?? undefined}
-                valueLabel={resourceLabels.cameraName}
-                disabled={fieldsDisabled}
-                allowClear
-                placeholder="Не используется"
-                onChange={(nextValue, option) => {
-                  const id =
-                    nextValue === null || nextValue === undefined
-                      ? null
-                      : Number(nextValue);
-                  form.setFieldValue('camera', id);
-                  setResourceLabels((prev) => ({
-                    ...prev,
-                    cameraName: option?.label,
-                  }));
-                }}
-              />
-            </Form.Item>
-            <Form.Item name="camera" hidden>
-              <InputNumber />
-            </Form.Item>
-
-            <Form.Item
-              name="max_failures"
-              label="Останавливаться после ошибок подряд"
-              rules={[{ required: true, message: 'Укажите число ошибок' }]}
-              style={{ marginBottom: 4 }}
-            >
-              <InputNumber min={1} max={99999} style={{ width: '100%' }} />
-            </Form.Item>
-
-            <Form.Item
-              name="grade_percent"
-              label="Останавливаться после штук брака"
-              rules={[{ required: true, message: 'Укажите число штук брака' }]}
-              style={{ marginBottom: 4 }}
-            >
-              <InputNumber min={0} max={99999} style={{ width: '100%' }} />
-            </Form.Item>
-          </Form>
+            fieldsDisabled={fieldsDisabled}
+            resourceLabels={resourceLabels}
+            onResourceLabelsChange={setResourceLabels}
+          />
         )}
       </LoadingOverlay>
     </Modal>

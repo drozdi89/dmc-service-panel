@@ -69,6 +69,22 @@ function insertPlaceholderAtCursor(
  *
  * @param error - Caught rejection value.
  */
+function TemplateIdWatch({
+  onTemplateIdChange,
+}: {
+  onTemplateIdChange: (id: number | undefined) => void;
+}) {
+  const watchedId = Form.useWatch('id', Form.useFormInstance<CodeGeneratorTemplate>());
+
+  useEffect(() => {
+    onTemplateIdChange(
+      typeof watchedId === 'number' && watchedId > 0 ? watchedId : undefined,
+    );
+  }, [onTemplateIdChange, watchedId]);
+
+  return null;
+}
+
 function isAbortError(error: unknown): boolean {
   if (!error || typeof error !== 'object') {
     return false;
@@ -159,10 +175,12 @@ export function CodeGeneratorTemplateFormModal({
       : formSource?.is_system ?? initialValues?.is_system,
   );
 
-  const watchedId = Form.useWatch('id', form);
+  const [watchedTemplateId, setWatchedTemplateId] = useState<number | undefined>(
+    undefined,
+  );
   const templateId =
-    typeof watchedId === 'number' && watchedId > 0
-      ? watchedId
+    watchedTemplateId !== undefined
+      ? watchedTemplateId
       : typeof formSource?.id === 'number' && formSource.id > 0
         ? formSource.id
         : resolvedTemplateId !== undefined && resolvedTemplateId > 0
@@ -194,8 +212,7 @@ export function CodeGeneratorTemplateFormModal({
 
   useEffect(() => {
     if (!open) {
-      form.resetFields();
-      previewForm.resetFields();
+      setWatchedTemplateId(undefined);
       setVariablesOpen(false);
       cancelPreview();
       return;
@@ -400,6 +417,7 @@ export function CodeGeneratorTemplateFormModal({
     <>
       <Modal
         open={open}
+        destroyOnHidden={false}
         title={resolvedTitle}
         width={800}
         onCancel={handleCancel}
@@ -439,6 +457,7 @@ export function CodeGeneratorTemplateFormModal({
             disabled={formDisabled}
             initialValues={createDefaultFormValues()}
           >
+            <TemplateIdWatch onTemplateIdChange={setWatchedTemplateId} />
             <Form.Item name="id" hidden>
               <InputNumber />
             </Form.Item>

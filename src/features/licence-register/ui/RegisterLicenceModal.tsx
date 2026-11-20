@@ -39,7 +39,7 @@ export function RegisterLicenceModal({
       cancelText="Отмена"
       confirmLoading={confirmLoading}
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Text>Клиент: {clientId}</Text>
         <Select<string>
           style={{ width: '100%' }}

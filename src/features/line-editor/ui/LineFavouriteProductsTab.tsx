@@ -55,7 +55,7 @@ export function LineFavouriteProductsTab({ disabled, visibility }: LineFavourite
   }
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <SearchLoading
         placeholder="Поиск по GTIN или названию…"
         value={search}

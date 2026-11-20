@@ -33,7 +33,7 @@ const ACTIONS: Array<{ key: IntegrationDrawerKey; label: string }> = [
 export function IntegrationActionsCard({ onOpen }: IntegrationActionsCardProps) {
   return (
     <Card title="Интеграции и автоматизация">
-      <Space direction="vertical" style={{ width: '100%' }}>
+      <Space orientation="vertical" style={{ width: '100%' }}>
         {ACTIONS.map((action) => (
           <Button key={action.key} block onClick={() => onOpen(action.key)}>
             {action.label}

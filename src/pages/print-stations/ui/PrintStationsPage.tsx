@@ -132,7 +132,7 @@ export default function PrintStationsPage() {
   );
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
       <Template.Title>
         <Typography.Title level={4} style={{ margin: 0 }}>
           Станции печати

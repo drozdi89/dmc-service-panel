@@ -13,8 +13,19 @@ import { resourceFormModalFooter } from '@/shared/ui/ResourceFormModalFooter';
 import { LoadingOverlay } from '@/shared/ui/loading';
 import type { FormInstance } from 'antd';
 import { Alert, Form, Modal } from 'antd';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { LineEditorForm } from './LineEditorForm';
+
+function LineModalTitleName({
+  form,
+  fallback,
+}: {
+  form: FormInstance<LineEditorFormState>;
+  fallback: string;
+}) {
+  const name = Form.useWatch('name', form);
+  return <>Линия: {name?.trim() ? name : fallback}</>;
+}
 
 /**
  * Props for line create/edit modal (ResourcePicker-ready).
@@ -73,7 +84,6 @@ export function LineFormModal({
   const initialValues = hydrated?.key === lineKey ? hydrated.values : null;
   const initialResourceLabels =
     hydrated?.key === lineKey ? hydrated.resourceLabels : null;
-  const watchedName = Form.useWatch('name', editorForm ?? undefined);
 
   const configQuery = useLineConfigurationQuery(lineId ?? 0, {
     enabled: open && isExisting,
@@ -150,9 +160,18 @@ export function LineFormModal({
   const showFatalLoadError = isError && !initialValues;
   const showRefetchError = isError && Boolean(initialValues);
 
-  const resolvedTitle =
+  const resolvedTitle: ReactNode =
     title ??
-    (isEdit ? `Линия: ${watchedName || '…'}` : 'Новая линия');
+    (isEdit
+      ? editorForm
+        ? (
+            <LineModalTitleName
+              form={editorForm}
+              fallback={initialValues?.name?.trim() || '…'}
+            />
+          )
+        : `Линия: ${initialValues?.name?.trim() || '…'}`
+      : 'Новая линия');
 
   const canSave =
     Boolean(editorForm && initialValues) &&
@@ -163,6 +182,7 @@ export function LineFormModal({
   return (
     <Modal
       open={open}
+      destroyOnHidden={false}
       title={resolvedTitle}
       width={1000}
       onCancel={submitting ? () => undefined : onCancel}
