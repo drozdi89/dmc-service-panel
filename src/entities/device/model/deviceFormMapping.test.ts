@@ -109,6 +109,7 @@ describe('deviceFormMapping', () => {
       name: 'Cam-1',
       host: '10.0.0.1',
       port: 23,
+      use_hikrobot_sdk: false,
     });
   });
 
@@ -119,11 +120,11 @@ describe('deviceFormMapping', () => {
       port: '10.0.0.3:502',
       delay: 1500,
     });
-    expect(formValues.divider_delay_sec).toBe(1.5);
+    expect(formValues.delay).toBe(1500);
+    expect(formValues.port).toBe('10.0.0.3:502');
 
     const payload = mapFormValuesToPayload(formValues);
     expect(payload).toEqual({
-      id: 5,
       name: 'Div',
       port: '10.0.0.3:502',
       delay: 1500,
@@ -133,13 +134,13 @@ describe('deviceFormMapping', () => {
   it('creates scale defaults with serial port COM1', () => {
     const values = createDefaultFormValues('scale');
     expect(values.port).toBe('COM1');
-    expect(values.scale_type).toBe(0);
+    expect(values.type).toBe(0);
   });
 
   it('creates scale defaults with TCP port for CHECKWEIR', () => {
     const values = createDefaultFormValues('scale', { scaleType: SCALE_TYPE_CHECKWEIR });
     expect(values.port).toBe('21053');
-    expect(values.scale_type).toBe(SCALE_TYPE_CHECKWEIR);
+    expect(values.type).toBe(SCALE_TYPE_CHECKWEIR);
   });
 
   it('maps scale form to API payload with string port', () => {
@@ -148,7 +149,7 @@ describe('deviceFormMapping', () => {
       name: ' Весы-1 ',
       host: '',
       port: 'COM3',
-      scale_type: 0,
+      type: 0,
     });
     expect(payload).toMatchObject({
       name: 'Весы-1',
@@ -166,7 +167,7 @@ describe('deviceFormMapping', () => {
       name: 'Scale',
       host: '',
       port: '3',
-      scale_type: 0,
+      type: 0,
     });
     expect((payload as { port: string }).port).toBe('COM3');
   });
@@ -195,7 +196,7 @@ describe('deviceFormMapping', () => {
       name: 'Massa-K',
       host: '',
       port: 'COM5',
-      scale_type: SCALE_TYPE_MASSA_K_TERM_A,
+      type: SCALE_TYPE_MASSA_K_TERM_A,
     });
     expect(payload).toMatchObject({
       host: null,
@@ -211,7 +212,7 @@ describe('deviceFormMapping', () => {
       name: 'Massa-K TCP',
       host: '10.0.0.8',
       port: '21053',
-      scale_type: SCALE_TYPE_MASSA_K_TERM_A,
+      type: SCALE_TYPE_MASSA_K_TERM_A,
     });
     expect(payload).toMatchObject({
       host: '10.0.0.8',

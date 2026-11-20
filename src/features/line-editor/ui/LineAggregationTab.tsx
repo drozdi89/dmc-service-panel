@@ -1,12 +1,13 @@
 import {
   canAddAutomatedAggregationLevel,
   canSwapAggregationLevels,
-  createAggregationClientKey,
   MAX_AGGREGATION_LEVELS,
   reindexAggregationLevels,
   type AggregationLevelFormState,
+  type AggregationLevelLabels,
   type AggregationType,
   type LineEditorFormState,
+  type LineEditorResourceLabels,
   type LineEditorVisibility,
 } from '@/entities/line';
 import {
@@ -24,21 +25,34 @@ import { AutomatedAggregationLevelModal, AutonomousAggregationLevelModal, Manual
 /** Props for aggregation levels tab (list data lives in parent Form). */
 export interface LineAggregationTabProps {
   visibility: LineEditorVisibility;
+  resourceLabels: LineEditorResourceLabels;
+  onResourceLabelsChange: (next: LineEditorResourceLabels) => void;
 }
 
 type LevelModalState =
   | { open: false }
-  | { open: true; mode: 'create' | 'edit'; index?: number, aggregation_type: AggregationType };
+  | { open: true; mode: 'create' | 'edit'; index?: number; aggregation_type: AggregationType };
+
+function syncLevelLabels(
+  labels: AggregationLevelLabels[],
+  levels: AggregationLevelFormState[],
+): AggregationLevelLabels[] {
+  return levels.map((_, index) => labels[index] ?? {});
+}
 
 /**
  * Aggregation tab with level list and modals.
  * Reads/writes `aggregation_levels` and `deleted_aggregation_level_ids` via Form.
  */
-export function LineAggregationTab({ visibility }: LineAggregationTabProps) {
+export function LineAggregationTab({
+  visibility,
+  resourceLabels,
+  onResourceLabelsChange,
+}: LineAggregationTabProps) {
   const form = Form.useFormInstance<LineEditorFormState>();
   const levels = Form.useWatch('aggregation_levels', form) ?? [];
   const deletedIds = Form.useWatch('deleted_aggregation_level_ids', form) ?? [];
-  
+
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [modalState, setModalState] = useState<LevelModalState>({ open: false });
 
@@ -79,6 +93,10 @@ export function LineAggregationTab({ visibility }: LineAggregationTabProps) {
 
   const updateLevels = (nextLevels: AggregationLevelFormState[]) => {
     form.setFieldValue('aggregation_levels', reindexAggregationLevels(nextLevels));
+    onResourceLabelsChange({
+      ...resourceLabels,
+      aggregation_levels: syncLevelLabels(resourceLabels.aggregation_levels, nextLevels),
+    });
   };
 
   const openEditModal = (index: number) => {
@@ -93,8 +111,7 @@ export function LineAggregationTab({ visibility }: LineAggregationTabProps) {
   };
 
   const handleAddMenu: MenuProps['onClick'] = ({ key }) => {
-    setModalState({ open: true, mode: 'create', aggregation_type: key as AggregationType});
-    // autonomous
+    setModalState({ open: true, mode: 'create', aggregation_type: key as AggregationType });
   };
 
   const handleEdit = () => {
@@ -111,9 +128,16 @@ export function LineAggregationTab({ visibility }: LineAggregationTabProps) {
     const level = levels[selectedIndex];
     const nextDeleted = level.id ? [...deletedIds, level.id] : deletedIds;
     const nextLevels = levels.filter((_, index) => index !== selectedIndex);
+    const nextAggregationLabels = resourceLabels.aggregation_levels.filter(
+      (_, index) => index !== selectedIndex,
+    );
     form.setFieldsValue({
       aggregation_levels: reindexAggregationLevels(nextLevels),
       deleted_aggregation_level_ids: nextDeleted,
+    });
+    onResourceLabelsChange({
+      ...resourceLabels,
+      aggregation_levels: syncLevelLabels(nextAggregationLabels, nextLevels),
     });
     setSelectedIndex(null);
   };
@@ -127,25 +151,47 @@ export function LineAggregationTab({ visibility }: LineAggregationTabProps) {
       return;
     }
     const next = [...levels];
+    const nextLabels = [...resourceLabels.aggregation_levels];
     [next[selectedIndex], next[targetIndex]] = [next[targetIndex], next[selectedIndex]];
-    updateLevels(next);
+    [nextLabels[selectedIndex], nextLabels[targetIndex]] = [
+      nextLabels[targetIndex],
+      nextLabels[selectedIndex],
+    ];
+    form.setFieldValue('aggregation_levels', reindexAggregationLevels(next));
+    onResourceLabelsChange({
+      ...resourceLabels,
+      aggregation_levels: syncLevelLabels(nextLabels, reindexAggregationLevels(next)),
+    });
     setSelectedIndex(targetIndex);
   };
 
-  const handleModalSave = (level: AggregationLevelFormState) => {
+  const handleModalSave = (
+    level: AggregationLevelFormState,
+    levelLabels: AggregationLevelLabels,
+  ) => {
     if (modalState.open && modalState.mode === 'edit' && modalState.index !== undefined) {
       const next = [...levels];
       next[modalState.index] = { ...level, level: modalState.index };
-      updateLevels(next);
+      const nextAggregationLabels = [...resourceLabels.aggregation_levels];
+      nextAggregationLabels[modalState.index] = levelLabels;
+      form.setFieldValue('aggregation_levels', reindexAggregationLevels(next));
+      onResourceLabelsChange({
+        ...resourceLabels,
+        aggregation_levels: syncLevelLabels(nextAggregationLabels, next),
+      });
     } else {
-      updateLevels([
+      const nextLevels = [
         ...levels,
         {
           ...level,
-          clientKey: createAggregationClientKey(),
           level: levels.length,
         },
-      ]);
+      ];
+      form.setFieldValue('aggregation_levels', reindexAggregationLevels(nextLevels));
+      onResourceLabelsChange({
+        ...resourceLabels,
+        aggregation_levels: [...resourceLabels.aggregation_levels, levelLabels],
+      });
     }
     setModalState({ open: false });
   };
@@ -153,6 +199,11 @@ export function LineAggregationTab({ visibility }: LineAggregationTabProps) {
   const editingLevel =
     modalState.open && modalState.mode === 'edit' && modalState.index !== undefined
       ? levels[modalState.index]
+      : undefined;
+
+  const editingLevelLabels =
+    modalState.open && modalState.mode === 'edit' && modalState.index !== undefined
+      ? resourceLabels.aggregation_levels[modalState.index]
       : undefined;
 
   return (
@@ -214,12 +265,13 @@ export function LineAggregationTab({ visibility }: LineAggregationTabProps) {
         <ManualAggregationLevelModal
           open
           initialLevel={editingLevel}
+          initialLabels={editingLevelLabels}
           onCancel={() => setModalState({ open: false })}
           onSave={handleModalSave}
         />
       ) : null}
 
-      {modalState.open && modalState.aggregation_type === 'autonomous'? (
+      {modalState.open && modalState.aggregation_type === 'autonomous' ? (
         <AutonomousAggregationLevelModal
           open
           initialLevel={editingLevel}
@@ -227,11 +279,12 @@ export function LineAggregationTab({ visibility }: LineAggregationTabProps) {
           onSave={handleModalSave}
         />
       ) : null}
-    
+
       {modalState.open && modalState.aggregation_type === 'automated' ? (
         <AutomatedAggregationLevelModal
           open
           initialLevel={editingLevel}
+          initialLabels={editingLevelLabels}
           onCancel={() => setModalState({ open: false })}
           onSave={handleModalSave}
         />

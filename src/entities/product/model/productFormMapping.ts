@@ -3,6 +3,7 @@ import type {
   AggregateFormValues,
   CertificateFormValues,
   CertificateType,
+  CommissioningType,
   LicenceFormValues,
   Product,
   ProductAggregate,
@@ -10,6 +11,7 @@ import type {
   ProductArticleOverrides,
   ProductControllerParam,
   ProductCreatePayload,
+  ProductFormSubmitValues,
   ProductFormValues,
   ProductUpdatePayload,
 } from './types';
@@ -21,7 +23,7 @@ const TEMP_ID_PREFIX_RE = /^(pa_|pcp|pa|pc|pl)/i;
 type ProductScalarPayload = Omit<ProductCreatePayload, 'gtin' | 'controller_params'>;
 
 /** Aggregate row ready for create (no id) or update (numeric id). */
-export type AggregatePayloadCandidate = Omit<AggregateFormValues, 'id' | 'print_only'> & {
+export type AggregatePayloadCandidate = Omit<AggregateFormValues, 'id'> & {
   id?: number;
   gtin?: string;
 };
@@ -167,10 +169,10 @@ export const DEFAULT_PRODUCT_FORM_VALUES: Partial<ProductFormValues> = {
   lifetime_unit: 'DAYS',
   type: 'UNIT',
   vet_control: false,
-  vet_raw_control: false,
   is_imported: false,
   contract_commissioning: false,
-  commissioning_type: 'owner',
+  owner_inn: null,
+  producer_inn: null,
   measure_unit: 'U',
   beer_volume_ml: 0,
   mrp: 0,
@@ -188,33 +190,25 @@ export const DEFAULT_PRODUCT_FORM_VALUES: Partial<ProductFormValues> = {
 };
 
 /**
- * Resolves commissioning UI fields from API owner/producer INN.
+ * Infers commissioning UI role from API owner/producer INN.
  *
  * @param product - Product detail from API.
  */
-function mapCommissioningFromProduct(product: Product): Pick<
-  ProductFormValues,
-  'commissioning_type' | 'commissioning_inn'
-> {
+export function resolveCommissioningType(product: Product): CommissioningType {
   const ownerInn = product.owner_inn?.trim() ?? '';
   const producerInn = product.producer_inn?.trim() ?? '';
-
-  if (ownerInn) {
-    return { commissioning_type: 'owner', commissioning_inn: ownerInn };
+  if (producerInn && !ownerInn) {
+    return 'producer';
   }
-  if (producerInn) {
-    return { commissioning_type: 'producer', commissioning_inn: producerInn };
-  }
-  return { commissioning_type: 'owner', commissioning_inn: '' };
+  return 'owner';
 }
 
 /**
- * Maps product detail to Ant Design form values.
+ * Maps product detail to Ant Design form values (API object + nested list slots).
  *
  * @param product - Product from GET /api/v2/products/{gtin}.
  */
 export function mapProductToFormValues(product: Product): ProductFormValues {
-  const commissioning = mapCommissioningFromProduct(product);
   const vetControl = product.vet_control ?? false;
 
   return {
@@ -224,11 +218,6 @@ export function mapProductToFormValues(product: Product): ProductFormValues {
      * from dedicated queries in ProductFormModal. Do not reset them here — a later
      * product refetch would wipe already-loaded packaging rows.
      */
-    aggregates_removed: [],
-    certificates_removed: [],
-    licences_removed: [],
-    articles_removed: [],
-    controller_params_removed: [],
     gtin: product.gtin,
     name: product.name,
     controller_params: product.controller_params ?? [],
@@ -249,10 +238,9 @@ export function mapProductToFormValues(product: Product): ProductFormValues {
     package_weight: product.package_weight ?? 0,
     weight_min_g: product.weight_min_g ?? null,
     weight_max_g: product.weight_max_g ?? null,
-    /** Keep in sync with vet_control for bio label field (same API value). */
-    vet_raw_control: vetControl,
     contract_commissioning: product.contract_commissioning ?? false,
-    ...commissioning,
+    owner_inn: product.owner_inn ?? null,
+    producer_inn: product.producer_inn ?? null,
     additional_text: product.additional_text ?? undefined,
     template_id: product.template_id ?? undefined,
     plain_template_id: product.plain_template_id ?? undefined,
@@ -271,7 +259,7 @@ export function mapProductToFormValues(product: Product): ProductFormValues {
 }
 
 /**
- * Maps commissioning UI fields to owner_inn / producer_inn for the API.
+ * Maps owner_inn / producer_inn for the API (clears both when contract off).
  *
  * @param values - Validated form values.
  */
@@ -283,11 +271,10 @@ function mapCommissioningToPayload(values: ProductFormValues): {
     return { owner_inn: null, producer_inn: null };
   }
 
-  const inn = values.commissioning_inn?.trim() || null;
-  if (values.commissioning_type === 'producer') {
-    return { owner_inn: null, producer_inn: inn };
-  }
-  return { owner_inn: inn, producer_inn: null };
+  return {
+    owner_inn: values.owner_inn?.trim() || null,
+    producer_inn: values.producer_inn?.trim() || null,
+  };
 }
 
 /**
@@ -391,6 +378,7 @@ function mapFormValuesToSharedPayload(
     variable_char_max: values.variable_char_max ?? null,
     weight_min_g: weightBounds.weight_min_g,
     weight_max_g: weightBounds.weight_max_g,
+    variable_weight: values.variable_weight ?? false,
   };
 }
 
@@ -401,7 +389,7 @@ function mapFormValuesToSharedPayload(
  * @param values - Product form values.
  */
 export function mapAggregatesToPayload(
-  values: ProductFormValues,
+  values: ProductFormSubmitValues,
 ): AggregatePayloadCandidate[] {
   const removed = values.aggregates_removed as unknown[] | undefined;
   return (values.aggregates ?? [])
@@ -432,6 +420,7 @@ function mapAggregateRow(
     template_id: aggregate.template_id ?? null,
     code_generator_template_id: aggregate.code_generator_template_id ?? null,
     plain_template_id: aggregate.plain_template_id ?? null,
+    print_only: aggregate.print_only ?? false,
   };
 }
 
@@ -445,7 +434,7 @@ function mapAggregateRow(
  * @param values - Product form values.
  */
 export function mapControllerParamsToPayload(
-  values: ProductFormValues,
+  values: ProductFormSubmitValues,
 ): Pick<
   ProductUpdatePayload,
   'controller_params' | 'measure_unit' | 'weight_min_g' | 'weight_max_g'
@@ -469,6 +458,9 @@ export function mapControllerParamsToPayload(
 
   return {
     controller_params,
+    measure_unit: weightBounds.measure_unit,
+    weight_min_g: weightBounds.weight_min_g,
+    weight_max_g: weightBounds.weight_max_g,
   };
 }
 
@@ -496,7 +488,7 @@ function mapControllerParamRow(param: ProductControllerParam): ProductController
  * @param values - Product form values.
  */
 export function mapCertificatesToPayload(
-  values: ProductFormValues,
+  values: ProductFormSubmitValues,
 ): CertificateSaveCandidates {
   const removed = values.certificates_removed as unknown[] | undefined;
   const toCreate: CertificatePayloadCandidate[] = [];
@@ -552,7 +544,7 @@ function mapCertificateRow(
  *
  * @param values - Product form values.
  */
-export function mapLicencesToPayload(values: ProductFormValues): LicenceSaveCandidates {
+export function mapLicencesToPayload(values: ProductFormSubmitValues): LicenceSaveCandidates {
   const removed = values.licences_removed as unknown[] | undefined;
   const toCreate: LicencePayloadCandidate[] = [];
   const toUpdate: Array<LicencePayloadCandidate & { lic_id: number }> = [];
@@ -599,7 +591,7 @@ function mapLicenceRow(licence: LicenceFormValues): LicencePayloadCandidate {
  *
  * @param values - Product form values.
  */
-export function mapArticlesToPayload(values: ProductFormValues): ArticleSaveCandidates {
+export function mapArticlesToPayload(values: ProductFormSubmitValues): ArticleSaveCandidates {
   const removed = values.articles_removed as unknown[] | undefined;
   const toCreate: ArticleCreateCandidate[] = [];
   const toUpdate: ArticleUpdateCandidate[] = [];

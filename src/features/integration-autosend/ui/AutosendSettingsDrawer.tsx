@@ -1,15 +1,11 @@
 import {
   AUTOSEND_PRODUCTS_QUERY_KEY,
-  AUTOSEND_QUERY_KEY,
-  saveAutosendSettings,
   useAutosendSettingsQuery,
+  useSaveAutosendSettingsMutation,
   type AutosendProductSettings,
-  type AutosendSettingsPayload,
   type TaskerSchedule,
 } from '@/entities/integration';
-import { fetchIntegrationProducts } from '@/services/integration-service';
-import { ApiError } from '@/shared/api';
-import { createIdempotencyKey } from '@/shared/api/headers';
+import { useIntegrationProductsQuery } from '@/services/integration-service';
 import {
   DRAWER_FILLED_CONTENT_STYLE,
   DRAWER_FILLED_STYLES,
@@ -17,7 +13,6 @@ import {
   useTableBodyScrollY,
 } from '@/shared/ui/drawerFilledTable';
 import { PageSpinner } from '@/shared/ui/loading';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
   App,
@@ -34,12 +29,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutosendFlagsModal, type AutosendFlagsFormValues } from './AutosendFlagsModal';
 import { AutosendScheduleModal } from './AutosendScheduleModal';
 
-/** Product row with display name for autosend table. */
-interface AutosendTableRow extends AutosendProductSettings {
-  key: string;
-  name: string;
-}
-
 /** Props for autosend settings drawer. */
 export interface AutosendSettingsDrawerProps {
   open: boolean;
@@ -51,7 +40,6 @@ export interface AutosendSettingsDrawerProps {
  */
 export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawerProps) {
   const { message } = App.useApp();
-  const queryClient = useQueryClient();
   const [includePrinted, setIncludePrinted] = useState(false);
   const [schedule, setSchedule] = useState<TaskerSchedule>({
     enabled: false,
@@ -60,7 +48,7 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
     repeat_interval: '00:00:00',
     send_mode: 'unit_codes',
   });
-  const [rows, setRows] = useState<AutosendTableRow[]>([]);
+  const [rows, setRows] = useState<AutosendProductSettings[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [flagsModalOpen, setFlagsModalOpen] = useState(false);
@@ -69,18 +57,18 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
 
   const settingsQuery = useAutosendSettingsQuery({ enabled: open });
 
-  const productsQuery = useQuery({
-    queryKey: AUTOSEND_PRODUCTS_QUERY_KEY,
-    queryFn: fetchIntegrationProducts,
-    enabled: open,
-  });
+  const productsQuery = useIntegrationProductsQuery(AUTOSEND_PRODUCTS_QUERY_KEY, open);
+
+  const nameByGtin = useMemo(
+    () => new Map((productsQuery.data ?? []).map((p) => [p.gtin, p.name])),
+    [productsQuery.data],
+  );
 
   useEffect(() => {
     if (!open || !settingsQuery.isSuccess || !productsQuery.isSuccess) {
       return;
     }
     const data = settingsQuery.data;
-    const nameByGtin = new Map(productsQuery.data.map((p) => [p.gtin, p.name]));
     const flagsByGtin = new Map((data.products ?? []).map((p) => [p.gtin, p]));
 
     setIncludePrinted(data.include_printed_codes ?? false);
@@ -92,20 +80,15 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
       send_mode: data.schedule?.send_mode ?? 'unit_codes',
     });
 
-    const mergedRows = (data.products ?? []).map((product) => ({
-      ...product,
-      key: product.gtin,
-      name: nameByGtin.get(product.gtin) ?? product.gtin,
-    }));
+    const mergedRows = [...(data.products ?? [])];
 
     for (const product of productsQuery.data) {
       if (!flagsByGtin.has(product.gtin)) {
         mergedRows.push({
           gtin: product.gtin,
-          name: product.name,
-          key: product.gtin,
           auto_apply: false,
           auto_introduce: false,
+          auto_export_to_1c: false,
           skip_serialization: false,
           auto_send_aggregate: false,
         });
@@ -119,16 +102,13 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
     setPage(1);
   }, [open, productsQuery.data, productsQuery.isSuccess, settingsQuery.data, settingsQuery.isSuccess]);
 
-  const saveMutation = useMutation({
-    mutationFn: (payload: AutosendSettingsPayload) =>
-      saveAutosendSettings(payload, createIdempotencyKey()),
+  const saveMutation = useSaveAutosendSettingsMutation({
     onSuccess: () => {
       message.success('Настройки автоотправки сохранены');
-      void queryClient.invalidateQueries({ queryKey: AUTOSEND_QUERY_KEY });
       onClose();
     },
     onError: (error: Error) => {
-      message.error(error instanceof ApiError ? error.message : error.message);
+      message.error(error.message);
     },
   });
 
@@ -148,7 +128,7 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
       }
       setRows((prev) =>
         prev.map((row) =>
-          selectedKeys.includes(row.key) ? { ...row, ...flags } : row,
+          selectedKeys.includes(row.gtin) ? { ...row, ...flags } : row,
         ),
       );
     },
@@ -157,15 +137,7 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
 
   const handleSave = useCallback(() => {
     saveMutation.mutate({
-      products: rows.map(
-        ({ gtin, auto_apply, auto_introduce, skip_serialization, auto_send_aggregate }) => ({
-          gtin,
-          auto_apply,
-          auto_introduce,
-          skip_serialization,
-          auto_send_aggregate,
-        }),
-      ),
+      products: rows,
       schedule,
       include_printed_codes: includePrinted,
     });
@@ -173,7 +145,7 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
 
   const setRowFlag = useCallback(
     (
-      key: string,
+      gtin: string,
       field: 'auto_apply' | 'auto_introduce' | 'auto_send_aggregate' | 'skip_serialization',
       checked: boolean,
     ) => {
@@ -181,15 +153,20 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
         return;
       }
       setRows((prev) =>
-        prev.map((row) => (row.key === key ? { ...row, [field]: checked } : row)),
+        prev.map((row) => (row.gtin === gtin ? { ...row, [field]: checked } : row)),
       );
     },
     [scheduleEnabled],
   );
 
-  const columns = useMemo<ColumnsType<AutosendTableRow>>(
+  const columns = useMemo<ColumnsType<AutosendProductSettings>>(
     () => [
-      { title: 'Продукт', dataIndex: 'name', key: 'name', ellipsis: true },
+      {
+        title: 'Продукт',
+        key: 'name',
+        ellipsis: true,
+        render: (_value, record) => nameByGtin.get(record.gtin) ?? record.gtin,
+      },
       { title: 'GTIN', dataIndex: 'gtin', key: 'gtin', width: 140 },
       {
         title: 'Нанесение',
@@ -201,7 +178,7 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
           <Checkbox
             checked={value}
             disabled={!scheduleEnabled}
-            onChange={(event) => setRowFlag(record.key, 'auto_apply', event.target.checked)}
+            onChange={(event) => setRowFlag(record.gtin, 'auto_apply', event.target.checked)}
           />
         ),
       },
@@ -216,7 +193,7 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
             checked={value}
             disabled={!scheduleEnabled}
             onChange={(event) =>
-              setRowFlag(record.key, 'auto_introduce', event.target.checked)
+              setRowFlag(record.gtin, 'auto_introduce', event.target.checked)
             }
           />
         ),
@@ -232,7 +209,7 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
             checked={value}
             disabled={!scheduleEnabled}
             onChange={(event) =>
-              setRowFlag(record.key, 'auto_send_aggregate', event.target.checked)
+              setRowFlag(record.gtin, 'auto_send_aggregate', event.target.checked)
             }
           />
         ),
@@ -248,17 +225,17 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
             checked={value}
             disabled={!scheduleEnabled}
             onChange={(event) =>
-              setRowFlag(record.key, 'skip_serialization', event.target.checked)
+              setRowFlag(record.gtin, 'skip_serialization', event.target.checked)
             }
           />
         ),
       },
     ],
-    [scheduleEnabled, setRowFlag],
+    [nameByGtin, scheduleEnabled, setRowFlag],
   );
 
   const flagsModalInitial = useMemo<AutosendFlagsFormValues>(() => {
-    const selected = rows.filter((row) => selectedKeys.includes(row.key));
+    const selected = rows.filter((row) => selectedKeys.includes(row.gtin));
     return {
       auto_apply: selected.some((row) => row.auto_apply),
       auto_introduce: selected.some((row) => row.auto_introduce),
@@ -377,7 +354,8 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
               Передавать напечатанные коды при отправке задания
             </Checkbox>
             <div ref={tableHostRef} className={drawerFilledTableStyles.tableHost}>
-              <Table<AutosendTableRow>
+              <Table<AutosendProductSettings>
+                rowKey="gtin"
                 size="small"
                 rowSelection={{
                   selectedRowKeys: selectedKeys,

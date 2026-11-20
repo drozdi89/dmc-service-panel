@@ -40,6 +40,15 @@ export {
 } from './settings';
 
 export {
+  factoryNumbersMutations,
+  useSaveFtpConfigurationMutation,
+  useSaveMarkingOptionsMutation,
+  useSaveTeleBotSettingMutation,
+  useSaveWatchdogConfigurationMutation,
+  type SaveTeleBotSettingVariables,
+} from './mutations';
+
+export {
   markingOptionValueQueryOptions,
   useDmcCompSizeQuery,
   useMarkingOptionValueQuery,

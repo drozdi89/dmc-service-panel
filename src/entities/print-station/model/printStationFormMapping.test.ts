@@ -42,9 +42,10 @@ describe('printStationFormMapping', () => {
     };
 
     expect(mapPrintStationToFormValues(station)).toEqual({
+      station_id: 3,
       name: 'Station A',
-      printer_id: 10,
-      camera_id: null,
+      printer: 10,
+      camera: null,
       template_id: 5,
       max_failures: 7,
       grade_percent: 25,
@@ -54,8 +55,8 @@ describe('printStationFormMapping', () => {
   it('maps form values to create payload', () => {
     const payload = mapFormValuesToCreatePayload({
       name: '  New station  ',
-      printer_id: null,
-      camera_id: 4,
+      printer: null,
+      camera: 4,
       template_id: null,
       max_failures: 5,
       grade_percent: 50,
@@ -68,6 +69,7 @@ describe('printStationFormMapping', () => {
       template_id: null,
       max_failures: 5,
       grade_percent: 50,
+      skip_initial_noread: 0,
     });
   });
 });

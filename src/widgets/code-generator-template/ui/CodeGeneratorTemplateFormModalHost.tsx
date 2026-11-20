@@ -6,7 +6,6 @@ import {
   useCodeGeneratorTemplateFormUiStore,
   type CodeGeneratorTemplate,
 } from '@/entities/code-generator-template';
-import type { CodeGeneratorTemplateFormValues } from '@/features/code-generator-template-form';
 import { CodeGeneratorTemplateFormModal } from '@/features/code-generator-template-form';
 import type { ResourceFormSubmitOptions } from '@/shared/model/resourceFormUiBridge';
 import { RESOURCE_FORM_SUBMIT_SAVE } from '@/shared/model/resourceFormUiBridge';
@@ -54,7 +53,7 @@ export function CodeGeneratorTemplateFormModalHost() {
 
   const handleSubmit = useCallback(
     async (
-      values: CodeGeneratorTemplateFormValues,
+      values: CodeGeneratorTemplate,
       options: ResourceFormSubmitOptions = RESOURCE_FORM_SUBMIT_SAVE,
     ) => {
       const submittedGeneration = mountGenerationRef.current;

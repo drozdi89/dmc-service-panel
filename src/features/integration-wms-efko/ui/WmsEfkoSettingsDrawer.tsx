@@ -1,8 +1,7 @@
 import {
-  WMS_EFKO_QUERY_KEY,
-  fetchAllLines,
-  saveWmsEfkoSettings,
-  testWmsEfkoConnection,
+  useAllLinesQuery,
+  useSaveWmsEfkoSettingsMutation,
+  useTestWmsEfkoConnectionMutation,
   useWmsEfkoSettingsQuery,
   type LineListItem,
   type WmsEfkoLineFilterMode,
@@ -10,9 +9,7 @@ import {
   type WmsEfkoSettingsPayload,
 } from '@/entities/integration';
 import { ApiError } from '@/shared/api';
-import { createIdempotencyKey } from '@/shared/api/headers';
 import { PageSpinner } from '@/shared/ui/loading';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   App,
   Button,
@@ -114,20 +111,6 @@ function LineIdsField({
     </div>
   );
 }
-/** Form values for WMS (Efko) exchange settings drawer. */
-interface WmsEfkoFormValues {
-  enabled: boolean;
-  mssql_host: string;
-  mssql_port: number;
-  mssql_database: string;
-  mssql_username: string;
-  mssql_password: string;
-  api_host: string;
-  api_port: number;
-  line_filter_mode: WmsEfkoLineFilterMode;
-  line_ids: number[];
-}
-
 /** Props for WMS (Efko) exchange settings drawer. */
 export interface WmsEfkoSettingsDrawerProps {
   open: boolean;
@@ -139,20 +122,18 @@ export interface WmsEfkoSettingsDrawerProps {
  *
  * @param values - Current form values.
  */
-function buildWmsPayload(values: WmsEfkoFormValues): WmsEfkoSettingsPayload {
-  const apiPort = values.api_port > 0 ? values.api_port : null;
+function buildWmsPayload(values: WmsEfkoSettingsPayload): WmsEfkoSettingsPayload {
+  const { mssql_password: password, ...rest } = values;
   const payload: WmsEfkoSettingsPayload = {
-    enabled: values.enabled,
-    mssql_host: values.mssql_host.trim() || null,
-    mssql_port: values.mssql_port,
-    mssql_database: values.mssql_database.trim() || null,
-    mssql_username: values.mssql_username.trim() || null,
-    api_host: values.api_host.trim() || null,
-    api_port: apiPort,
-    line_filter_mode: values.line_filter_mode,
+    ...rest,
+    mssql_host: trimText(values.mssql_host) || null,
+    mssql_database: trimText(values.mssql_database) || null,
+    mssql_username: trimText(values.mssql_username) || null,
+    api_host: trimText(values.api_host) || null,
+    api_port: values.api_port && values.api_port > 0 ? values.api_port : null,
     line_ids: values.line_ids ?? [],
   };
-  const passwordText = values.mssql_password.trim();
+  const passwordText = trimText(password);
   if (passwordText) {
     payload.mssql_password = passwordText;
   }
@@ -160,22 +141,29 @@ function buildWmsPayload(values: WmsEfkoFormValues): WmsEfkoSettingsPayload {
 }
 
 /**
+ * Trims a nullable text field.
+ *
+ * @param value - Field value from the API object.
+ */
+function trimText(value: string | null | undefined): string {
+  return (value ?? '').trim();
+}
+
+/**
  * Validate WMS settings when integration is enabled.
  *
  * @param values - Current form values.
  */
-function validateEnabledSettings(values: WmsEfkoFormValues): string | null {
+function validateEnabledSettings(values: WmsEfkoSettingsPayload): string | null {
   if (!values.enabled) {
     return null;
   }
-  if (!values.mssql_host.trim()) {
-    return 'Укажите хост MS SQL WMS.';
-  }
-  if (!values.mssql_database.trim()) {
-    return 'Укажите имя базы данных MS SQL WMS.';
+  const connectionError = validateMssqlConnectionFields(values);
+  if (connectionError) {
+    return connectionError;
   }
   const mode = values.line_filter_mode;
-  if ((mode === 'include' || mode === 'exclude') && values.line_ids.length === 0) {
+  if ((mode === 'include' || mode === 'exclude') && (values.line_ids ?? []).length === 0) {
     const label = LINE_FILTER_OPTIONS.find((option) => option.value === mode)?.label ?? mode;
     return `Выберите хотя бы одну линию для режима фильтра «${label}».`;
   }
@@ -187,11 +175,13 @@ function validateEnabledSettings(values: WmsEfkoFormValues): string | null {
  *
  * @param values - Current form values.
  */
-function validateMssqlConnectionFields(values: WmsEfkoFormValues): string | null {
-  if (!values.mssql_host.trim()) {
+function validateMssqlConnectionFields(
+  values: Pick<WmsEfkoSettingsPayload, 'mssql_host' | 'mssql_database'>,
+): string | null {
+  if (!trimText(values.mssql_host)) {
     return 'Укажите хост MS SQL WMS.';
   }
-  if (!values.mssql_database.trim()) {
+  if (!trimText(values.mssql_database)) {
     return 'Укажите имя базы данных MS SQL WMS.';
   }
   return null;
@@ -202,17 +192,11 @@ function validateMssqlConnectionFields(values: WmsEfkoFormValues): string | null
  */
 export function WmsEfkoSettingsDrawer({ open, onClose }: WmsEfkoSettingsDrawerProps) {
   const { message } = App.useApp();
-  const queryClient = useQueryClient();
-  const [form] = Form.useForm<WmsEfkoFormValues>();
+  const [form] = Form.useForm<WmsEfkoSettingsPayload>();
   const loadedRef = useRef<WmsEfkoSettings | null>(null);
 
   const settingsQuery = useWmsEfkoSettingsQuery({ enabled: open });
-
-  const linesQuery = useQuery({
-    queryKey: ['integrations', 'wms-efko-lines'],
-    queryFn: fetchAllLines,
-    enabled: open,
-  });
+  const linesQuery = useAllLinesQuery({ enabled: open });
 
   useEffect(() => {
     if (!open || !settingsQuery.isSuccess) {
@@ -221,14 +205,9 @@ export function WmsEfkoSettingsDrawer({ open, onClose }: WmsEfkoSettingsDrawerPr
     const data = settingsQuery.data;
     loadedRef.current = data;
     form.setFieldsValue({
-      enabled: data.enabled ?? false,
-      mssql_host: data.mssql_host ?? '',
+      ...data,
       mssql_port: data.mssql_port ?? DEFAULT_MSSQL_PORT,
-      mssql_database: data.mssql_database ?? '',
-      mssql_username: data.mssql_username ?? '',
       mssql_password: '',
-      api_host: data.api_host ?? '',
-      api_port: data.api_port ?? 0,
       line_filter_mode: data.line_filter_mode ?? 'all',
       line_ids: data.line_ids ?? [],
     });
@@ -249,57 +228,20 @@ export function WmsEfkoSettingsDrawer({ open, onClose }: WmsEfkoSettingsDrawerPr
   const linesListEnabled = lineFilterMode === 'include' || lineFilterMode === 'exclude';
   const enabled = Form.useWatch('enabled', form);
 
-  const saveMutation = useMutation({
-    mutationFn: async (values: WmsEfkoFormValues) => {
-      const validationError = validateEnabledSettings(values);
-      if (validationError) {
-        throw new Error(validationError);
-      }
-      const payload = buildWmsPayload(values);
-      return saveWmsEfkoSettings(payload, createIdempotencyKey());
-    },
+  const saveMutation = useSaveWmsEfkoSettingsMutation({
     onSuccess: () => {
       message.success('Настройки интеграции с WMS сохранены');
-      void queryClient.invalidateQueries({ queryKey: WMS_EFKO_QUERY_KEY });
       onClose();
     },
     onError: (error: Error) => {
-      message.error(error instanceof ApiError ? error.message : error.message);
+      message.error(error.message);
     },
   });
 
-  const testMutation = useMutation({
-    mutationFn: async (values: WmsEfkoFormValues) => {
-      const validationError = validateMssqlConnectionFields(values);
-      if (validationError) {
-        throw new Error(validationError);
-      }
-      const loaded = loadedRef.current ?? settingsQuery.data;
-      if (!loaded) {
-        throw new Error('Настройки не загружены');
-      }
-      const passwordText = values.mssql_password.trim();
-      const testPayload: WmsEfkoSettingsPayload = {
-        enabled: loaded.enabled,
-        mssql_host: values.mssql_host.trim() || null,
-        mssql_port: values.mssql_port,
-        mssql_database: values.mssql_database.trim() || null,
-        mssql_username: values.mssql_username.trim() || null,
-        api_host: loaded.api_host,
-        api_port: loaded.api_port,
-        line_filter_mode: loaded.line_filter_mode,
-        line_ids: loaded.line_ids ?? [],
-      };
-      if (passwordText) {
-        testPayload.mssql_password = passwordText;
-      }
-      await saveWmsEfkoSettings(testPayload, createIdempotencyKey());
-      return testWmsEfkoConnection(createIdempotencyKey());
-    },
+  const testMutation = useTestWmsEfkoConnectionMutation({
     onSuccess: (result) => {
       if (result.ok) {
         message.success('Подключение к MS SQL WMS успешно');
-        void queryClient.invalidateQueries({ queryKey: WMS_EFKO_QUERY_KEY });
         return;
       }
       message.error(
@@ -317,8 +259,13 @@ export function WmsEfkoSettingsDrawer({ open, onClose }: WmsEfkoSettingsDrawerPr
 
   const handleSave = useCallback(async () => {
     const values = await form.validateFields();
-    saveMutation.mutate(values);
-  }, [form, saveMutation]);
+    const validationError = validateEnabledSettings(values);
+    if (validationError) {
+      message.error(validationError);
+      return;
+    }
+    saveMutation.mutate(buildWmsPayload(values));
+  }, [form, message, saveMutation]);
 
   const handleTestConnection = useCallback(async () => {
     const values = await form.validateFields([
@@ -328,8 +275,27 @@ export function WmsEfkoSettingsDrawer({ open, onClose }: WmsEfkoSettingsDrawerPr
       'mssql_username',
       'mssql_password',
     ]);
-    testMutation.mutate(values);
-  }, [form, testMutation]);
+    const validationError = validateMssqlConnectionFields(values);
+    if (validationError) {
+      message.error(`Не удалось проверить подключение к MS SQL WMS: ${validationError}`);
+      return;
+    }
+    const loaded = loadedRef.current ?? settingsQuery.data;
+    if (!loaded) {
+      message.error('Настройки не загружены');
+      return;
+    }
+    testMutation.mutate(
+      buildWmsPayload({
+        ...loaded,
+        mssql_host: values.mssql_host,
+        mssql_port: values.mssql_port,
+        mssql_database: values.mssql_database,
+        mssql_username: values.mssql_username,
+        mssql_password: values.mssql_password,
+      }),
+    );
+  }, [form, message, settingsQuery.data, testMutation]);
 
   const isLoading = settingsQuery.isLoading || linesQuery.isLoading;
 

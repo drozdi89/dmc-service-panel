@@ -1,34 +1,28 @@
 import { Alert, Card, Form, Space, Typography, message } from 'antd';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
-  FTP_QUERY_KEY,
-  SETTINGS_BUNDLE_QUERY_KEY,
-  TELE_BOT_QUERY_KEY,
-  WATCHDOG_QUERY_KEY,
-  saveFtpConfiguration,
-  saveMarkingOptionsBatch,
-  saveTeleBotSetting,
-  saveWatchdogConfiguration,
   useFtpConfigurationQuery,
+  useSaveFtpConfigurationMutation,
+  useSaveMarkingOptionsMutation,
+  useSaveTeleBotSettingMutation,
+  useSaveWatchdogConfigurationMutation,
   useSettingsBundleQuery,
   useSlaveConfigurationQuery,
   useTeleBotSettingQuery,
   useWatchdogConfigurationQuery,
   validateBatchTemplate,
+  type FtpConfiguration,
   type MarkingOptionEntry,
+  type ParametersSettingsBundle,
+  type TeleBotSettingRow,
+  type WatchdogConfiguration,
 } from '@/entities/parameters';
 import { FactoryNumbersSection } from '@/features/parameters-factory-numbers';
-import { FtpSection, type FtpFormValues } from '@/features/parameters-ftp';
-import {
-  MarkingOptionsSection,
-  type MarkingOptionsFormValues,
-} from '@/features/parameters-marking-options';
-import { StatisticsSection, type StatisticsFormValues } from '@/features/parameters-statistics';
-import { TelegramSection, type TelegramFormValues } from '@/features/parameters-telegram';
+import { FtpSection } from '@/features/parameters-ftp';
+import { MarkingOptionsSection } from '@/features/parameters-marking-options';
+import { StatisticsSection } from '@/features/parameters-statistics';
+import { TelegramSection } from '@/features/parameters-telegram';
 import { WatchdogSection } from '@/features/parameters-watchdog';
-import { ApiError } from '@/shared/api';
-import { createIdempotencyKey } from '@/shared/api/headers';
 import { PageSpinner } from '@/shared/ui/loading';
 
 /**
@@ -38,7 +32,7 @@ import { PageSpinner } from '@/shared/ui/loading';
  * @param isSlaveMode - When true, slave-hidden fields are omitted.
  */
 function markingFormToBatchEntries(
-  values: MarkingOptionsFormValues,
+  values: ParametersSettingsBundle,
   isSlaveMode: boolean,
 ): MarkingOptionEntry[] {
   const entries: MarkingOptionEntry[] = [
@@ -76,12 +70,11 @@ function markingFormToBatchEntries(
  * Parameters admin page — marking options, Telegram, factory numbers, FTP, Watchdog, statistics.
  */
 export default function ParametersPage() {
-  const queryClient = useQueryClient();
-  const [markingForm] = Form.useForm<MarkingOptionsFormValues>();
-  const [telegramForm] = Form.useForm<TelegramFormValues>();
-  const [ftpForm] = Form.useForm<FtpFormValues>();
-  const [watchdogForm] = Form.useForm<{ enabled: boolean; port: number }>();
-  const [statisticsForm] = Form.useForm<StatisticsFormValues>();
+  const [markingForm] = Form.useForm<ParametersSettingsBundle>();
+  const [telegramForm] = Form.useForm<TeleBotSettingRow>();
+  const [ftpForm] = Form.useForm<FtpConfiguration>();
+  const [watchdogForm] = Form.useForm<WatchdogConfiguration>();
+  const [statisticsForm] = Form.useForm<ParametersSettingsBundle>();
 
   const bundleQuery = useSettingsBundleQuery();
   const slaveQuery = useSlaveConfigurationQuery();
@@ -120,82 +113,51 @@ export default function ParametersPage() {
     shouldLoadFtp,
   ]);
 
-  const invalidateBundle = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: SETTINGS_BUNDLE_QUERY_KEY });
-  }, [queryClient]);
+  const showError = (error: Error) => message.error(error.message);
 
-  const markingSaveMutation = useMutation({
-    mutationFn: async (values: MarkingOptionsFormValues) => {
-      const templateError = validateBatchTemplate(values.batch_template);
-      if (templateError) {
-        throw new Error(templateError);
-      }
-      return saveMarkingOptionsBatch(markingFormToBatchEntries(values, isSlaveMode));
-    },
+  const markingSaveMutation = useSaveMarkingOptionsMutation({
     onSuccess: () => {
       message.success('Настройки маркировки сохранены');
-      invalidateBundle();
     },
-    onError: (error: Error) => {
-      message.error(error.message);
-    },
+    onError: showError,
   });
 
-  const telegramSaveMutation = useMutation({
-    mutationFn: async (values: TelegramFormValues) => {
-      return saveTeleBotSetting(
-        { api_token: values.api_token, is_activ: values.is_activ },
-        teleBotQuery.data?.bot_setting_id ?? null,
-        createIdempotencyKey(),
-      );
-    },
+  const telegramSaveMutation = useSaveTeleBotSettingMutation({
     onSuccess: () => {
       message.success('Настройки Telegram сохранены');
-      void queryClient.invalidateQueries({ queryKey: TELE_BOT_QUERY_KEY });
     },
-    onError: (error: Error) => {
-      message.error(error instanceof ApiError ? error.message : error.message);
-    },
+    onError: showError,
   });
 
-  const ftpSaveMutation = useMutation({
-    mutationFn: (values: FtpFormValues) =>
-      saveFtpConfiguration(values, createIdempotencyKey()),
+  const ftpSaveMutation = useSaveFtpConfigurationMutation({
     onSuccess: () => {
       message.success('Настройки FTP сохранены');
-      void queryClient.invalidateQueries({ queryKey: FTP_QUERY_KEY });
     },
-    onError: (error: Error) => {
-      message.error(error instanceof ApiError ? error.message : error.message);
-    },
+    onError: showError,
   });
 
-  const watchdogSaveMutation = useMutation({
-    mutationFn: (values: { enabled: boolean; port: number }) =>
-      saveWatchdogConfiguration(values, createIdempotencyKey()),
+  const watchdogSaveMutation = useSaveWatchdogConfigurationMutation({
     onSuccess: () => {
       message.success('Настройки Watchdog сохранены');
-      void queryClient.invalidateQueries({ queryKey: WATCHDOG_QUERY_KEY });
     },
-    onError: (error: Error) => {
-      message.error(error instanceof ApiError ? error.message : error.message);
-    },
+    onError: showError,
   });
 
-  const statisticsSaveMutation = useMutation({
-    mutationFn: (values: StatisticsFormValues) =>
-      saveMarkingOptionsBatch([
-        { name: 'disable_statistics', value: values.disable_statistics },
-        { name: 'disable_statistics_export', value: values.disable_statistics_export },
-      ]),
+  const statisticsSaveMutation = useSaveMarkingOptionsMutation({
     onSuccess: () => {
       message.success('Настройки статистики сохранены');
-      invalidateBundle();
     },
-    onError: (error: Error) => {
-      message.error(error instanceof ApiError ? error.message : error.message);
-    },
+    onError: showError,
   });
+
+  const handleMarkingSave = (values: ParametersSettingsBundle) => {
+    const templateError = validateBatchTemplate(values.batch_template);
+    if (templateError) {
+      message.error(templateError);
+      return;
+    }
+    markingSaveMutation.mutate(markingFormToBatchEntries(values, isSlaveMode));
+  };
 
   if (initialLoading) {
     return <PageSpinner tip="Загрузка параметров…" />;
@@ -233,7 +195,7 @@ export default function ParametersPage() {
           initialValues={bundleQuery.data}
           isSlaveMode={isSlaveMode}
           saving={markingSaveMutation.isPending}
-          onSave={(values) => markingSaveMutation.mutate(values)}
+          onSave={handleMarkingSave}
         />
       </Card>
 
@@ -242,7 +204,12 @@ export default function ParametersPage() {
           form={telegramForm}
           initialSetting={teleBotQuery.data}
           saving={telegramSaveMutation.isPending}
-          onSave={(values) => telegramSaveMutation.mutate(values)}
+          onSave={(values) =>
+            telegramSaveMutation.mutate({
+              setting: values,
+              existingId: teleBotQuery.data?.bot_setting_id ?? null,
+            })
+          }
         />
       </Card>
 
@@ -275,7 +242,12 @@ export default function ParametersPage() {
           form={statisticsForm}
           initialValues={bundleQuery.data}
           saving={statisticsSaveMutation.isPending}
-          onSave={(values) => statisticsSaveMutation.mutate(values)}
+          onSave={(values) =>
+            statisticsSaveMutation.mutate([
+              { name: 'disable_statistics', value: values.disable_statistics },
+              { name: 'disable_statistics_export', value: values.disable_statistics_export },
+            ])
+          }
         />
       </Card>
     </Space>

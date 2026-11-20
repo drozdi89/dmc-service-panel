@@ -35,6 +35,7 @@ import type {
   Product,
   ProductAggregateUpdatePayload,
   ProductArticle,
+  ProductFormSubmitValues,
   ProductFormValues,
 } from '../model/types';
 
@@ -84,6 +85,7 @@ function toAggregateFormValues(aggregate: AggregatePayloadCandidate): AggregateF
     template_id: aggregate.template_id ?? null,
     code_generator_template_id: aggregate.code_generator_template_id ?? null,
     plain_template_id: aggregate.plain_template_id ?? null,
+    print_only: aggregate.print_only ?? false,
   };
 }
 
@@ -108,6 +110,7 @@ function toAggregateUpdatePayload(
     plain_template_id: aggregate.plain_template_id ?? null,
     /** Schema requires the field; form does not edit package weight on aggregates. */
     package_weight: 0,
+    print_only: aggregate.print_only ?? false,
   };
 }
 
@@ -165,7 +168,7 @@ function toArticleValues(
  */
 async function persistProductAggregates(
   gtin: string,
-  values: ProductFormValues,
+  values: ProductFormSubmitValues,
 ): Promise<void> {
   const removedIds = mapRemovedPersistedIds(values.aggregates_removed as unknown[] | undefined);
   if (removedIds.length > 0) {
@@ -189,7 +192,7 @@ async function persistProductAggregates(
  */
 async function persistProductCertificates(
   gtin: string,
-  values: ProductFormValues,
+  values: ProductFormSubmitValues,
 ): Promise<void> {
   const { toCreate, toUpdate, removedIds } = mapCertificatesToPayload(values);
 
@@ -218,7 +221,7 @@ async function persistProductCertificates(
  */
 async function persistProductLicences(
   gtin: string,
-  values: ProductFormValues,
+  values: ProductFormSubmitValues,
 ): Promise<void> {
   const { toCreate, toUpdate, removedIds } = mapLicencesToPayload(values);
 
@@ -243,7 +246,7 @@ async function persistProductLicences(
  */
 async function persistProductArticles(
   gtin: string,
-  values: ProductFormValues,
+  values: ProductFormSubmitValues,
 ): Promise<void> {
   const { toCreate, toUpdate, removedIds } = mapArticlesToPayload(values);
 
@@ -277,7 +280,7 @@ async function persistProductArticles(
  */
 export async function persistProductFormValues(
   mutateAsync: (variables: IdempotentMutationVariables) => Promise<Product>,
-  values: ProductFormValues,
+  values: ProductFormSubmitValues,
   editGtin?: string,
   cachedProduct?: Product | null,
 ): Promise<Product> {

@@ -1,12 +1,9 @@
 import {
-  AUTOORDER_QUERY_KEY,
-  saveAutoorderOptions,
   useAutoorderOptionsQuery,
+  useSaveAutoorderOptionsMutation,
   type AutoorderOptions,
   type AutoorderProductRow,
 } from '@/entities/integration';
-import { ApiError } from '@/shared/api';
-import { createIdempotencyKey } from '@/shared/api/headers';
 import {
   DRAWER_FILLED_CONTENT_STYLE,
   DRAWER_FILLED_STYLES,
@@ -14,7 +11,6 @@ import {
   useTableBodyScrollY,
 } from '@/shared/ui/drawerFilledTable';
 import { PageSpinner } from '@/shared/ui/loading';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
   App,
@@ -37,11 +33,6 @@ import { AUTOORDER_AMOUNT_MAX, AutoorderAmountCell } from './AutoorderAmountCell
 
 const PAGE_SIZE = 20;
 
-/** Editable product row in autoorder drawer. */
-interface AutoorderTableRow extends AutoorderProductRow {
-  key: string;
-}
-
 /** Props for autoorder settings drawer. */
 export interface AutoorderSettingsDrawerProps {
   open: boolean;
@@ -53,15 +44,8 @@ export interface AutoorderSettingsDrawerProps {
  */
 export function AutoorderSettingsDrawer({ open, onClose }: AutoorderSettingsDrawerProps) {
   const { message } = App.useApp();
-  const queryClient = useQueryClient();
-  const [form] = Form.useForm<{
-    enabled: boolean;
-    amount: number;
-    days: number;
-    percent: number;
-    new_products_enabled: boolean;
-  }>();
-  const [rows, setRows] = useState<AutoorderTableRow[]>([]);
+  const [form] = Form.useForm<AutoorderOptions>();
+  const [rows, setRows] = useState<AutoorderProductRow[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [customAmountOpen, setCustomAmountOpen] = useState(false);
@@ -73,35 +57,22 @@ export function AutoorderSettingsDrawer({ open, onClose }: AutoorderSettingsDraw
     if (!open || !optionsQuery.isSuccess || !optionsQuery.data) {
       return;
     }
-    const data = optionsQuery.data;
-    form.setFieldsValue({
-      enabled: data.mode !== 0,
-      amount: data.amount,
-      days: data.days,
-      new_products_enabled: data.new_products_enabled,
-      percent: data.percent,
-    });
-    const productRows = Object.values(data.products ?? {}).map((product) => ({
-      ...product,
-      key: product.gtin,
-    }));
-    setRows(productRows);
+    const { products, ...settings } = optionsQuery.data;
+    form.setFieldsValue(settings);
+    setRows(Object.values(products ?? {}));
     setSelectedKeys([]);
     setPage(1);
     setCustomAmountOpen(false);
     setCustomAmount(1);
   }, [form, open, optionsQuery.data, optionsQuery.isSuccess]);
 
-  const saveMutation = useMutation({
-    mutationFn: (payload: AutoorderOptions) =>
-      saveAutoorderOptions(payload, createIdempotencyKey()),
+  const saveMutation = useSaveAutoorderOptionsMutation({
     onSuccess: () => {
       message.success('Параметры автозаказа сохранены');
-      void queryClient.invalidateQueries({ queryKey: AUTOORDER_QUERY_KEY });
       onClose();
     },
     onError: (error: Error) => {
-      message.error(error instanceof ApiError ? error.message : error.message);
+      message.error(error.message);
     },
   });
 
@@ -109,7 +80,7 @@ export function AutoorderSettingsDrawer({ open, onClose }: AutoorderSettingsDraw
     (amount: number) => {
       setRows((prev) =>
         prev.map((row) =>
-          selectedKeys.includes(row.key) ? { ...row, amount } : row,
+          selectedKeys.includes(row.gtin) ? { ...row, amount } : row,
         ),
       );
     },
@@ -119,20 +90,13 @@ export function AutoorderSettingsDrawer({ open, onClose }: AutoorderSettingsDraw
   const handleSave = useCallback(async () => {
     const values = await form.validateFields();
     const products = rows.reduce<Record<string, AutoorderProductRow>>((acc, row) => {
-      acc[row.gtin] = { name: row.name, gtin: row.gtin, amount: row.amount };
+      acc[row.gtin] = row;
       return acc;
     }, {});
-    saveMutation.mutate({
-      mode: values.enabled ? 1 : 0,
-      amount: values.amount,
-      days: values.days,
-      percent: values.percent,
-      new_products_enabled: values.new_products_enabled,
-      products,
-    });
+    saveMutation.mutate({ ...values, products });
   }, [form, rows, saveMutation]);
 
-  const enabled = Form.useWatch('enabled', form);
+  const enabled = (Form.useWatch('mode', form) ?? 0) !== 0;
 
   useEffect(() => {
     if (!enabled) {
@@ -140,13 +104,13 @@ export function AutoorderSettingsDrawer({ open, onClose }: AutoorderSettingsDraw
     }
   }, [enabled]);
 
-  const setRowAmount = useCallback((key: string, amount: number) => {
+  const setRowAmount = useCallback((gtin: string, amount: number) => {
     setRows((prev) =>
-      prev.map((row) => (row.key === key ? { ...row, amount } : row)),
+      prev.map((row) => (row.gtin === gtin ? { ...row, amount } : row)),
     );
   }, []);
 
-  const columns = useMemo<ColumnsType<AutoorderTableRow>>(
+  const columns = useMemo<ColumnsType<AutoorderProductRow>>(
     () => [
       { title: 'Продукт', dataIndex: 'name', key: 'name', ellipsis: true },
       { title: 'GTIN', dataIndex: 'gtin', key: 'gtin', width: 140 },
@@ -159,7 +123,7 @@ export function AutoorderSettingsDrawer({ open, onClose }: AutoorderSettingsDraw
           <AutoorderAmountCell
             amount={value}
             disabled={!enabled}
-            onChange={(amount) => setRowAmount(record.key, amount)}
+            onChange={(amount) => setRowAmount(record.gtin, amount)}
           />
         ),
       },
@@ -242,7 +206,13 @@ export function AutoorderSettingsDrawer({ open, onClose }: AutoorderSettingsDraw
               </Typography.Text>
             </Form.Item>
             <Divider titlePlacement="left" style={{ margin: 0 }}>
-              <Form.Item name="enabled" valuePropName="checked" noStyle>
+              <Form.Item
+                name="mode"
+                valuePropName="checked"
+                getValueProps={(mode?: number) => ({ checked: (mode ?? 0) !== 0 })}
+                normalize={(checked: boolean) => (checked ? 1 : 0)}
+                noStyle
+              >
                 <Checkbox>Включить автозаказ</Checkbox>
               </Form.Item>
             </Divider>
@@ -282,8 +252,9 @@ export function AutoorderSettingsDrawer({ open, onClose }: AutoorderSettingsDraw
           </Flex>
 
           <div ref={tableHostRef} className={drawerFilledTableStyles.tableHost}>
-            <Table<AutoorderTableRow>
+            <Table<AutoorderProductRow>
               size="small"
+              rowKey="gtin"
               rowSelection={{
                 selectedRowKeys: selectedKeys,
                 onChange: (keys) => setSelectedKeys(keys.map(String)),

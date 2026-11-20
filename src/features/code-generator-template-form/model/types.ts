@@ -1,26 +1,11 @@
-import type {
-  CodeGeneratorTemplate,
-  CounterSpec,
-} from '@/entities/code-generator-template';
+import type { CodeGeneratorTemplate } from '@/entities/code-generator-template';
 import type { ResourceFormSubmitOptions } from '@/shared/model/resourceFormUiBridge';
 import type { NamePath } from 'antd/es/form/interface';
-
-/** Form values for code generator template create/edit. */
-export interface CodeGeneratorTemplateFormValues {
-  id?: number;
-  name: string;
-  description?: string | null;
-  template: string;
-  counter_config: CounterSpec[];
-  validation_regex?: string | null;
-  /** Read-only flag from detail; system rows cannot be saved. */
-  is_system?: boolean;
-}
 
 /** Field-level validation error for the form. */
 export interface CodeGeneratorTemplateFormFieldError {
   /** Ant Design Form field path. */
-  name: NamePath<CodeGeneratorTemplateFormValues>;
+  name: NamePath<CodeGeneratorTemplate>;
   message: string;
 }
 
@@ -66,7 +51,7 @@ export interface CodeGeneratorTemplateFormModalProps {
   submitting?: boolean;
   onCancel: () => void;
   onSubmit: (
-    values: CodeGeneratorTemplateFormValues,
+    values: CodeGeneratorTemplate,
     options: ResourceFormSubmitOptions,
   ) => void;
 }

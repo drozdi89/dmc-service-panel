@@ -23,6 +23,8 @@ export interface ProductCertificatesTabProps {
   isEdit: boolean;
   visibility?: ReturnType<typeof visibilityFormControl>;
   loading: boolean;
+  itemsRemoved: Array<ProductCertificate['cert_id']>;
+  onItemsRemovedChange: (next: Array<ProductCertificate['cert_id']>) => void;
 }
 
 let ii = 0;
@@ -37,50 +39,15 @@ export function ProductCertificatesTab({
   isEdit,
   loading,
   visibility,
+  itemsRemoved,
+  onItemsRemovedChange,
 }: ProductCertificatesTabProps) {
   const { showedWellNumber } = useMemo(() => visibility ?? visibilityFormControl(form.getFieldsValue()), [visibility, form.getFieldsValue()]);
 
   const items = Form.useWatch('certificates', form) || [];
-  const itemsRemoved = Form.useWatch('certificates_removed', form) || [];
 
   const [modalOpen, setModalOpen] = useState(false);
   const [subForm] = Form.useForm<ProductCertificate>();
-
-  // const invalidateCertificates = () => {
-  //   if (!gtin) {
-  //     return;
-  //   }
-  //   void queryClient.invalidateQueries({
-  //     queryKey: productRelatedQueryKeys.certificates(gtin),
-  //   });
-  // };
-
-  // const certCreateMutation = useIdempotentMutation<ProductCertificate>({
-  //   onSuccess: () => {
-  //     message.success('Сертификат добавлен');
-  //     setModalOpen(false);
-  //     subForm.resetFields();
-  //     invalidateCertificates();
-  //   },
-  //   onError: (error) => message.error(error.message),
-  // });
-
-  // const certDeleteMutation = useIdempotentMutation<void>({
-  //   onSuccess: () => {
-  //     message.success('Сертификат удалён');
-  //     invalidateCertificates();
-  //   },
-  //   onError: (error) => message.error(error.message),
-  // });
-
-  // const certUpdateMutation = useIdempotentMutation<ProductCertificate>({
-  //   onSuccess: () => {
-  //     message.success('Сертификат обновлен');
-  //     invalidateCertificates();
-  //   },
-  //   onError: (error) => message.error(error.message),
-  // });
-
 
   const submitItem = (values: ProductCertificate) => {
     const next: ProductCertificate = {
@@ -106,14 +73,14 @@ export function ProductCertificatesTab({
     if (!record.cert_id) {
       return;
     }
-    form.setFieldValue('certificates_removed', [...(itemsRemoved ?? []), record.cert_id]);
+    onItemsRemovedChange([...(itemsRemoved ?? []), record.cert_id]);
   };
 
   const recucleItem = (record: ProductCertificate) => {
     if (!record.cert_id) {
       return;
     }
-    form.setFieldValue('certificates_removed', itemsRemoved.filter((cert_id) => cert_id !== record.cert_id));
+    onItemsRemovedChange(itemsRemoved.filter((cert_id) => cert_id !== record.cert_id));
   };
 
   const itemColumns: ColumnsType<ProductCertificate> = [
@@ -188,7 +155,6 @@ export function ProductCertificatesTab({
   return (
     <>
       <Form.Item name="certificates" hidden></Form.Item>
-      <Form.Item name="certificates_removed" hidden></Form.Item>
       <Space orientation="vertical" style={{ width: '100%' }}>
         <ButtonLoading type="primary" disabled={!isEdit} onClick={() => {
           setModalOpen(true)

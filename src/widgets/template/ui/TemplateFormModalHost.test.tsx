@@ -3,10 +3,7 @@ import {
   resetPrintTemplateFormUiStore,
   usePrintTemplateFormUiStore,
 } from '@/entities/print-template';
-import type {
-  TemplateFormModalProps,
-  TemplateFormValues,
-} from '@/features/template-form';
+import type { TemplateFormModalProps } from '@/features/template-form';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -40,9 +37,10 @@ vi.mock('@/features/template-form', () => ({
           onClick={() =>
             onSubmit(
               {
+                id: 0,
                 name: 'Saved',
                 template: 'body',
-              } satisfies TemplateFormValues,
+              } satisfies PrintTemplate,
               { close: true },
             )
           }

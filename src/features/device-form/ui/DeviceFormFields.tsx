@@ -49,7 +49,7 @@ export function DeviceFormFields({
   const form = Form.useFormInstance<DeviceFormValues>();
   const watchedType = Form.useWatch('device_type', form) as DeviceType | undefined;
   const activeType = watchedType ?? deviceType ?? 'camera';
-  const scaleType = Form.useWatch('scale_type', form);
+  const scaleType = Form.useWatch('type', form) as number | undefined;
   const scaleHost = Form.useWatch('host', form);
 
   const showConnection = usesConnectionFields(activeType);

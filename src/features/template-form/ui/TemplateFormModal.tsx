@@ -1,13 +1,13 @@
-import { printTemplateQueries } from '@/entities/print-template';
+import {
+  printTemplateQueries,
+  type PrintTemplate,
+} from '@/entities/print-template';
 import type { ResourceFormSubmitOptions } from '@/shared/model/resourceFormUiBridge';
 import { resourceFormModalFooter } from '@/shared/ui/ResourceFormModalFooter';
 import { LoadingOverlay } from '@/shared/ui/loading';
 import { Alert, Form, Modal } from 'antd';
 import { useEffect, useMemo } from 'react';
-import {
-  EMPTY_TEMPLATE_FORM_VALUES,
-  type TemplateFormValues,
-} from '../model/types';
+import { EMPTY_TEMPLATE_FORM_VALUES } from '../model/types';
 import {
   TemplateFormFields,
   type TemplatePrintPreviewValues,
@@ -34,13 +34,13 @@ export interface TemplateFormModalProps {
    * Prefill when the parent owns loading (legacy nesting).
    * Also used as create defaults when `mode` is omitted or `'create'`.
    */
-  initialValues?: Partial<TemplateFormValues>;
+  initialValues?: Partial<PrintTemplate>;
   /** External loading overlay when the parent fetches detail (legacy nesting). */
   loading?: boolean;
   submitting?: boolean;
   onCancel: () => void;
   onSubmit: (
-    values: TemplateFormValues,
+    values: PrintTemplate,
     options: ResourceFormSubmitOptions,
   ) => void;
 }
@@ -59,7 +59,7 @@ export function TemplateFormModal({
   onCancel,
   onSubmit,
 }: TemplateFormModalProps) {
-  const [form] = Form.useForm<TemplateFormValues>();
+  const [form] = Form.useForm<PrintTemplate>();
   const [printingForm] = Form.useForm<TemplatePrintPreviewValues>();
 
   const resolvedMode: 'create' | 'edit' =
@@ -84,10 +84,10 @@ export function TemplateFormModal({
     title ?? (resolvedMode === 'edit' ? 'Изменение шаблона' : 'Новый шаблон');
 
   const createDefaults = useMemo(
-    (): TemplateFormValues => ({
+    (): PrintTemplate => ({
       ...EMPTY_TEMPLATE_FORM_VALUES,
       ...initialValues,
-      id: undefined,
+      id: 0,
     }),
     [initialValues],
   );
@@ -109,8 +109,7 @@ export function TemplateFormModal({
     if (canLoad) {
       if (loadedTemplate) {
         form.setFieldsValue({
-          id: loadedTemplate.id,
-          name: loadedTemplate.name,
+          ...loadedTemplate,
           template: loadedTemplate.template ?? '',
         });
       }
@@ -146,14 +145,7 @@ export function TemplateFormModal({
           void (async () => {
             try {
               const values = await form.validateFields();
-              onSubmit(
-                {
-                  id: values.id,
-                  name: values.name,
-                  template: values.template,
-                },
-                options,
-              );
+              onSubmit(values, options);
             } catch {
               // Validation errors are shown on form fields.
             }
@@ -181,6 +173,3 @@ export function TemplateFormModal({
     </Modal>
   );
 }
-
-export type { TemplateFormValues } from '../model/types';
-

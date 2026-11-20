@@ -1,10 +1,12 @@
 import {
   useIdempotentMutation,
 } from '@/shared/hooks/useIdempotentMutation';
+import { useInvalidatingMutation, type EntityMutationOptions } from '@/shared/queries';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { App } from 'antd';
 import { useCallback, useState } from 'react';
-import type { Product, ProductFormValues } from '../model/types';
+import { setProductArchived } from '../api/api';
+import type { Product, ProductFormSubmitValues } from '../model/types';
 import { persistProductFormValues } from './product-persist';
 import { productQueries, productRelatedQueryKeys } from './product-queries';
 
@@ -47,6 +49,24 @@ export async function invalidateProductRelatedQueries(
   ]);
 }
 
+/** Variables for {@link useSetProductArchivedMutation}. */
+export interface SetProductArchivedVariables {
+  gtin: string;
+  archived: boolean;
+}
+
+/** Archives or restores a product (PATCH `archived`). */
+export function useSetProductArchivedMutation(
+  options?: EntityMutationOptions<Product, SetProductArchivedVariables>,
+) {
+  return useInvalidatingMutation({
+    ...options,
+    invalidate: [productQueries.keys.all()],
+    mutationFn: ({ gtin, archived }: SetProductArchivedVariables) =>
+      setProductArchived(gtin, archived),
+  });
+}
+
 /**
  * Nested picker / list save: full multi-step persist + invalidate, returns saved {@link Product}.
  *
@@ -65,7 +85,7 @@ export function useProductFormSave(options?: { showSuccessMessage?: boolean }) {
   const saveMutation = useIdempotentMutation<Product>();
 
   const saveProduct = useCallback(
-    async (values: ProductFormValues, editGtin?: string): Promise<Product> => {
+    async (values: ProductFormSubmitValues, editGtin?: string): Promise<Product> => {
       setIsPipelinePending(true);
       try {
         const cached =

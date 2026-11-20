@@ -1,9 +1,10 @@
 import {
+  SelectProductControllerAddressType,
+  visibilityFormControl,
+  type ProductAggregate,
   type ProductControllerParam,
   type ProductFormValues,
 } from '@/entities/product';
-
-import { SelectProductControllerAddressType, visibilityFormControl } from '@/entities/product';
 import { ButtonLoading } from '@/shared/ui/loading';
 import { DeleteOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { FormInstance, SelectProps } from 'antd';
@@ -18,6 +19,9 @@ export interface ProductControllerParamsTabProps {
   isEdit: boolean;
   loading: boolean;
   visibility?: ReturnType<typeof visibilityFormControl>;
+  aggregatesRemoved: Array<ProductAggregate['id']>;
+  itemsRemoved: Array<ProductControllerParam['id']>;
+  onItemsRemovedChange: (next: Array<ProductControllerParam['id']>) => void;
 }
 
 let ii = 0;
@@ -31,13 +35,14 @@ export function ProductControllerParamsTab({
   gtin,
   isEdit,
   loading,
-  visibility
+  visibility,
+  aggregatesRemoved,
+  itemsRemoved: controllerParamsRemoved,
+  onItemsRemovedChange,
 }: ProductControllerParamsTabProps) {
   const aggregates = Form.useWatch('aggregates', form) || [];
-  const aggregatesRemoved = Form.useWatch('aggregates_removed', form) || [];
 
   const controllerParams = Form.useWatch('controller_params', form) || [];
-  const controllerParamsRemoved = Form.useWatch('controller_params_removed', form) || [];
 
   const [controllerParamModalOpen, setControllerParamModalOpen] = useState(false);
   const [controllerParamForm] = Form.useForm<ProductControllerParam>();
@@ -62,14 +67,14 @@ export function ProductControllerParamsTab({
     if (!record.id) {
       return;
     }
-    form.setFieldValue('controller_params_removed', [...(controllerParamsRemoved ?? []), record.id]);
+    onItemsRemovedChange([...(controllerParamsRemoved ?? []), record.id]);
   };
 
   const recucleControllerParam = (record: ProductControllerParam) => {
     if (!record.id) {
       return;
     }
-    form.setFieldValue('controller_params_removed', controllerParamsRemoved.filter((id) => id !== record.id));
+    onItemsRemovedChange(controllerParamsRemoved.filter((id) => id !== record.id));
   };
   
   const controllerParamColumns: ColumnsType<ProductControllerParam> = [
@@ -153,11 +158,7 @@ export function ProductControllerParamsTab({
   return (
     <>
       <Form.Item name="aggregates" hidden></Form.Item>
-      <Form.Item name="aggregates_removed" hidden></Form.Item>
-      
       <Form.Item name="controller_params" hidden></Form.Item>
-      <Form.Item name="controller_params_removed" hidden></Form.Item>
-
       <Space orientation="vertical" style={{ width: '100%' }}>
         <ButtonLoading type="primary" disabled={!isEdit} onClick={() => {
           setControllerParamModalOpen(true)

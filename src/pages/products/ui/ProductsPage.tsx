@@ -3,17 +3,16 @@ import {
   fetchProductsList,
   useProductFormUiStore,
   useProductGroupsQuery,
+  useSetProductArchivedMutation,
   type Product,
   type ProductsListParams,
 } from '@/entities/product';
-import { useIdempotentMutation } from '@/shared/hooks/useIdempotentMutation';
 import { Template } from '@/shared/model';
 import type { ListQueryParams } from '@/shared/types/listQuery';
 import { DebouncedTableFilterDropdown } from '@/shared/ui/DebouncedTableFilterDropdown';
 import { ServerDataTable } from '@/shared/ui/ServerDataTable';
 import { ButtonLoading } from '@/shared/ui/loading';
 import { EditOutlined, InboxOutlined, RollbackOutlined } from '@ant-design/icons';
-import { useQueryClient } from '@tanstack/react-query';
 import { Button, Modal, Space, Switch, Tag, Tooltip, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { FilterDropdownProps, FilterValue } from 'antd/es/table/interface';
@@ -58,7 +57,6 @@ function ArchivedSwitchFilterDropdown({
  * Create/edit opens via {@link useProductFormUiStore} → {@link import('@/widgets/product').ProductFormModalHost}.
  */
 export default function ProductsPage() {
-  const queryClient = useQueryClient();
   const [showArchived, setShowArchived] = useState(false);
   const [selectedGroups, setSelectedGroups] = useState<string[] | null>(null);
   const openCreate = useProductFormUiStore((s) => s.openCreate);
@@ -66,10 +64,9 @@ export default function ProductsPage() {
 
   const { data: productGroups = [] } = useProductGroupsQuery();
 
-  const archiveMutation = useIdempotentMutation<Product>({
+  const archiveMutation = useSetProductArchivedMutation({
     onSuccess: (product) => {
       message.success(product.archived ? 'Продукция архивирована' : 'Продукция восстановлена');
-      void queryClient.invalidateQueries({ queryKey: PRODUCT_QUERY_ENTRY });
     },
     onError: (error) => message.error(error.message),
   });
@@ -136,9 +133,8 @@ export default function ProductsPage() {
         onOk: async () => {
           try {
             await archiveMutation.mutateAsync({
-              path: `/api/v2/products/${encodeURIComponent(product.gtin)}`,
-              method: 'PATCH',
-              body: { archived: nextArchived },
+              gtin: product.gtin,
+              archived: nextArchived,
             });
           } catch {
             // Error feedback via archiveMutation.onError.

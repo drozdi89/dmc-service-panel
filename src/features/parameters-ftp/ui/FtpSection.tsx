@@ -4,15 +4,12 @@ import { useEffect } from 'react';
 import type { FtpConfiguration } from '@/entities/parameters';
 import { ButtonLoading } from '@/shared/ui/loading';
 
-/** FTP settings form values. */
-export type FtpFormValues = FtpConfiguration;
-
 /** Props for FTP configuration section. */
 export interface FtpSectionProps {
-  form: FormInstance<FtpFormValues>;
+  form: FormInstance<FtpConfiguration>;
   initialConfig: FtpConfiguration | undefined;
   saving: boolean;
-  onSave: (values: FtpFormValues) => void;
+  onSave: (values: FtpConfiguration) => void;
 }
 
 const DEFAULT_CONNECTION = {
@@ -30,7 +27,7 @@ const DEFAULT_CONNECTION = {
  *
  * @param config - FTP configuration from API.
  */
-export function normalizeFtpConfig(config: FtpConfiguration): FtpFormValues {
+export function normalizeFtpConfig(config: FtpConfiguration): FtpConfiguration {
   return {
     enabled: config.enabled,
     processed_file: config.processed_file || 'processed.txt',

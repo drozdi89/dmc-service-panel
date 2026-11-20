@@ -1,4 +1,4 @@
-import type { components } from '@/shared/api/types';
+import type { components } from '@/shared/api';
 import {
   CONTROLLER_TYPE_OPTIONS,
   DEFAULT_DEVICE_PORTS,
@@ -7,20 +7,19 @@ import {
   isSerialScale,
   SCALE_TYPE_CHECKWEIR,
 } from './constants';
-import { buildDividerPort, parseDividerPort } from './deviceAddress';
 import type { DeviceType } from './types';
 
-type CameraOutput = components['schemas']['CameraSchema-Output'];
-type PrinterOutput = components['schemas']['PrinterSchema-Output'];
-type ScalesOutput = components['schemas']['ScalesSchema-Output'];
-type ControllerOutput = components['schemas']['ControllerSchema-Output'];
-type DividerOutput = components['schemas']['DividerSchema-Output'];
+type CameraOutput = components['schemas']['GetCameraSchema'];
+type PrinterOutput = components['schemas']['GetPrinterSchema'];
+type ScalesOutput = components['schemas']['GetScalesSchema'];
+type ControllerOutput = components['schemas']['GetControllerSchema'];
+type DividerOutput = components['schemas']['GetDividerSchema'];
 
-type CameraInput = components['schemas']['CameraSchema-Input'];
-type PrinterInput = components['schemas']['PrinterSchema-Input'];
-type ScalesInput = components['schemas']['ScalesSchema-Input'];
-type ControllerInput = components['schemas']['ControllerSchema-Input'];
-type DividerInput = components['schemas']['DividerSchema-Input'];
+type CameraInput = components['schemas']['CameraSchema'];
+type PrinterInput = components['schemas']['PrinterSchema'];
+type ScalesInput = components['schemas']['ScalesSchema'];
+type ControllerInput = components['schemas']['ControllerSchema'];
+type DividerInput = components['schemas']['DividerSchema'];
 
 /** Device detail union returned by type-specific GET endpoints. */
 export type DeviceDetail =
@@ -31,31 +30,33 @@ export type DeviceDetail =
   | DividerOutput;
 
 /**
- * Form values for device create/edit (`DeviceFormModal` / `DeviceFormFields`).
+ * Form record = API object for the active device type.
  *
- * Create from a type-locked picker (line field) uses `createDefaultFormValues(type, { scaleType })`
- * together with `lockDeviceType` on the modal so the type cannot change.
+ * Field names match the OpenAPI schemas (`type`, `port`, `delay`, …).
+ * `device_type` is the UI discriminator (which endpoint / section); it is not
+ * persisted in the request body.
  */
-export interface DeviceFormValues {
-  id?: number;
+export type DeviceFormValues = {
   device_type: DeviceType;
+  id?: number;
   name: string;
-  host?: string;
-  port?: number | string;
-  printer_type?: number;
+  host?: string | null;
+  /** Camera/printer: number; scale/controller/divider: string (COM or host:port). */
+  port?: number | string | null;
+  use_hikrobot_sdk?: boolean;
+  brain2_line_name?: string;
+  /** Printer / scale / controller model discriminator (`type` in API). */
+  type?: number | string;
   dpi?: number;
   buffer?: number;
   preprint_buffer?: number;
-  scale_type?: number;
-  sql_host?: string;
-  sql_port?: number;
-  sql_db?: string;
-  sql_user?: string;
-  sql_pass?: string;
+  sql_host?: string | null;
+  sql_port?: number | null;
+  sql_db?: string | null;
+  sql_user?: string | null;
+  sql_pass?: string | null;
   unit_template_id?: number | null;
   pack_template_id?: number | null;
-  controller_type?: string;
-  controller_port?: string;
   slave_id?: number;
   use_queue?: boolean;
   queue_size?: number;
@@ -76,10 +77,9 @@ export interface DeviceFormValues {
   print_delay?: number;
   queue_step?: number;
   coil_step?: number;
-  divider_host?: string;
-  divider_port?: number;
-  divider_delay_sec?: number;
-}
+  /** Divider delay in milliseconds (API field). */
+  delay?: number;
+};
 
 const DEFAULT_CONTROLLER_TYPE = CONTROLLER_TYPE_OPTIONS[0]?.value ?? 'DELTA';
 
@@ -164,7 +164,7 @@ export function createDefaultFormValues(
     return {
       ...base,
       port: DEFAULT_DEVICE_PORTS.printer ?? 9100,
-      printer_type: 0,
+      type: 0,
       dpi: 300,
       buffer: 0,
       preprint_buffer: 0,
@@ -179,7 +179,7 @@ export function createDefaultFormValues(
     return {
       ...base,
       port,
-      scale_type: scaleType,
+      type: scaleType,
       sql_host: '',
       sql_port: undefined,
       sql_db: '',
@@ -187,6 +187,7 @@ export function createDefaultFormValues(
       sql_pass: '',
       unit_template_id: null,
       pack_template_id: null,
+      brain2_line_name: '',
     };
   }
 
@@ -194,8 +195,8 @@ export function createDefaultFormValues(
     return {
       device_type: deviceType,
       name: '',
-      controller_type: DEFAULT_CONTROLLER_TYPE,
-      controller_port: '',
+      type: DEFAULT_CONTROLLER_TYPE,
+      port: '',
       slave_id: 1,
       use_queue: false,
       queue_size: 5,
@@ -223,9 +224,15 @@ export function createDefaultFormValues(
     return {
       device_type: deviceType,
       name: '',
-      divider_host: '',
-      divider_port: DEFAULT_DEVICE_PORTS.divider ?? 502,
-      divider_delay_sec: 0,
+      port: `:${DEFAULT_DEVICE_PORTS.divider ?? 502}`,
+      delay: 0,
+    };
+  }
+
+  if (deviceType === 'camera') {
+    return {
+      ...base,
+      use_hikrobot_sdk: false,
     };
   }
 
@@ -233,7 +240,7 @@ export function createDefaultFormValues(
 }
 
 /**
- * Maps a type-specific API device record to form values.
+ * Puts a type-specific API device record into the form (same field names).
  *
  * @param deviceType - Device type.
  * @param detail - API response from GET by id.
@@ -245,38 +252,28 @@ export function mapDeviceDetailToFormValues(
   if (deviceType === 'camera') {
     const camera = detail as CameraOutput;
     return {
-      id: camera.id,
+      ...camera,
       device_type: deviceType,
-      name: camera.name,
       host: camera.host ?? '',
-      port: camera.port,
     };
   }
 
   if (deviceType === 'printer') {
     const printer = detail as PrinterOutput;
     return {
-      id: printer.id,
+      ...printer,
       device_type: deviceType,
-      name: printer.name,
       host: printer.host ?? '',
-      port: printer.port,
-      printer_type: printer.type,
-      dpi: printer.dpi,
-      buffer: printer.buffer,
-      preprint_buffer: printer.preprint_buffer,
     };
   }
 
   if (deviceType === 'scale') {
     const scale = detail as ScalesOutput;
     return {
-      id: scale.id,
+      ...scale,
       device_type: deviceType,
-      name: scale.name,
       host: scale.host ?? '',
       port: String(scale.port ?? ''),
-      scale_type: scale.type,
       sql_host: scale.sql_host ?? '',
       sql_port: scale.sql_port ?? undefined,
       sql_db: scale.sql_db ?? '',
@@ -290,43 +287,15 @@ export function mapDeviceDetailToFormValues(
   if (deviceType === 'controller') {
     const controller = detail as ControllerOutput;
     return {
-      id: controller.id,
+      ...controller,
       device_type: deviceType,
-      name: controller.name,
-      controller_type: controller.type,
-      controller_port: controller.port,
-      slave_id: controller.slave_id,
-      use_queue: controller.use_queue,
-      queue_size: controller.queue_size,
-      failed_count: controller.failed_count,
-      pusher_delay: controller.pusher_delay,
-      pusher_time: controller.pusher_time,
-      long_siren_time: controller.long_siren_time,
-      short_siren_time: controller.short_siren_time,
-      trigger_filter_delay: controller.trigger_filter_delay,
-      use_single_sensor: controller.use_single_sensor,
-      using_encoder: controller.using_encoder,
-      tact_to_serve: controller.tact_to_serve,
-      tact_to_read: controller.tact_to_read,
-      queue_one: controller.queue_one,
-      queue_two: controller.queue_two,
-      rst_print: controller.rst_print,
-      print_job: controller.print_job,
-      print_delay: controller.print_delay,
-      queue_step: controller.queue_step,
-      coil_step: controller.coil_step,
     };
   }
 
   const divider = detail as DividerOutput;
-  const { host, port } = parseDividerPort(divider.port);
   return {
-    id: divider.id,
+    ...divider,
     device_type: deviceType,
-    name: divider.name,
-    divider_host: host,
-    divider_port: Number(port) || 502,
-    divider_delay_sec: divider.delay / 1000,
   };
 }
 
@@ -341,25 +310,24 @@ export function mapFormValuesToPayload(
   switch (values.device_type) {
     case 'camera':
       return {
-        id: values.id,
         name: values.name.trim(),
-        host: values.host?.trim() || null,
+        host: values.host?.toString().trim() || null,
         port: coerceNumericPort(values.port, 23),
+        use_hikrobot_sdk: values.use_hikrobot_sdk ?? false,
       };
     case 'printer':
       return {
-        id: values.id,
         name: values.name.trim(),
-        host: values.host?.trim() || null,
+        host: values.host?.toString().trim() || null,
         port: coerceNumericPort(values.port, 9100),
-        type: values.printer_type ?? 0,
+        type: typeof values.type === 'number' ? values.type : 0,
         dpi: values.dpi ?? 300,
         buffer: values.buffer ?? 0,
         preprint_buffer: values.preprint_buffer ?? 0,
       };
     case 'scale': {
-      const scaleType = values.scale_type ?? 0;
-      const host = values.host?.trim() || null;
+      const scaleType = typeof values.type === 'number' ? values.type : 0;
+      const host = values.host?.toString().trim() || null;
       const portRaw =
         values.port !== undefined && values.port !== null && String(values.port).trim() !== ''
           ? String(values.port).trim()
@@ -367,45 +335,39 @@ export function mapFormValuesToPayload(
             ? DEFAULT_SERIAL_SCALE_PORT
             : DEFAULT_TCP_SCALE_PORT;
       return {
-        id: values.id,
         name: values.name.trim(),
         host,
         port: normalizeScalePortForSave(portRaw, scaleType, host),
         type: scaleType,
         sql_host:
-          values.scale_type === SCALE_TYPE_CHECKWEIR
-            ? values.sql_host?.trim() || null
+          scaleType === SCALE_TYPE_CHECKWEIR
+            ? values.sql_host?.toString().trim() || null
             : null,
-        sql_port:
-          values.scale_type === SCALE_TYPE_CHECKWEIR ? values.sql_port ?? null : null,
+        sql_port: scaleType === SCALE_TYPE_CHECKWEIR ? values.sql_port ?? null : null,
         sql_db:
-          values.scale_type === SCALE_TYPE_CHECKWEIR
-            ? values.sql_db?.trim() || null
+          scaleType === SCALE_TYPE_CHECKWEIR
+            ? values.sql_db?.toString().trim() || null
             : null,
         sql_user:
-          values.scale_type === SCALE_TYPE_CHECKWEIR
-            ? values.sql_user?.trim() || null
+          scaleType === SCALE_TYPE_CHECKWEIR
+            ? values.sql_user?.toString().trim() || null
             : null,
         sql_pass:
-          values.scale_type === SCALE_TYPE_CHECKWEIR
-            ? values.sql_pass?.trim() || null
+          scaleType === SCALE_TYPE_CHECKWEIR
+            ? values.sql_pass?.toString().trim() || null
             : null,
         unit_template_id:
-          values.scale_type === SCALE_TYPE_CHECKWEIR
-            ? values.unit_template_id ?? null
-            : null,
+          scaleType === SCALE_TYPE_CHECKWEIR ? values.unit_template_id ?? null : null,
         pack_template_id:
-          values.scale_type === SCALE_TYPE_CHECKWEIR
-            ? values.pack_template_id ?? null
-            : null,
+          scaleType === SCALE_TYPE_CHECKWEIR ? values.pack_template_id ?? null : null,
+        brain2_line_name: values.brain2_line_name ?? '',
       };
     }
     case 'controller':
       return {
-        id: values.id,
         name: values.name.trim(),
-        type: values.controller_type ?? DEFAULT_CONTROLLER_TYPE,
-        port: values.controller_port?.trim() ?? '',
+        type: String(values.type ?? DEFAULT_CONTROLLER_TYPE),
+        port: String(values.port ?? '').trim(),
         slave_id: values.slave_id ?? 1,
         use_queue: values.use_queue ?? false,
         queue_size: values.queue_size ?? 5,
@@ -429,13 +391,9 @@ export function mapFormValuesToPayload(
       };
     case 'divider':
       return {
-        id: values.id,
         name: values.name.trim(),
-        port: buildDividerPort(
-          values.divider_host ?? '',
-          String(values.divider_port ?? 502),
-        ),
-        delay: Math.round((values.divider_delay_sec ?? 0) * 1000),
+        port: String(values.port ?? '').trim(),
+        delay: values.delay ?? 0,
       };
     default: {
       const exhaustive: never = values.device_type;

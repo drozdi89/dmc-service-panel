@@ -4,18 +4,12 @@ import { useEffect } from 'react';
 import type { TeleBotSettingRow } from '@/entities/parameters';
 import { ButtonLoading } from '@/shared/ui/loading';
 
-/** Telegram settings form values. */
-export interface TelegramFormValues {
-  is_activ: boolean;
-  api_token: string;
-}
-
 /** Props for Telegram bot settings section. */
 export interface TelegramSectionProps {
-  form: FormInstance<TelegramFormValues>;
+  form: FormInstance<TeleBotSettingRow>;
   initialSetting: TeleBotSettingRow | null | undefined;
   saving: boolean;
-  onSave: (values: TelegramFormValues) => void;
+  onSave: (values: TeleBotSettingRow) => void;
 }
 
 /**
@@ -29,6 +23,7 @@ export function TelegramSection({
 }: TelegramSectionProps) {
   useEffect(() => {
     form.setFieldsValue({
+      ...initialSetting,
       is_activ: initialSetting?.is_activ ?? false,
       api_token: initialSetting?.api_token ?? '',
     });

@@ -25,3 +25,12 @@ export {
   type MactSubscriptionQueryOptions,
   type RegisteredClientsQueryOptions,
 } from './licence-queries';
+export {
+  useDeleteClientMutation,
+  useRefetchClientsMutation,
+  useRefreshMactMutation,
+  useRegisterClientLicenceMutation,
+  useUnregisterClientLicenceMutation,
+  type MactRefreshResult,
+  type RegisterClientLicenceVariables,
+} from './mutations';

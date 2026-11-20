@@ -2,6 +2,8 @@ export {
   invalidateProductQueries,
   invalidateProductRelatedQueries,
   useProductFormSave,
+  useSetProductArchivedMutation,
+  type SetProductArchivedVariables,
 } from './product-mutations';
 export { persistProductFormValues, PersistProductError, isPersistProductError } from './product-persist';
 export {

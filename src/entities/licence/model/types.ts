@@ -1,44 +1,19 @@
-import type { components } from '@/shared/api/types';
+import type { components } from '@/shared/api';
 
 /** DMC client row from `GET /api/v2/clients/`. */
 export type DmcClient = components['schemas']['GetClientsSchema'];
 
 /** Client with license metadata from `GET /api/v2/client_licencing/registered`. */
-export interface RegisteredClient {
-  client_id: string;
-  name: string;
-  client_type: string;
-  version: string;
-  licence_key: string | null;
-  last_session: string | null;
-  valid_until: string | null;
-}
+export type RegisteredClient = components['schemas']['RegisteredClientData'];
 
 /** Single MACT licence row from licence proxy. */
-export interface MactLicenceInfo {
-  client_id: string | null;
-  is_active: boolean;
-  valid_until: string;
-  lic_type: string;
-  pin: string;
-  valid_days: number;
-}
+export type MactLicenceInfo = components['schemas']['LicenceInfoResponse'];
 
 /** MACT licences snapshot from `GET /api/v2/licence_proxy/licences`. */
-export interface MactLicenceList {
-  used: MactLicenceInfo[];
-  available: MactLicenceInfo[];
-  org_lic_count: number;
-}
+export type MactLicenceList = components['schemas']['LicenceListResponse'];
 
 /** MACT subscription snapshot from `GET /api/v2/licence_proxy/subscription`. */
-export interface MactSubscription {
-  is_valid: boolean;
-  valid_to: string | null;
-  valid_days: number;
-}
+export type MactSubscription = components['schemas']['SubscriptionResponse'];
 
 /** Personal account URL from `GET /api/v2/licence_proxy/personal_account`. */
-export interface MactPersonalAccount {
-  url: string;
-}
+export type MactPersonalAccount = components['schemas']['MactPersonalAccountSchema'];

@@ -1,10 +1,13 @@
 import {
+  computeLineEditorVisibility,
+  createDefaultLineEditorLabels,
   createDefaultLineFormState,
   type LineEditorFormState,
+  type LineEditorResourceLabels,
 } from '@/entities/line';
 import { App, Form } from 'antd';
-import { fireEvent, render, screen, within } from '@testing-library/react';
-import { useRef } from 'react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { useRef, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/entities/device', () => ({
@@ -45,19 +48,26 @@ vi.mock('@/entities/print-template', () => ({
 
 import { LineMainTab } from './LineMainTab';
 import { LineIdentityFields } from './lineFormSections/LineIdentityFields';
-import { computeLineEditorVisibility } from '@/entities/line';
 
 function Harness({
   initial,
+  initialLabels,
   isNew = true,
   valuesRef,
+  labelsRef,
 }: {
   initial?: Partial<LineEditorFormState>;
+  initialLabels?: Partial<LineEditorResourceLabels>;
   isNew?: boolean;
   valuesRef: { current: LineEditorFormState | null };
+  labelsRef: { current: LineEditorResourceLabels | null };
 }) {
   const [form] = Form.useForm<LineEditorFormState>();
   const values = { ...createDefaultLineFormState(), ...initial };
+  const [resourceLabels, setResourceLabels] = useState<LineEditorResourceLabels>({
+    ...createDefaultLineEditorLabels(),
+    ...initialLabels,
+  });
   const formRef = useRef(form);
   formRef.current = form;
   const visibility = computeLineEditorVisibility(values, isNew);
@@ -66,12 +76,18 @@ function Harness({
     <App>
       <Form form={form} initialValues={values} component={false}>
         <LineIdentityFields visibility={visibility} />
-        <LineMainTab isNew={isNew} visibility={visibility} />
+        <LineMainTab
+          isNew={isNew}
+          visibility={visibility}
+          resourceLabels={resourceLabels}
+          onResourceLabelsChange={setResourceLabels}
+        />
         <button
           type="button"
           data-testid="dump-output"
           onClick={() => {
             valuesRef.current = formRef.current.getFieldsValue(true) as LineEditorFormState;
+            labelsRef.current = resourceLabels;
           }}
         >
           dump
@@ -81,9 +97,13 @@ function Harness({
   );
 }
 
-function renderMainTab(initial?: Partial<LineEditorFormState>) {
+function renderMainTab(
+  initial?: Partial<LineEditorFormState>,
+  initialLabels?: Partial<LineEditorResourceLabels>,
+) {
   const valuesRef: { current: LineEditorFormState | null } = { current: null };
-  render(<Harness initial={initial} valuesRef={valuesRef} />);
+  const labelsRef: { current: LineEditorResourceLabels | null } = { current: null };
+  render(<Harness initial={initial} initialLabels={initialLabels} valuesRef={valuesRef} labelsRef={labelsRef} />);
   const readValues = (): LineEditorFormState => {
     fireEvent.click(screen.getByTestId('dump-output'));
     if (!valuesRef.current) {
@@ -91,7 +111,14 @@ function renderMainTab(initial?: Partial<LineEditorFormState>) {
     }
     return valuesRef.current;
   };
-  return { readValues };
+  const readLabels = (): LineEditorResourceLabels => {
+    fireEvent.click(screen.getByTestId('dump-output'));
+    if (!labelsRef.current) {
+      throw new Error('Resource labels were not captured');
+    }
+    return labelsRef.current;
+  };
+  return { readValues, readLabels };
 }
 
 describe('LineMainTab Form sections', () => {
@@ -105,21 +132,30 @@ describe('LineMainTab Form sections', () => {
     expect(readValues().name).toBe('Линия А');
   });
 
-  it('migrates scale ids when switching printer → checkweir', () => {
-    const { readValues } = renderMainTab({
-      outputMode: 'printer',
-      new_chw_scale_id: 42,
-      newChwScaleLabel: 'ЧВ-42',
-      scale_id: null,
-    });
+  it('migrates scale ids when switching printer → checkweir', async () => {
+    const { readValues, readLabels } = renderMainTab(
+      {
+        outputMode: 'printer',
+        new_chw_scale_id: 42,
+        scale_id: null,
+      },
+      { newChwScaleLabel: 'ЧВ-42' },
+    );
 
     fireEvent.click(screen.getByRole('radio', { name: 'Чеквейр' }));
 
-    const dump = readValues();
-    expect(dump.outputMode).toBe('checkweir');
-    expect(dump.scale_id).toBe(42);
-    expect(dump.scaleLabel).toBe('ЧВ-42');
-    expect(dump.new_chw_scale_id).toBeNull();
+    await waitFor(() => {
+      const dump = readValues();
+      expect(dump.outputMode).toBe('checkweir');
+      expect(dump.scale_id).toBe(42);
+      expect(dump.new_chw_scale_id).toBeNull();
+    });
+
+    await waitFor(() => {
+      const labels = readLabels();
+      expect(labels.scaleLabel).toBe('ЧВ-42');
+      expect(labels.newChwScaleLabel).toBeUndefined();
+    });
   });
 
   it('writes options.* checkboxes via nested Form.Item names', () => {
@@ -132,8 +168,8 @@ describe('LineMainTab Form sections', () => {
     expect(readValues().options.can_add_task).toBe(true);
   });
 
-  it('registers camera picker via name/labelName', () => {
-    const { readValues } = renderMainTab();
+  it('registers camera picker via name with external label state', () => {
+    const { readValues, readLabels } = renderMainTab();
 
     const serializationCamera = screen
       .getByText('Камера сериализации')
@@ -145,6 +181,7 @@ describe('LineMainTab Form sections', () => {
 
     const dump = readValues();
     expect(dump.camera_id).toBe(7);
-    expect(dump.cameraLabel).toBe('Dev 7');
+    expect(dump).not.toHaveProperty('cameraLabel');
+    expect(readLabels().cameraLabel).toBe('Dev 7');
   });
 });

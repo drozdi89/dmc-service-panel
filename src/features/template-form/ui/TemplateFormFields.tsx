@@ -3,7 +3,7 @@ import { getVars } from '@/shared/vars/getVars';
 import { QuestionCircleOutlined } from '@ant-design/icons';
 import { App, Button, Flex, Form, Input, InputNumber, Segmented, type FormInstance } from 'antd';
 import { Fragment, useCallback } from 'react';
-import type { TemplateFormValues } from '../model/types';
+import type { PrintTemplate } from '@/entities/print-template';
 
 /** Values for the optional print-preview controls (not persisted with the template). */
 export interface TemplatePrintPreviewValues {
@@ -14,13 +14,13 @@ export interface TemplatePrintPreviewValues {
 /** Props for {@link TemplateFormFields}. */
 export interface TemplateFormFieldsProps {
   /** Main create/edit form instance. */
-  form: FormInstance<TemplateFormValues>;
+  form: FormInstance<PrintTemplate>;
   /** Print-preview form (printer + code type); not part of save payload. */
   printingForm: FormInstance<TemplatePrintPreviewValues>;
   /** Disables main fields (e.g. detail load error). */
   disabled?: boolean;
   /** Ant Design Form `initialValues` for create / legacy prefill. */
-  initialValues?: Partial<TemplateFormValues>;
+  initialValues?: Partial<PrintTemplate>;
 }
 
 /**
@@ -71,7 +71,7 @@ export function TemplateFormFields({
   );
 
   const handlePrint = useCallback(async () => {
-    let values: TemplateFormValues & TemplatePrintPreviewValues;
+    let values: PrintTemplate & TemplatePrintPreviewValues;
     try {
       values = {
         ...(await form.validateFields()),

@@ -10,13 +10,8 @@ import { App } from 'antd';
 import type { ReactElement, ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const {
-  saveLineConfiguration,
-  createLineSaveMutator,
-  invalidateLineQueries,
-} = vi.hoisted(() => ({
+const { saveLineConfiguration, invalidateLineQueries } = vi.hoisted(() => ({
   saveLineConfiguration: vi.fn(),
-  createLineSaveMutator: vi.fn(() => vi.fn()),
   invalidateLineQueries: vi.fn(),
 }));
 
@@ -24,7 +19,6 @@ vi.mock('@/entities/line', async () => {
   const store = await import('@/entities/line/model/lineFormUiStore');
   return {
     ...store,
-    invalidateLineQueries,
     useLinePrintedDmRawQuery: () => ({
       data: '{}',
       isLoading: false,
@@ -34,12 +28,21 @@ vi.mock('@/entities/line', async () => {
 });
 
 vi.mock('@/services/line-service', () => ({
-  saveLineConfiguration,
-  createLineSaveMutator,
-}));
-
-vi.mock('@/shared/api/headers', () => ({
-  createIdempotencyKey: () => 'idem-key',
+  useSaveLineConfigurationMutation: () => ({
+    mutateAsync: async (variables: {
+      state: LineEditorFormState;
+      lineId: number | undefined;
+      printedDmRaw: string | null;
+    }) => {
+      const result = await saveLineConfiguration(
+        variables.state,
+        variables.lineId,
+        variables.printedDmRaw,
+      );
+      invalidateLineQueries();
+      return result;
+    },
+  }),
 }));
 
 vi.mock('@/features/line-editor', () => ({
@@ -83,7 +86,6 @@ describe('LineFormModalHost', () => {
   beforeEach(() => {
     resetLineFormUiStore();
     saveLineConfiguration.mockReset();
-    createLineSaveMutator.mockClear();
     invalidateLineQueries.mockReset();
   });
 
@@ -213,7 +215,6 @@ describe('LineFormModalHost', () => {
         expect.objectContaining({ name: 'Saved Line' }),
         9,
         '{}',
-        expect.any(Function),
       );
     });
   });

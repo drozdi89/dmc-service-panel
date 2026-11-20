@@ -2,21 +2,19 @@ import { LINE_PRINTED_DM_OPTION, LINE_TYPE } from './constants';
 import type {
   AggregationLevelConfiguration,
   AggregationLevelFormState,
+  AggregationLevelLabels,
   AutomatedLineSubtype,
   LineConfiguration,
   LineEditorFormState,
+  LineEditorResourceLabels,
   LineEditorVisibility,
   LineKind,
   LineOptionsFormState,
   LineOutputMode,
   ScaleWorkplaceConfiguration,
   ScaleWorkplaceFormState,
+  ScaleWorkplaceLabels,
 } from './types';
-
-/** Creates a new client key for aggregation level list items. */
-export function createAggregationClientKey(): string {
-  return `aggr-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
 
 const DEFAULT_OPTIONS: LineOptionsFormState = {
   must_scan_before_start: false,
@@ -34,6 +32,19 @@ const EMPTY_WORKPLACE: ScaleWorkplaceFormState = {
   printer_id: null,
   template_id: null,
 };
+
+/**
+ * Default resource labels for a new line editor (no loaded configuration).
+ */
+export function createDefaultLineEditorLabels(): LineEditorResourceLabels {
+  return {
+    scale_stations: {
+      first: {},
+      second: {},
+    },
+    aggregation_levels: [],
+  };
+}
 
 /**
  * Default form state for a new line.
@@ -93,6 +104,13 @@ function mapWorkplace(
     scale_id: mapDeviceId(workplace?.scale),
     printer_id: mapDeviceId(workplace?.printer),
     template_id: mapDeviceId(workplace?.template),
+  };
+}
+
+function mapWorkplaceToLabels(
+  workplace?: ScaleWorkplaceConfiguration | null,
+): ScaleWorkplaceLabels {
+  return {
     scaleLabel: workplace?.scale?.name,
     printerLabel: workplace?.printer?.name,
     templateLabel: workplace?.template?.name,
@@ -196,19 +214,44 @@ export function applyOutputModeChange(
     return {
       outputMode: newOutputMode,
       scale_id: state.new_chw_scale_id,
-      scaleLabel: state.newChwScaleLabel,
       new_chw_scale_id: null,
-      newChwScaleLabel: undefined,
     };
   }
 
   return {
     outputMode: newOutputMode,
     new_chw_scale_id: state.scale_id,
-    newChwScaleLabel: state.scaleLabel,
     scale_id: null,
-    scaleLabel: undefined,
   };
+}
+
+/**
+ * Migrates scale display labels when toggling printer ↔ checkweir.
+ */
+export function applyOutputModeLabelsChange(
+  labels: LineEditorResourceLabels,
+  fromMode: LineOutputMode,
+  toMode: LineOutputMode,
+): Partial<LineEditorResourceLabels> {
+  if (fromMode === toMode) {
+    return {};
+  }
+
+  if (toMode === 'checkweir') {
+    return {
+      scaleLabel: labels.newChwScaleLabel,
+      newChwScaleLabel: undefined,
+    };
+  }
+
+  if (fromMode === 'checkweir' && toMode === 'printer') {
+    return {
+      newChwScaleLabel: labels.scaleLabel,
+      scaleLabel: undefined,
+    };
+  }
+
+  return {};
 }
 
 /**
@@ -217,32 +260,15 @@ export function applyOutputModeChange(
 export function mapAggregationLevelToForm(
   level: AggregationLevelConfiguration,
 ): AggregationLevelFormState {
-  const unitCameraLabels: Record<number, string> = {};
   const unit_camera_ids = (level.unit_cameras ?? [])
-    .map((camera) => {
-      const id = camera.id;
-      if (id === null || id === undefined) {
-        return null;
-      }
-      unitCameraLabels[id] = camera.name ?? `#${id}`;
-      return id;
-    })
-    .filter((id): id is number => id !== null);
+    .map((camera) => camera.id)
+    .filter((id): id is number => id !== null && id !== undefined);
 
-  const printerLabels: Record<number, string> = {};
   const printer_ids = (level.printers ?? [])
-    .map((printer) => {
-      const id = printer.id;
-      if (id === null || id === undefined) {
-        return null;
-      }
-      printerLabels[id] = printer.name ?? `#${id}`;
-      return id;
-    })
-    .filter((id): id is number => id !== null);
+    .map((printer) => printer.id)
+    .filter((id): id is number => id !== null && id !== undefined);
 
   return {
-    clientKey: level.id ? `aggr-${level.id}` : createAggregationClientKey(),
     id: level.id ?? undefined,
     name: level.name,
     level: level.level,
@@ -254,12 +280,39 @@ export function mapAggregationLevelToForm(
     print_camera_id: mapDeviceId(level.aggregate_print_camera),
     controller_id: mapDeviceId(level.controller),
     divider_id: mapDeviceId(level.divider),
-    generator_type: level.generator_type,
+    generator_type: level.generator_type ?? 0,
     two_cam_mode: level.two_cam_mode,
     aggr_timeout_ms: level.aggr_timeout_ms,
     print_on_error: level.print_empty_label_on_error ?? false,
     unit_camera_ids,
     printer_ids,
+    aggregation_type: level.aggregation_type ?? (level.is_manual ? 'manual' : 'automated'),
+  };
+}
+
+/**
+ * Maps aggregation level device labels for UI state.
+ */
+export function mapAggregationLevelToLabels(
+  level: AggregationLevelConfiguration,
+): AggregationLevelLabels {
+  const unitCameraLabels: Record<number, string> = {};
+  for (const camera of level.unit_cameras ?? []) {
+    const id = camera.id;
+    if (id !== null && id !== undefined) {
+      unitCameraLabels[id] = camera.name ?? `#${id}`;
+    }
+  }
+
+  const printerLabels: Record<number, string> = {};
+  for (const printer of level.printers ?? []) {
+    const id = printer.id;
+    if (id !== null && id !== undefined) {
+      printerLabels[id] = printer.name ?? `#${id}`;
+    }
+  }
+
+  return {
     templateLabel: level.template?.name,
     plainTemplateLabel: level.plain_template?.name,
     cameraLabel: level.aggregate_camera?.name,
@@ -316,15 +369,6 @@ export function mapLineConfigurationToForm(
     scale_id: outputMode === 'checkweir' ? mappedScaleId : null,
     new_chw_scale_id: outputMode === 'printer' ? mappedScaleId : null,
     controller_id: mapDeviceId(config.controller),
-    cameraLabel: config.camera?.name,
-    printedCodesCameraLabel: config.printed_codes_camera?.name,
-    printerLabel: config.printer?.name,
-    printer2Label: config.printer_2?.name,
-    templateLabel: config.template?.name,
-    plainTemplateLabel: config.plain_template?.name,
-    scaleLabel: outputMode === 'checkweir' ? config.scale?.name : undefined,
-    newChwScaleLabel: outputMode === 'printer' ? config.scale?.name : undefined,
-    controllerLabel: config.controller?.name,
     options: {
       must_scan_before_start: config.options?.must_scan_before_start ?? false,
       cam_disable: config.options?.cam_disable ?? false,
@@ -345,6 +389,33 @@ export function mapLineConfigurationToForm(
       .map((ware) => ware.gtin)
       .filter((gtin): gtin is string => Boolean(gtin)),
     has_lines_options: Boolean(config.options),
+  };
+}
+
+/**
+ * Maps line configuration resource labels for UI state (parallel to form mapping).
+ */
+export function mapLineConfigurationToLabels(
+  config: LineConfiguration,
+): LineEditorResourceLabels {
+  const outputMode =
+    config.output === 0 ? 'printer' : config.is_scale ? 'scale' : 'checkweir';
+
+  return {
+    cameraLabel: config.camera?.name,
+    printedCodesCameraLabel: config.printed_codes_camera?.name,
+    printerLabel: config.printer?.name,
+    printer2Label: config.printer_2?.name,
+    templateLabel: config.template?.name,
+    plainTemplateLabel: config.plain_template?.name,
+    scaleLabel: outputMode === 'checkweir' ? config.scale?.name : undefined,
+    newChwScaleLabel: outputMode === 'printer' ? config.scale?.name : undefined,
+    controllerLabel: config.controller?.name,
+    scale_stations: {
+      first: mapWorkplaceToLabels(config.scale_stations?.first),
+      second: mapWorkplaceToLabels(config.scale_stations?.second),
+    },
+    aggregation_levels: (config.aggregation_levels ?? []).map(mapAggregationLevelToLabels),
   };
 }
 
@@ -527,7 +598,7 @@ export function buildAggregationLevelPayload(
     controller_id: level.controller_id,
     divider_id: level.divider_id,
     is_manual: level.is_manual,
-    generator_type: level.generator_type,
+    generator_type: level.generator_type ?? 0,
     two_cam_mode: level.two_cam_mode,
     aggr_timeout_ms: level.aggr_timeout_ms,
     print_on_error: level.print_on_error,

@@ -3,72 +3,22 @@ import type { components } from '@/shared/api';
 /** Brief line row from GET /lines/. */
 export type LineListItem = components['schemas']['GetLinesSchema'];
 
-export type AggregationType = 'automated' | 'autonomous' | 'manual';
+export type AggregationType = components['schemas']['AggregationLevelType'];
 
 /** Full line configuration from GET /lines/get_line/{id}. */
-export type LineConfiguration = {
-  id?: number | null;
-  slaveid?: number | null;
-  name: string;
-  is_manual: boolean;
-  is_scale: boolean;
-  camera?: { id?: number | null; name?: string } | null;
-  printed_codes_camera?: { id?: number | null; name?: string } | null;
-  printer?: { id?: number | null; name?: string } | null;
-  printer_2?: { id?: number | null; name?: string } | null;
-  template?: { id?: number | null; name?: string } | null;
-  plain_template?: { id?: number | null; name?: string } | null;
-  scale?: { id?: number | null; name?: string; type?: number } | null;
-  controller?: { id?: number | null; name?: string } | null;
-  output: number;
-  aggregation_levels?: AggregationLevelConfiguration[];
-  wares?: Array<{ gtin?: string | null; name?: string | null }>;
-  scale_stations?: ScaleWorkplacesConfiguration;
-  one_s_code?: string | null;
-  group_scan: boolean;
-  external_line: boolean;
-  options?: LineOptionsConfiguration;
-  line_type?: string | null;
-};
+export type LineConfiguration = components['schemas']['GetLineConfigurationSchema'];
 
 /** Aggregation level in full line configuration. */
-export type AggregationLevelConfiguration = {
-  id?: number | null;
-  name: string;
-  level: number;
-  line_id?: number | null;
-  use_count_method: boolean;
-  template?: { id?: number | null; name?: string } | null;
-  plain_template?: { id?: number | null; name?: string } | null;
-  aggregate_camera?: { id?: number | null; name?: string } | null;
-  aggregate_print_camera?: { id?: number | null; name?: string } | null;
-  controller?: { id?: number | null; name?: string } | null;
-  divider?: { id?: number | null; name?: string } | null;
-  is_manual: boolean;
-  generator_type: number;
-  two_cam_mode: boolean;
-  aggr_timeout_ms: number;
-  print_empty_label_on_error?: boolean;
-  unit_cameras?: Array<{ id?: number | null; name?: string }>;
-  printers?: Array<{ id?: number | null; name?: string }>;
-  aggregation_type: AggregationType;
-};
+export type AggregationLevelConfiguration = components['schemas']['LineAggregationLevelSchema'];
 
 /** Scale workplace settings in line configuration. */
-export type ScaleWorkplaceConfiguration = {
-  scale?: { id?: number | null; name?: string } | null;
-  printer?: { id?: number | null; name?: string } | null;
-  template?: { id?: number | null; name?: string } | null;
-};
+export type ScaleWorkplaceConfiguration = components['schemas']['ScaleWorkplaceSettingsSchema'];
 
 /** First/second scale workplaces. */
-export type ScaleWorkplacesConfiguration = {
-  first?: ScaleWorkplaceConfiguration;
-  second?: ScaleWorkplaceConfiguration;
-};
+export type ScaleWorkplacesConfiguration = components['schemas']['ScaleWorkplacesSchema'];
 
 /** Line runtime options from configuration. */
-export type LineOptionsConfiguration = components['schemas']['LinesOptionsSchema-Output'];
+export type LineOptionsConfiguration = components['schemas']['LinesOptionsSchema'];
 
 /** Line category in the editor (Qt radio buttons). */
 export type LineKind = 'automated' | 'manual' | 'scale';
@@ -86,11 +36,15 @@ export interface ResourceLabel {
   name: string;
 }
 
-/** Scale workplace form slice. */
+/** Scale workplace form slice (API ids only; labels live in UI state). */
 export interface ScaleWorkplaceFormState {
   scale_id: number | null;
   printer_id: number | null;
   template_id: number | null;
+}
+
+/** Display labels for a scale workplace (held outside the form object). */
+export interface ScaleWorkplaceLabels {
   scaleLabel?: string;
   printerLabel?: string;
   templateLabel?: string;
@@ -108,9 +62,8 @@ export interface LineOptionsFormState {
   can_add_task: boolean;
 }
 
-/** Aggregation level editor state. */
+/** Aggregation level editor state (API fields; labels / client keys live in UI state). */
 export interface AggregationLevelFormState {
-  clientKey: string;
   id?: number;
   name: string;
   level: number;
@@ -128,6 +81,11 @@ export interface AggregationLevelFormState {
   print_on_error: boolean;
   unit_camera_ids: number[];
   printer_ids: number[];
+  aggregation_type: AggregationType;
+}
+
+/** Display labels for an aggregation level (held outside the form object). */
+export interface AggregationLevelLabels {
   templateLabel?: string;
   plainTemplateLabel?: string;
   cameraLabel?: string;
@@ -136,7 +94,6 @@ export interface AggregationLevelFormState {
   dividerLabel?: string;
   unitCameraLabels?: Record<number, string>;
   printerLabels?: Record<number, string>;
-  aggregation_type: AggregationType;
 }
 
 /** Derived UI visibility and disable flags (Qt LineConfiguration state machine). */
@@ -205,15 +162,6 @@ export interface LineEditorFormState {
   scale_id: number | null;
   new_chw_scale_id: number | null;
   controller_id: number | null;
-  cameraLabel?: string;
-  printedCodesCameraLabel?: string;
-  printerLabel?: string;
-  printer2Label?: string;
-  templateLabel?: string;
-  plainTemplateLabel?: string;
-  scaleLabel?: string;
-  newChwScaleLabel?: string;
-  controllerLabel?: string;
   options: LineOptionsFormState;
   scale_stations: {
     first: ScaleWorkplaceFormState;
@@ -223,4 +171,22 @@ export interface LineEditorFormState {
   deleted_aggregation_level_ids: number[];
   favourite_gtins: string[];
   has_lines_options: boolean;
+}
+
+/** Top-level resource labels for the line editor (held outside the form object). */
+export interface LineEditorResourceLabels {
+  cameraLabel?: string;
+  printedCodesCameraLabel?: string;
+  printerLabel?: string;
+  printer2Label?: string;
+  templateLabel?: string;
+  plainTemplateLabel?: string;
+  scaleLabel?: string;
+  newChwScaleLabel?: string;
+  controllerLabel?: string;
+  scale_stations: {
+    first: ScaleWorkplaceLabels;
+    second: ScaleWorkplaceLabels;
+  };
+  aggregation_levels: AggregationLevelLabels[];
 }

@@ -1,4 +1,4 @@
-import type { CrptOrganization, CrptOrganizationFormValues } from '@/entities/integration';
+import type { CrptOrganization } from '@/entities/integration';
 import { Checkbox, Divider, Form, Input, InputNumber, Modal } from 'antd';
 import { useEffect } from 'react';
 
@@ -9,10 +9,10 @@ export interface CrptOrganizationFormModalProps {
   initialOrg?: CrptOrganization | null;
   saving: boolean;
   onCancel: () => void;
-  onSubmit: (values: CrptOrganizationFormValues) => void;
+  onSubmit: (values: CrptOrganization) => void;
 }
 
-const DEFAULT_VALUES: CrptOrganizationFormValues = {
+const DEFAULT_VALUES: CrptOrganization = {
   inn: '',
   name: '',
   kpp: '',
@@ -26,7 +26,7 @@ const DEFAULT_VALUES: CrptOrganizationFormValues = {
   bill_min: 0,
   bill_email: '',
   mods_list: '',
-  short_template: false,
+  crpt_template_idx: 0,
 };
 
 /**
@@ -40,7 +40,7 @@ export function CrptOrganizationFormModal({
   onCancel,
   onSubmit,
 }: CrptOrganizationFormModalProps) {
-  const [form] = Form.useForm<CrptOrganizationFormValues>();
+  const [form] = Form.useForm<CrptOrganization>();
 
   useEffect(() => {
     if (!open) {
@@ -48,20 +48,11 @@ export function CrptOrganizationFormModal({
     }
     if (mode === 'edit' && initialOrg) {
       form.setFieldsValue({
-        inn: initialOrg.inn,
-        name: initialOrg.name,
+        ...initialOrg,
         kpp: initialOrg.kpp ?? '',
-        thumbprint: initialOrg.thumbprint,
-        is_demo: initialOrg.is_demo,
-        oms_id: initialOrg.oms_id,
-        oms_connection: initialOrg.oms_connection,
-        load_wares: initialOrg.load_wares,
-        auto_bill: initialOrg.auto_bill,
-        bill_sum: initialOrg.bill_sum,
-        bill_min: initialOrg.bill_min,
         bill_email: initialOrg.bill_email ?? '',
         mods_list: initialOrg.mods_list ?? '',
-        short_template: (initialOrg.crpt_template_idx ?? 0) === 1,
+        crpt_template_idx: initialOrg.crpt_template_idx ?? 0,
       });
       return;
     }
@@ -168,7 +159,14 @@ export function CrptOrganizationFormModal({
         <Form.Item name="mods_list" label="Список модификаторов" style={{ marginBottom: 4 }}>
           <Input.TextArea rows={2} />
         </Form.Item>
-        <Form.Item name="short_template" label='Короткий шаблон КМ (резервный)' valuePropName="checked" style={{ marginBottom: 4 }}>
+        <Form.Item
+          name="crpt_template_idx"
+          label='Короткий шаблон КМ (резервный)'
+          valuePropName="checked"
+          getValueProps={(idx?: number | null) => ({ checked: idx === 1 })}
+          normalize={(checked: boolean) => (checked ? 1 : 0)}
+          style={{ marginBottom: 4 }}
+        >
           <Checkbox />
         </Form.Item>
         <Divider titlePlacement='left' style={{ marginBottom: 0, marginTop: 0 }}>

@@ -1,21 +1,15 @@
 import {
-  CRPT_ORGS_QUERY_KEY,
-  createCrptOrganization,
-  deleteCrptOrganizations,
   fetchCrptOrganization,
-  saveOrgCrptTemplateIdx,
-  updateCrptOrganization,
   useCrptOrganizationsListQuery,
+  useDeleteCrptOrganizationMutation,
+  useSaveCrptOrganizationMutation,
   type CrptOrganization,
-  type CrptOrganizationFormValues,
 } from '@/entities/integration';
 import { useDmcCompSizeQuery } from '@/entities/parameters';
 import { ApiError } from '@/shared/api';
-import { createIdempotencyKey } from '@/shared/api/headers';
 import type { ListQueryParams } from '@/shared/types/listQuery';
 import { ServerDataTable } from '@/shared/ui/ServerDataTable';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
-import { useQueryClient } from '@tanstack/react-query';
 import { App, Button, Popconfirm, Space, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -27,10 +21,11 @@ type ModalState =
   | { open: true; mode: 'edit'; inn: string };
 
 /**
- * Maps form values to API create/update payloads.
+ * Trims text fields and nulls empty optional ones before save.
  */
-function formValuesToPayload(values: CrptOrganizationFormValues) {
+function normalizeOrganization(values: CrptOrganization): CrptOrganization {
   return {
+    ...values,
     inn: values.inn.trim(),
     name: values.name.trim(),
     kpp: values.kpp?.trim() || null,
@@ -52,10 +47,7 @@ function formValuesToPayload(values: CrptOrganizationFormValues) {
  */
 export function CrptOrganizationsSection() {
   const { message } = App.useApp();
-  const queryClient = useQueryClient();
   const [modalState, setModalState] = useState<ModalState>({ open: false });
-  const [saving, setSaving] = useState(false);
-  const [deletingInn, setDeletingInn] = useState<string | null>(null);
   const [loadingEditInn, setLoadingEditInn] = useState<string | null>(null);
   const [editOrg, setEditOrg] = useState<CrptOrganization | null>(null);
 
@@ -73,10 +65,6 @@ export function CrptOrganizationsSection() {
   const handleListParamsChange = useCallback((params: ListQueryParams) => {
     setListParams(params);
   }, []);
-
-  const invalidateList = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: CRPT_ORGS_QUERY_KEY });
-  }, [queryClient]);
 
   const cancelEditPrefetch = useCallback(() => {
     editAbortControllerRef.current?.abort();
@@ -123,69 +111,58 @@ export function CrptOrganizationsSection() {
     setEditOrg(null);
   }, [cancelEditPrefetch]);
 
-  const handleSave = useCallback(
-    async (values: CrptOrganizationFormValues) => {
-      setSaving(true);
-      const key = createIdempotencyKey();
-      const payload = formValuesToPayload(values);
-      const templateIdx = values.short_template ? 1 : 0;
-
-      try {
-        if (modalState.open && modalState.mode === 'edit') {
-          const { inn, ...updateBody } = payload;
-          await updateCrptOrganization(inn, updateBody, key);
-          try {
-            await saveOrgCrptTemplateIdx(inn, templateIdx);
-          } catch (templateError) {
-            invalidateList();
-            message.error(
-              templateError instanceof ApiError
-                ? `Организация сохранена, но шаблон CRPT не обновлён: ${templateError.message}`
-                : 'Организация сохранена, но не удалось сохранить шаблон CRPT. Повторите сохранение.',
-            );
-            return;
-          }
-          message.success('Организация обновлена');
+  const saveMutation = useSaveCrptOrganizationMutation({
+    onSuccess: ({ templateError }, { mode }) => {
+      if (templateError) {
+        const isApiError = templateError instanceof ApiError;
+        if (mode === 'edit') {
+          message.error(
+            isApiError
+              ? `Организация сохранена, но шаблон CRPT не обновлён: ${templateError.message}`
+              : 'Организация сохранена, но не удалось сохранить шаблон CRPT. Повторите сохранение.',
+          );
         } else {
-          await createCrptOrganization(payload, key);
-          try {
-            await saveOrgCrptTemplateIdx(payload.inn, templateIdx);
-          } catch (templateError) {
-            invalidateList();
-            message.error(
-              templateError instanceof ApiError
-                ? `Организация добавлена, но шаблон CRPT не сохранён: ${templateError.message}`
-                : 'Организация добавлена, но не удалось сохранить шаблон CRPT. Откройте запись и повторите сохранение.',
-            );
-            return;
-          }
-          message.success('Организация добавлена');
+          message.error(
+            isApiError
+              ? `Организация добавлена, но шаблон CRPT не сохранён: ${templateError.message}`
+              : 'Организация добавлена, но не удалось сохранить шаблон CRPT. Откройте запись и повторите сохранение.',
+          );
         }
-        closeModal();
-        invalidateList();
-      } catch (error) {
-        message.error(error instanceof ApiError ? error.message : 'Ошибка сохранения');
-      } finally {
-        setSaving(false);
+        return;
       }
+      message.success(mode === 'edit' ? 'Организация обновлена' : 'Организация добавлена');
+      closeModal();
     },
-    [closeModal, invalidateList, message, modalState],
+    onError: (error) => {
+      message.error(error instanceof ApiError ? error.message : 'Ошибка сохранения');
+    },
+  });
+
+  const deleteMutation = useDeleteCrptOrganizationMutation({
+    onSuccess: () => {
+      message.success('Организация удалена');
+    },
+    onError: (error) => {
+      message.error(error.message || 'Ошибка удаления');
+    },
+  });
+  const deletingInn = deleteMutation.isPending ? deleteMutation.variables : null;
+
+  const handleSave = useCallback(
+    (values: CrptOrganization) => {
+      saveMutation.mutate({
+        mode: modalState.open && modalState.mode === 'edit' ? 'edit' : 'create',
+        organization: normalizeOrganization(values),
+      });
+    },
+    [modalState, saveMutation],
   );
 
   const handleDelete = useCallback(
-    async (row: CrptOrganization) => {
-      setDeletingInn(row.inn);
-      try {
-        await deleteCrptOrganizations([row.inn], createIdempotencyKey());
-        message.success('Организация удалена');
-        invalidateList();
-      } catch (error) {
-        message.error(error instanceof Error ? error.message : 'Ошибка удаления');
-      } finally {
-        setDeletingInn(null);
-      }
+    (row: CrptOrganization) => {
+      deleteMutation.mutate(row.inn);
     },
-    [invalidateList, message],
+    [deleteMutation],
   );
 
   const columns = useMemo<ColumnsType<CrptOrganization>>(
@@ -220,7 +197,7 @@ export function CrptOrganizationsSection() {
             <Popconfirm
               title="Удалить организацию?"
               description={record.name}
-              onConfirm={() => void handleDelete(record)}
+              onConfirm={() => handleDelete(record)}
             >
               <Button
                 type="text"
@@ -286,9 +263,9 @@ export function CrptOrganizationsSection() {
         open={modalState.open}
         mode={modalState.open ? modalState.mode : 'create'}
         initialOrg={modalState.open && modalState.mode === 'edit' ? editOrg : null}
-        saving={saving}
+        saving={saveMutation.isPending}
         onCancel={closeModal}
-        onSubmit={(values) => void handleSave(values)}
+        onSubmit={handleSave}
       />
     </>
   );

@@ -3,22 +3,22 @@ import {
   type CodeGeneratorTemplate,
   type CounterSpec,
 } from '@/entities/code-generator-template';
-import type {
-  CodeGeneratorTemplateFormValues,
-  CodeGeneratorTemplatePreviewFormValues,
-} from './types';
+import type { CodeGeneratorTemplatePreviewFormValues } from './types';
 
 /**
- * Empty create-form defaults (Desktop empty editor).
+ * Empty create-form defaults (API object shape).
  */
-export function createDefaultFormValues(): CodeGeneratorTemplateFormValues {
+export function createDefaultFormValues(): CodeGeneratorTemplate {
   return {
+    id: 0,
     name: '',
     description: '',
     template: '',
     counter_config: [],
     validation_regex: '',
     is_system: false,
+    legacy_type: null,
+    counters: [],
   };
 }
 
@@ -47,15 +47,16 @@ export function createDefaultCounterRow(): CounterSpec {
 }
 
 /**
- * Maps API/list detail into form values.
+ * Puts API/list detail into the form (same fields; empty counters get row defaults).
  *
  * @param template - Partial template from list or `fetchById`.
  */
 export function mapTemplateToFormValues(
   template: Partial<CodeGeneratorTemplate>,
-): CodeGeneratorTemplateFormValues {
+): CodeGeneratorTemplate {
   return {
-    id: template.id,
+    ...createDefaultFormValues(),
+    ...template,
     name: template.name ?? '',
     description: template.description ?? '',
     template: template.template ?? '',

@@ -19,6 +19,8 @@ export interface ProductArticlesTabProps {
   isEdit: boolean;
   visibility?: ReturnType<typeof visibilityFormControl>;
   loading: boolean;
+  itemsRemoved: Array<ProductArticle['id']>;
+  onItemsRemovedChange: (next: Array<ProductArticle['id']>) => void;
 }
 
 let ii = 0;
@@ -134,11 +136,12 @@ export function ProductArticlesTab({
   isEdit,
   loading,
   visibility,
+  itemsRemoved,
+  onItemsRemovedChange,
 }: ProductArticlesTabProps) {
   const { showedWellNumber } = useMemo(() => visibility ?? visibilityFormControl(form.getFieldsValue()), [visibility, form.getFieldsValue()]);
 
   const items = Form.useWatch('articles', form) || [];
-  const itemsRemoved = Form.useWatch('articles_removed', form) || [];
 
   const [modalOpen, setModalOpen] = useState(false);
   const [subForm] = Form.useForm<ProductArticle>();
@@ -166,14 +169,14 @@ export function ProductArticlesTab({
     if (!record.id) {
       return;
     }
-    form.setFieldValue('articles_removed', [...(itemsRemoved ?? []), record.id]);
+    onItemsRemovedChange([...(itemsRemoved ?? []), record.id]);
   };
 
   const recucleItem = (record: ProductArticle) => {
     if (!record.id) {
       return;
     }
-    form.setFieldValue('articles_removed', itemsRemoved.filter((id) => id !== record.id));
+    onItemsRemovedChange(itemsRemoved.filter((id) => id !== record.id));
   };
 
   const certColumns: ColumnsType<ProductArticle> = [
@@ -234,7 +237,6 @@ export function ProductArticlesTab({
   return (
     <>
       <Form.Item name="articles" hidden></Form.Item>
-      <Form.Item name="articles_removed" hidden></Form.Item>
       <Space orientation="vertical" style={{ width: '100%' }}>
         <ButtonLoading type="primary" disabled={!isEdit} onClick={() => {
           setModalOpen(true)

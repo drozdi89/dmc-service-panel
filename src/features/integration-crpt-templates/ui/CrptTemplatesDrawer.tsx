@@ -1,10 +1,9 @@
 import { CRPT_TEMPLATES_QUERY_KEY, formatCrptTemplateIdx } from '@/entities/integration';
+import type { Product } from '@/entities/product';
 import {
-  fetchIntegrationProducts,
-  updateProductCrptTemplate,
+  useIntegrationProductsQuery,
+  useSaveProductCrptTemplatesMutation,
 } from '@/services/integration-service';
-import { ApiError } from '@/shared/api';
-import { createIdempotencyKey } from '@/shared/api/headers';
 import {
   DRAWER_FILLED_CONTENT_STYLE,
   DRAWER_FILLED_STYLES,
@@ -12,18 +11,12 @@ import {
   useTableBodyScrollY,
 } from '@/shared/ui/drawerFilledTable';
 import { PageSpinner } from '@/shared/ui/loading';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Drawer, Flex, Pagination, Space, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 /** Editable product template row. */
-interface CrptTemplateRow {
-  key: string;
-  gtin: string;
-  name: string;
-  crpt_template_idx: number;
-}
+type CrptTemplateRow = Pick<Product, 'gtin' | 'name' | 'crpt_template_idx'>;
 
 /** Props for CRPT KM templates drawer. */
 export interface CrptTemplatesDrawerProps {
@@ -38,27 +31,21 @@ const PAGE_SIZE = 20;
  */
 export function CrptTemplatesDrawer({ open, onClose }: CrptTemplatesDrawerProps) {
   const { message } = App.useApp();
-  const queryClient = useQueryClient();
   const [rows, setRows] = useState<CrptTemplateRow[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [initialRows, setInitialRows] = useState<CrptTemplateRow[]>([]);
   const [page, setPage] = useState(1);
 
-  const productsQuery = useQuery({
-    queryKey: CRPT_TEMPLATES_QUERY_KEY,
-    queryFn: fetchIntegrationProducts,
-    enabled: open,
-  });
+  const productsQuery = useIntegrationProductsQuery(CRPT_TEMPLATES_QUERY_KEY, open);
 
   useEffect(() => {
     if (!open || !productsQuery.isSuccess) {
       return;
     }
-    const mapped = productsQuery.data.map((product) => ({
-      key: product.gtin,
-      gtin: product.gtin,
-      name: product.name,
-      crpt_template_idx: product.crpt_template_idx ?? 0,
+    const mapped = productsQuery.data.map(({ gtin, name, crpt_template_idx }) => ({
+      gtin,
+      name,
+      crpt_template_idx: crpt_template_idx ?? 0,
     }));
     setRows(mapped);
     setInitialRows(mapped);
@@ -66,34 +53,34 @@ export function CrptTemplatesDrawer({ open, onClose }: CrptTemplatesDrawerProps)
     setPage(1);
   }, [open, productsQuery.data, productsQuery.isSuccess]);
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const changed = rows.filter((row) => {
-        const initial = initialRows.find((item) => item.gtin === row.gtin);
-        return initial?.crpt_template_idx !== row.crpt_template_idx;
-      });
-      await Promise.all(
-        changed.map((row) =>
-          updateProductCrptTemplate(row.gtin, row.crpt_template_idx, createIdempotencyKey()),
-        ),
-      );
-      return changed.length;
-    },
+  const saveMutation = useSaveProductCrptTemplatesMutation({
     onSuccess: (count) => {
       message.success(`Шаблоны КМ сохранены (${count} продуктов)`);
-      void queryClient.invalidateQueries({ queryKey: CRPT_TEMPLATES_QUERY_KEY });
       onClose();
     },
     onError: (error: Error) => {
-      message.error(error instanceof ApiError ? error.message : error.message);
+      message.error(error.message);
     },
   });
+
+  const handleSave = useCallback(() => {
+    const changed = rows.filter((row) => {
+      const initial = initialRows.find((item) => item.gtin === row.gtin);
+      return initial?.crpt_template_idx !== row.crpt_template_idx;
+    });
+    saveMutation.mutate(
+      changed.map(({ gtin, crpt_template_idx }) => ({
+        gtin,
+        crpt_template_idx: crpt_template_idx ?? 0,
+      })),
+    );
+  }, [initialRows, rows, saveMutation]);
 
   const applyTemplateIdx = useCallback(
     (idx: number) => {
       setRows((prev) =>
         prev.map((row) =>
-          selectedKeys.includes(row.key) ? { ...row, crpt_template_idx: idx } : row,
+          selectedKeys.includes(row.gtin) ? { ...row, crpt_template_idx: idx } : row,
         ),
       );
     },
@@ -148,7 +135,7 @@ export function CrptTemplatesDrawer({ open, onClose }: CrptTemplatesDrawerProps)
           <Button
             type="primary"
             loading={saveMutation.isPending}
-            onClick={() => saveMutation.mutate()}
+            onClick={handleSave}
           >
             Сохранить
           </Button>
@@ -176,6 +163,7 @@ export function CrptTemplatesDrawer({ open, onClose }: CrptTemplatesDrawerProps)
           <div ref={tableHostRef} className={drawerFilledTableStyles.tableHost}>
             <Table<CrptTemplateRow>
               size="small"
+              rowKey="gtin"
               rowSelection={{
                 selectedRowKeys: selectedKeys,
                 onChange: (keys) => setSelectedKeys(keys.map(String)),

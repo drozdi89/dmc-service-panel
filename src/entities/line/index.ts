@@ -28,6 +28,7 @@ export {
 } from './model/constants';
 export {
   applyOutputModeChange,
+  applyOutputModeLabelsChange,
   buildAggregationLevelPayload,
   buildLinePayload,
   buildLinePrintedDmSettings,
@@ -37,10 +38,12 @@ export {
   canAddAutomatedAggregationLevel,
   canSwapAggregationLevels,
   computeLineEditorVisibility,
-  createAggregationClientKey,
+  createDefaultLineEditorLabels,
   createDefaultLineFormState,
   mapAggregationLevelToForm,
+  mapAggregationLevelToLabels,
   mapLineConfigurationToForm,
+  mapLineConfigurationToLabels,
   reindexAggregationLevels,
   resolveAutomatedSubtype,
   resolveLineKind,
@@ -63,9 +66,13 @@ export {
 } from './model/lineFormUiStore';
 export type {
   AggregationLevelConfiguration,
-  AggregationLevelFormState, AggregationType, AutomatedLineSubtype,
+  AggregationLevelFormState,
+  AggregationLevelLabels,
+  AggregationType,
+  AutomatedLineSubtype,
   LineConfiguration,
   LineEditorFormState,
+  LineEditorResourceLabels,
   LineEditorVisibility,
   LineKind,
   LineListItem,
@@ -75,6 +82,7 @@ export type {
   ResourceLabel,
   ScaleWorkplaceConfiguration,
   ScaleWorkplaceFormState,
+  ScaleWorkplaceLabels,
   ScaleWorkplacesConfiguration
 } from './model/types';
 export * from './queries';

@@ -1,4 +1,4 @@
-import type { ProductContents } from '@/entities/product/model/types';
+import type { ProductContents } from '@/entities/product';
 import { Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 

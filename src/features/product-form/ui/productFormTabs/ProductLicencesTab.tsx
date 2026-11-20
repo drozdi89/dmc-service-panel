@@ -23,6 +23,8 @@ export interface ProductLicencesTabProps {
   isEdit: boolean;
   loading: boolean;
   visibility?: ReturnType<typeof visibilityFormControl>;
+  itemsRemoved: Array<ProductLicence['lic_id']>;
+  onItemsRemovedChange: (next: Array<ProductLicence['lic_id']>) => void;
 }
 
 let ii = 0;
@@ -37,40 +39,14 @@ export function ProductLicencesTab({
   isEdit,
   loading,
   visibility,
+  itemsRemoved,
+  onItemsRemovedChange,
 }: ProductLicencesTabProps) {
 
   const items = Form.useWatch('licences', form) || [];
-  const itemsRemoved = Form.useWatch('licences_removed', form) || [];
 
   const [modalOpen, setModalOpen] = useState(false);
   const [subForm] = Form.useForm<LicenceFormValues>();
-
-  // const invalidateLicences = () => {
-  //   if (!gtin) {
-  //     return;
-  //   }
-  //   void queryClient.invalidateQueries({
-  //     queryKey: productRelatedQueryKeys.licences(gtin),
-  //   });
-  // };
-
-  // const licCreateMutation = useIdempotentMutation<ProductLicence>({
-  //   onSuccess: () => {
-  //     message.success('Лицензия добавлена');
-  //     setModalOpen(false);
-  //     subForm.resetFields();
-  //     invalidateLicences();
-  //   },
-  //   onError: (error) => message.error(error.message),
-  // });
-
-  // const licDeleteMutation = useIdempotentMutation<void>({
-  //   onSuccess: () => {
-  //     message.success('Лицензия удалена');
-  //     invalidateLicences();
-  //   },
-  //   onError: (error) => message.error(error.message),
-  // });
 
   const submitItem = (values: LicenceFormValues) => {
     const next: LicenceFormValues = {
@@ -96,14 +72,14 @@ export function ProductLicencesTab({
     if (!record.lic_id) {
       return;
     }
-    form.setFieldValue('licences_removed', [...(itemsRemoved ?? []), record.lic_id]);
+    onItemsRemovedChange([...(itemsRemoved ?? []), record.lic_id]);
   };
 
   const recucleItem = (record: ProductLicence) => {
     if (!record.lic_id) {
       return;
     }
-    form.setFieldValue('licences_removed', itemsRemoved.filter((lic_id) => lic_id !== record.lic_id));
+    onItemsRemovedChange(itemsRemoved.filter((lic_id) => lic_id !== record.lic_id));
   };
   
   const itemColumns: ColumnsType<ProductLicence> = [
@@ -157,7 +133,6 @@ export function ProductLicencesTab({
   return (
     <>
       <Form.Item name="licences" hidden></Form.Item>
-      <Form.Item name="licences_removed" hidden></Form.Item>
       <Space direction="vertical" style={{ width: '100%' }}>
         <ButtonLoading type="primary" disabled={!isEdit} onClick={() => {
           setModalOpen(true)

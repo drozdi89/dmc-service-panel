@@ -1,20 +1,20 @@
 import {
-  UTRACE_QUERY_KEY,
-  createUtraceSettings,
-  deleteUtraceSettings,
-  saveUtraceSettings,
+  useDeleteUtraceSettingsMutation,
+  useSaveUtraceSettingsMutation,
   useUtraceSettingsQuery,
   type UtraceSettings,
 } from '@/entities/integration';
-import { ApiError } from '@/shared/api';
-import { createIdempotencyKey } from '@/shared/api/headers';
 import { PageSpinner } from '@/shared/ui/loading';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Drawer, Form, Input, Popconfirm, Space } from 'antd';
 import { useCallback, useEffect } from 'react';
 
-/** Form values for Utrace settings drawer. */
-type UtraceFormValues = UtraceSettings;
+const EMPTY_SETTINGS: UtraceSettings = {
+  inn: '',
+  login: '',
+  password: '',
+  base_url: '',
+  production_site: '',
+};
 
 /** Props for Utrace integration settings drawer. */
 export interface UtraceSettingsDrawerProps {
@@ -27,78 +27,51 @@ export interface UtraceSettingsDrawerProps {
  */
 export function UtraceSettingsDrawer({ open, onClose }: UtraceSettingsDrawerProps) {
   const { message } = App.useApp();
-  const queryClient = useQueryClient();
-  const [form] = Form.useForm<UtraceFormValues>();
+  const [form] = Form.useForm<UtraceSettings>();
 
   const settingsQuery = useUtraceSettingsQuery({ enabled: open });
+  const currentInn = settingsQuery.data?.inn;
 
   useEffect(() => {
     if (!open || !settingsQuery.isSuccess) {
       return;
     }
-    const data = settingsQuery.data;
-    if (data?.inn) {
-      form.setFieldsValue({
-        inn: data.inn,
-        login: data.login ?? '',
-        password: data.password ?? '',
-        base_url: data.base_url ?? '',
-        production_site: data.production_site ?? '',
-      });
-      return;
-    }
-    form.setFieldsValue({
-      inn: '',
-      login: '',
-      password: '',
-      base_url: '',
-      production_site: '',
-    });
+    form.setFieldsValue({ ...EMPTY_SETTINGS, ...settingsQuery.data });
   }, [form, open, settingsQuery.data, settingsQuery.isSuccess]);
 
-  const saveMutation = useMutation({
-    mutationFn: async (values: UtraceFormValues) => {
-      const payload: UtraceSettings = {
+  const showError = (error: Error) => message.error(error.message);
+
+  const saveMutation = useSaveUtraceSettingsMutation({
+    onSuccess: () => {
+      message.success('Настройки Utrace сохранены');
+      onClose();
+    },
+    onError: showError,
+  });
+
+  const deleteMutation = useDeleteUtraceSettingsMutation({
+    onSuccess: () => {
+      message.success('Настройки Utrace удалены');
+      onClose();
+    },
+    onError: showError,
+  });
+
+  const handleSave = useCallback(async () => {
+    const values = await form.validateFields();
+    saveMutation.mutate({
+      currentInn,
+      settings: {
         inn: values.inn.trim(),
         login: values.login.trim(),
         password: values.password,
         base_url: values.base_url.trim(),
         production_site: values.production_site.trim(),
-      };
-      const key = createIdempotencyKey();
-      if (settingsQuery.data?.inn) {
-        return saveUtraceSettings(settingsQuery.data.inn, payload, key);
-      }
-      return createUtraceSettings(payload, key);
-    },
-    onSuccess: () => {
-      message.success('Настройки Utrace сохранены');
-      void queryClient.invalidateQueries({ queryKey: UTRACE_QUERY_KEY });
-      onClose();
-    },
-    onError: (error: Error) => {
-      message.error(error instanceof ApiError ? error.message : error.message);
-    },
-  });
+      },
+    });
+  }, [currentInn, form, saveMutation]);
 
-  const deleteMutation = useMutation({
-    mutationFn: () => deleteUtraceSettings(createIdempotencyKey()),
-    onSuccess: () => {
-      message.success('Настройки Utrace удалены');
-      void queryClient.invalidateQueries({ queryKey: UTRACE_QUERY_KEY });
-      onClose();
-    },
-    onError: (error: Error) => {
-      message.error(error instanceof ApiError ? error.message : error.message);
-    },
-  });
-
-  const handleSave = useCallback(async () => {
-    const values = await form.validateFields();
-    saveMutation.mutate(values);
-  }, [form, saveMutation]);
-
-  const isEditMode = Boolean(settingsQuery.data?.inn);
+  const isEditMode = Boolean(currentInn);
 
   return (
     <Drawer
@@ -109,7 +82,7 @@ export function UtraceSettingsDrawer({ open, onClose }: UtraceSettingsDrawerProp
       destroyOnClose
       extra={
         <Space>
-          {settingsQuery.data?.inn ? (
+          {isEditMode ? (
             <Popconfirm
               title="Удалить настройки Utrace?"
               onConfirm={() => deleteMutation.mutate()}

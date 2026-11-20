@@ -1,29 +1,17 @@
 import {
-  ONE_C_EXCHANGE_QUERY_KEY,
-  fetchOneCExchangeServers,
-  saveOneCExchangeSettings,
   useOneCExchangeSettingsQuery,
+  useRefreshOneCExchangeServersMutation,
+  useSaveOneCExchangeSettingsMutation,
   type OneCExchangeServer,
   type OneCExchangeSettings,
   type OneCExchangeSettingsPayload,
 } from '@/entities/integration';
 import { ApiError } from '@/shared/api';
-import { createIdempotencyKey } from '@/shared/api/headers';
 import { PageSpinner } from '@/shared/ui/loading';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Checkbox, Drawer, Form, Input, Select, Space } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const PASSWORD_PLACEHOLDER = 'Оставьте пустым, чтобы не менять';
-
-/** Form values for 1C exchange settings drawer. */
-interface OneCExchangeFormValues {
-  enabled: boolean;
-  base_url: string;
-  username: string;
-  password: string;
-  srv_id: number | null;
-}
 
 /** Props for 1C exchange settings drawer. */
 export interface OneCExchangeSettingsDrawerProps {
@@ -66,8 +54,7 @@ function resolvePasswordForPut(
  */
 export function OneCExchangeSettingsDrawer({ open, onClose }: OneCExchangeSettingsDrawerProps) {
   const { message } = App.useApp();
-  const queryClient = useQueryClient();
-  const [form] = Form.useForm<OneCExchangeFormValues>();
+  const [form] = Form.useForm<OneCExchangeSettings>();
   const loadedRef = useRef<OneCExchangeSettings | null>(null);
   const [passwordConfigured, setPasswordConfigured] = useState(false);
   const [servers, setServers] = useState<OneCExchangeServer[]>([]);
@@ -83,6 +70,7 @@ export function OneCExchangeSettingsDrawer({ open, onClose }: OneCExchangeSettin
     const configured = Boolean(data.password);
     setPasswordConfigured(configured);
     form.setFieldsValue({
+      ...data,
       enabled: data.enabled ?? false,
       base_url: data.base_url ?? '',
       username: data.username ?? '',
@@ -113,11 +101,11 @@ export function OneCExchangeSettingsDrawer({ open, onClose }: OneCExchangeSettin
 
   const buildPayload = useCallback(
     (
-      values: OneCExchangeFormValues,
+      values: OneCExchangeSettings,
       loaded: OneCExchangeSettings,
       options?: { preserveFlags?: boolean },
     ): OneCExchangeSettingsPayload => {
-      const passwordText = values.password.trim();
+      const passwordText = (values.password ?? '').trim();
       const password = resolvePasswordForPut(
         passwordText,
         passwordConfigured,
@@ -125,9 +113,9 @@ export function OneCExchangeSettingsDrawer({ open, onClose }: OneCExchangeSettin
       );
       const payload: OneCExchangeSettingsPayload = {
         enabled: options?.preserveFlags ? loaded.enabled : values.enabled,
-        base_url: values.base_url.trim() || null,
-        username: values.username.trim() || null,
-        srv_id: options?.preserveFlags ? loaded.srv_id ?? null : values.srv_id,
+        base_url: (values.base_url ?? '').trim() || null,
+        username: (values.username ?? '').trim() || null,
+        srv_id: options?.preserveFlags ? loaded.srv_id ?? null : values.srv_id ?? null,
       };
       if (password !== undefined) {
         payload.password = password;
@@ -138,15 +126,15 @@ export function OneCExchangeSettingsDrawer({ open, onClose }: OneCExchangeSettin
   );
 
   const validateSettings = useCallback(
-    (values: OneCExchangeFormValues, loaded: OneCExchangeSettings): string | null => {
-      const passwordText = values.password.trim();
+    (values: OneCExchangeSettings, loaded: OneCExchangeSettings): string | null => {
+      const passwordText = (values.password ?? '').trim();
       const hasPassword =
         Boolean(passwordText) || (passwordConfigured && Boolean(loaded.password));
 
-      if (!values.base_url.trim()) {
+      if (!(values.base_url ?? '').trim()) {
         return 'Укажите базовый URL публикации 1С.';
       }
-      if (!values.username.trim()) {
+      if (!(values.username ?? '').trim()) {
         return 'Укажите имя пользователя для Basic Auth.';
       }
       if (!hasPassword) {
@@ -158,7 +146,7 @@ export function OneCExchangeSettingsDrawer({ open, onClose }: OneCExchangeSettin
   );
 
   const validateEnabledSettings = useCallback(
-    (values: OneCExchangeFormValues, loaded: OneCExchangeSettings): string | null => {
+    (values: OneCExchangeSettings, loaded: OneCExchangeSettings): string | null => {
       if (!values.enabled) {
         return null;
       }
@@ -174,52 +162,28 @@ export function OneCExchangeSettingsDrawer({ open, onClose }: OneCExchangeSettin
     [validateSettings],
   );
 
-  const saveMutation = useMutation({
-    mutationFn: async (values: OneCExchangeFormValues) => {
-      const loaded = loadedRef.current ?? settingsQuery.data;
-      if (!loaded) {
-        throw new Error('Настройки не загружены');
-      }
-      const validationError = validateEnabledSettings(values, loaded);
-      if (validationError) {
-        throw new Error(validationError);
-      }
-      const payload = buildPayload(values, loaded);
-      return saveOneCExchangeSettings(payload, createIdempotencyKey());
-    },
+  const saveMutation = useSaveOneCExchangeSettingsMutation({
     onSuccess: () => {
       message.success('Настройки обмена с 1С сохранены');
-      void queryClient.invalidateQueries({ queryKey: ONE_C_EXCHANGE_QUERY_KEY });
       onClose();
     },
     onError: (error: Error) => {
-      message.error(error instanceof ApiError ? error.message : error.message);
+      message.error(error.message);
     },
   });
 
-  const refreshMutation = useMutation({
-    mutationFn: async (values: OneCExchangeFormValues) => {
-      const loaded = loadedRef.current ?? settingsQuery.data;
-      if (!loaded) {
-        throw new Error('Настройки не загружены');
-      }
-      const connectionError = validateSettings(values, loaded);
-      if (connectionError) {
-        throw new Error(connectionError);
-      }
-      if (values.enabled) {
-        const enabledError = validateEnabledSettings(values, loaded);
-        if (enabledError) {
-          throw new Error(enabledError);
-        }
-      }
-      const payload = buildPayload(values, loaded, { preserveFlags: true });
-      await saveOneCExchangeSettings(payload, createIdempotencyKey());
-      const response = await fetchOneCExchangeServers();
-      return { response, selectedSrvId: values.srv_id ?? loaded.srv_id ?? null };
+  const refreshMutation = useRefreshOneCExchangeServersMutation({
+    onError: (error: Error) => {
+      message.error(
+        error instanceof ApiError
+          ? error.message
+          : `Не удалось получить список серверов DMC из 1С: ${error.message}`,
+      );
     },
-    onSuccess: ({ response, selectedSrvId }) => {
-      const serverList = response.servers ?? [];
+  });
+
+  const handleServersLoaded = useCallback(
+    (serverList: OneCExchangeServer[], selectedSrvId: number | null) => {
       setServers(serverList);
       if (serverList.length === 0) {
         message.warning(
@@ -243,27 +207,56 @@ export function OneCExchangeSettingsDrawer({ open, onClose }: OneCExchangeSettin
       if (selectedSrvId != null) {
         form.setFieldValue('srv_id', selectedSrvId);
       }
-      void queryClient.invalidateQueries({ queryKey: ONE_C_EXCHANGE_QUERY_KEY });
       message.success('Список серверов DMC обновлён');
     },
-    onError: (error: Error) => {
-      message.error(
-        error instanceof ApiError
-          ? error.message
-          : `Не удалось получить список серверов DMC из 1С: ${error.message}`,
-      );
-    },
-  });
+    [form, message],
+  );
 
   const handleSave = useCallback(async () => {
     const values = await form.validateFields();
-    saveMutation.mutate(values);
-  }, [form, saveMutation]);
+    const loaded = loadedRef.current ?? settingsQuery.data;
+    if (!loaded) {
+      message.error('Настройки не загружены');
+      return;
+    }
+    const validationError = validateEnabledSettings(values, loaded);
+    if (validationError) {
+      message.error(validationError);
+      return;
+    }
+    saveMutation.mutate(buildPayload(values, loaded));
+  }, [buildPayload, form, message, saveMutation, settingsQuery.data, validateEnabledSettings]);
 
   const handleRefresh = useCallback(async () => {
     const values = await form.validateFields(['base_url', 'username', 'password', 'enabled', 'srv_id']);
-    refreshMutation.mutate(values);
-  }, [form, refreshMutation]);
+    const loaded = loadedRef.current ?? settingsQuery.data;
+    if (!loaded) {
+      message.error('Настройки не загружены');
+      return;
+    }
+    const validationError =
+      validateSettings(values, loaded) ??
+      (values.enabled ? validateEnabledSettings(values, loaded) : null);
+    if (validationError) {
+      message.error(`Не удалось получить список серверов DMC из 1С: ${validationError}`);
+      return;
+    }
+    const selectedSrvId = values.srv_id ?? loaded.srv_id ?? null;
+    refreshMutation.mutate(buildPayload(values, loaded, { preserveFlags: true }), {
+      onSuccess: (response) => {
+        handleServersLoaded(response.servers ?? [], selectedSrvId);
+      },
+    });
+  }, [
+    buildPayload,
+    form,
+    handleServersLoaded,
+    message,
+    refreshMutation,
+    settingsQuery.data,
+    validateEnabledSettings,
+    validateSettings,
+  ]);
 
   const enabled = Form.useWatch('enabled', form);
 

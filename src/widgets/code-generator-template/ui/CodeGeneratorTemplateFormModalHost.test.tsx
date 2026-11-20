@@ -3,10 +3,7 @@ import {
   resetCodeGeneratorTemplateFormUiStore,
   useCodeGeneratorTemplateFormUiStore,
 } from '@/entities/code-generator-template';
-import type {
-  CodeGeneratorTemplateFormModalProps,
-  CodeGeneratorTemplateFormValues,
-} from '@/features/code-generator-template-form';
+import type { CodeGeneratorTemplateFormModalProps } from '@/features/code-generator-template-form';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -41,13 +38,16 @@ vi.mock('@/features/code-generator-template-form', () => ({
           onClick={() =>
             onSubmit(
               {
+                id: 0,
                 name: 'Saved',
                 description: null,
                 template: 'body',
                 counter_config: [],
                 validation_regex: null,
                 is_system: false,
-              } satisfies CodeGeneratorTemplateFormValues,
+                legacy_type: null,
+                counters: [],
+              } satisfies CodeGeneratorTemplate,
               { close: true },
             )
           }

@@ -1,5 +1,4 @@
 import {
-  invalidateLineQueries,
   isSameLineFormDialog,
   resetLineFormUiStore,
   useLineFormUiStore,
@@ -7,11 +6,9 @@ import {
   type LineEditorFormState,
 } from '@/entities/line';
 import { LineFormModal } from '@/features/line-editor';
-import { createLineSaveMutator, saveLineConfiguration } from '@/services/line-service';
-import { createIdempotencyKey } from '@/shared/api/headers';
+import { useSaveLineConfigurationMutation } from '@/services/line-service';
 import type { ResourceFormSubmitOptions } from '@/shared/model/resourceFormUiBridge';
 import { RESOURCE_FORM_SUBMIT_SAVE } from '@/shared/model/resourceFormUiBridge';
-import { useQueryClient } from '@tanstack/react-query';
 import { App } from 'antd';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -20,8 +17,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * App-level host for production-line create/edit.
  *
  * Subscribes to {@link useLineFormUiStore}, renders {@link LineFormModal},
- * saves via {@link saveLineConfiguration} / {@link createLineSaveMutator},
- * invalidates line queries, writes `lastSaved` when `consumerId` is set,
+ * saves via {@link useSaveLineConfigurationMutation} (invalidates line queries),
+ * writes `lastSaved` when `consumerId` is set,
  * then closes on «Сохранить» or keeps open on «Применить» (create → edit).
  * Mount once in {@link import('@/App').AppProviders}.
  *
@@ -33,7 +30,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  */
 export function LineFormModalHost() {
   const { message } = App.useApp();
-  const queryClient = useQueryClient();
+  const { mutateAsync: saveLine } = useSaveLineConfigurationMutation();
   const dialog = useLineFormUiStore((state) => state.dialog);
   const close = useLineFormUiStore((state) => state.close);
   const setLastSaved = useLineFormUiStore((state) => state.setLastSaved);
@@ -74,19 +71,11 @@ export function LineFormModalHost() {
       try {
         const editLineId =
           submitted.kind === 'edit' ? submitted.lineId : undefined;
-        const key = createIdempotencyKey();
-        const result = await saveLineConfiguration(
-          values,
-          editLineId,
+        const result = await saveLine({
+          state: values,
+          lineId: editLineId,
           printedDmRaw,
-          createLineSaveMutator(key),
-        );
-
-
-        // Invalidate list cache as soon as the server save succeeds, even if the
-        // user dismissed / reopened the dialog while the multi-step save was in flight.
-        void invalidateLineQueries(queryClient);
-
+        });
 
         if (mountGenerationRef.current !== submittedGeneration) {
           return;
@@ -129,7 +118,7 @@ export function LineFormModalHost() {
         }
       }
     },
-    [close, message, printedDmRaw, queryClient, setLastSaved],
+    [close, message, printedDmRaw, saveLine, setLastSaved],
   );
 
 

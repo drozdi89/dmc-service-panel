@@ -2,12 +2,12 @@ import { DeviceResourceListEditor } from '@/entities/device';
 import {
   AGGREGATION_LOGIC_TYPE,
   CODE_GENERATOR_SSCC,
-  createAggregationClientKey,
   formatAggregationModeLabel,
   getAggrLogicType,
   SelectCodeGenerator,
   type AggregationLevelFormState,
-  type AggregationLogicInput
+  type AggregationLevelLabels,
+  type AggregationLogicInput,
 } from '@/entities/line';
 import { useSettingsBundleQuery } from '@/entities/parameters';
 import lineImage from '@/shared/assets/line.png';
@@ -21,12 +21,12 @@ import { LineResourcePickerField } from '../LineResourcePickerField';
 export interface AutomatedAggregationLevelModalProps {
   open: boolean;
   initialLevel?: AggregationLevelFormState;
+  initialLabels?: AggregationLevelLabels;
   onCancel: () => void;
-  onSave: (level: AggregationLevelFormState) => void;
+  onSave: (level: AggregationLevelFormState, labels: AggregationLevelLabels) => void;
 }
 
 const DEFAULT_LEVEL: AggregationLevelFormState = {
-  clientKey: createAggregationClientKey(),
   name: '',
   level: 0,
   is_manual: false,
@@ -46,19 +46,7 @@ const DEFAULT_LEVEL: AggregationLevelFormState = {
   aggregation_type: 'automated',
 };
 
-type ResourceLabelsState = Pick<
-  AggregationLevelFormState,
-  | 'templateLabel'
-  | 'plainTemplateLabel'
-  | 'cameraLabel'
-  | 'printCameraLabel'
-  | 'controllerLabel'
-  | 'dividerLabel'
-  | 'unitCameraLabels'
-  | 'printerLabels'
->;
-
-const EMPTY_LABELS: ResourceLabelsState = {
+const EMPTY_LABELS: AggregationLevelLabels = {
   unitCameraLabels: {},
   printerLabels: {},
 };
@@ -69,12 +57,13 @@ const EMPTY_LABELS: ResourceLabelsState = {
 export function AutomatedAggregationLevelModal({
   open,
   initialLevel,
+  initialLabels,
   onCancel,
   onSave,
 }: AutomatedAggregationLevelModalProps) {
   const { modal } = App.useApp();
   const [form] = Form.useForm<AggregationLevelFormState>();
-  const [resourceLabels, setResourceLabels] = useState<ResourceLabelsState>(EMPTY_LABELS);
+  const [resourceLabels, setResourceLabels] = useState<AggregationLevelLabels>(EMPTY_LABELS);
 
   const {
     data: settingsBundle,
@@ -90,20 +79,20 @@ export function AutomatedAggregationLevelModal({
       const level = initialLevel ?? DEFAULT_LEVEL;
       form.setFieldsValue(level);
       setResourceLabels({
-        templateLabel: level.templateLabel,
-        plainTemplateLabel: level.plainTemplateLabel,
-        cameraLabel: level.cameraLabel,
-        printCameraLabel: level.printCameraLabel,
-        controllerLabel: level.controllerLabel,
-        dividerLabel: level.dividerLabel,
-        unitCameraLabels: { ...level.unitCameraLabels },
-        printerLabels: { ...level.printerLabels },
+        templateLabel: initialLabels?.templateLabel,
+        plainTemplateLabel: initialLabels?.plainTemplateLabel,
+        cameraLabel: initialLabels?.cameraLabel,
+        printCameraLabel: initialLabels?.printCameraLabel,
+        controllerLabel: initialLabels?.controllerLabel,
+        dividerLabel: initialLabels?.dividerLabel,
+        unitCameraLabels: { ...initialLabels?.unitCameraLabels },
+        printerLabels: { ...initialLabels?.printerLabels },
       });
     } else {
       form.resetFields();
       setResourceLabels(EMPTY_LABELS);
     }
-  }, [form, initialLevel, open]);
+  }, [form, initialLabels, initialLevel, open]);
 
   const watched = Form.useWatch([], form) as AggregationLevelFormState | undefined;
 
@@ -184,13 +173,15 @@ export function AutomatedAggregationLevelModal({
       return;
     }
     const values = await form.validateFields();
-    onSave({
-      ...(initialLevel ?? DEFAULT_LEVEL),
-      ...values,
-      is_manual: false,
-      aggregation_type: 'automated',
-      ...resourceLabels,
-    });
+    onSave(
+      {
+        ...(initialLevel ?? DEFAULT_LEVEL),
+        ...values,
+        is_manual: false,
+        aggregation_type: 'automated',
+      },
+      resourceLabels,
+    );
   };
 
   return (

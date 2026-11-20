@@ -5,8 +5,8 @@ import {
   printStationMutations,
   resetPrintStationFormUiStore,
   usePrintStationFormUiStore,
+  type CreatePrintStationPayload,
   type PrintStation,
-  type PrintStationFormValues,
 } from '@/entities/print-station';
 import { PrintStationFormModal } from '@/features/print-station-form';
 import type { ResourceFormSubmitOptions } from '@/shared/model/resourceFormUiBridge';
@@ -53,7 +53,7 @@ export function PrintStationFormModalHost() {
 
   const handleSubmit = useCallback(
     async (
-      values: PrintStationFormValues,
+      values: CreatePrintStationPayload,
       options: ResourceFormSubmitOptions = RESOURCE_FORM_SUBMIT_SAVE,
     ) => {
       const submittedGeneration = mountGenerationRef.current;

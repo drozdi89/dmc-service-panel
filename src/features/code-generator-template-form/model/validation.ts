@@ -1,11 +1,9 @@
 import {
   DEFAULT_COUNTER_ROW,
+  type CodeGeneratorTemplate,
   type CounterSpec,
 } from '@/entities/code-generator-template';
-import type {
-  CodeGeneratorTemplateFormFieldError,
-  CodeGeneratorTemplateFormValues,
-} from './types';
+import type { CodeGeneratorTemplateFormFieldError } from './types';
 
 /**
  * Whether a counter row has non-default content without a name
@@ -76,7 +74,7 @@ export function normalizeCounterConfig(rows: CounterSpec[] | undefined): Counter
  */
 export function validateCodeGeneratorTemplateForm(
   values: Pick<
-    CodeGeneratorTemplateFormValues,
+    CodeGeneratorTemplate,
     'name' | 'template' | 'counter_config'
   >,
 ): CodeGeneratorTemplateFormFieldError[] {

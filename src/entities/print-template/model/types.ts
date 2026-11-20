@@ -5,7 +5,7 @@ export type PrintTemplate = components['schemas']['GetPrintTemplatesSchema'];
 
 /** Payload for creating a print template. */
 export type CreatePrintTemplatePayload =
-  components['schemas']['PrintTemplatesSchema-Input'];
+  components['schemas']['PrintTemplatesSchema'];
 
 /** Payload for updating a print template. */
 export type UpdatePrintTemplatePayload =

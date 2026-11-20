@@ -2,6 +2,7 @@ import {
   computeLineEditorVisibility,
   createDefaultLineFormState,
   type LineEditorFormState,
+  type LineEditorResourceLabels,
   type LineEditorVisibility,
 } from '@/entities/line';
 import { Form, Space } from 'antd';
@@ -23,6 +24,8 @@ export interface LineMainTabProps {
    * When omitted, derived via {@link computeLineEditorVisibility} + Form.useWatch.
    */
   visibility?: LineEditorVisibility;
+  resourceLabels: LineEditorResourceLabels;
+  onResourceLabelsChange: (next: LineEditorResourceLabels) => void;
 }
 
 /**
@@ -31,7 +34,12 @@ export interface LineMainTabProps {
  * Must render inside an antd {@link Form} bound to {@link LineEditorFormState}.
  * Fields use Form.Item / useWatch — no controlled `state` / `onChange` patch API.
  */
-export function LineMainTab({ isNew, visibility: visibilityProp }: LineMainTabProps) {
+export function LineMainTab({
+  isNew,
+  visibility: visibilityProp,
+  resourceLabels,
+  onResourceLabelsChange,
+}: LineMainTabProps) {
   const form = Form.useFormInstance<LineEditorFormState>();
   const watchedValues = Form.useWatch([], form) as LineEditorFormState | undefined;
   const visibility =
@@ -47,8 +55,16 @@ export function LineMainTab({ isNew, visibility: visibilityProp }: LineMainTabPr
   return (
     <Space orientation="vertical" size="small" style={{ width: '100%' }}>
       <LineOptionsFields visibility={visibility} />
-      <LineSerializationFields visibility={visibility} />
-      <LineScaleWorkplacesFields visibility={visibility} />
+      <LineSerializationFields
+        visibility={visibility}
+        resourceLabels={resourceLabels}
+        onResourceLabelsChange={onResourceLabelsChange}
+      />
+      <LineScaleWorkplacesFields
+        visibility={visibility}
+        resourceLabels={resourceLabels}
+        onResourceLabelsChange={onResourceLabelsChange}
+      />
     </Space>
   );
 }

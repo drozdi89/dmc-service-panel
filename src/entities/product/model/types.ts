@@ -1,4 +1,4 @@
-import type { components } from '@/shared/api/types';
+import type { components } from '@/shared/api';
 import type { Dayjs } from 'dayjs';
 
 /** Product row from GET /api/v2/products/list. */
@@ -25,9 +25,9 @@ export type ProductAggregate = components['schemas']['ProductAggregatesSchema'] 
   id?: number;
   archived?: boolean;
 };
-export type ProductContents = components['schemas']['ProductContentsSchema'];
+export type ProductContents = components['schemas']['SetContentSchema'];
 export type ProductControllerParam = components['schemas']['ProductControllerParamSchema'];
-export type ProductArticle = components['schemas']['ProductArticleSchema'];
+export type ProductArticle = components['schemas']['ProductArticleResponseSchema'];
 export type ProductArticleOverrides = components['schemas']['ProductArticleOverridesSchema'];
 
 /** POST body for creating a product aggregate. */
@@ -52,31 +52,47 @@ export interface ProductGroupOption {
 /** Certificate type enum values. */
 export type CertificateType = ProductCertificate['cert_type'];
 
-/** Contract commissioning INN role in the product form. */
+/** Contract commissioning INN role in the product form UI. */
 export type CommissioningType = 'owner' | 'producer';
 
 /**
- * Main product form values (create/edit).
- * UI convenience fields (`commissioning_*`, `vet_raw_control`) are mapped in
- * `productFormMapping` — they are not sent to the API as-is.
+ * Nested resource rows edited in product tabs (loaded from dedicated endpoints).
+ * Not part of `GetProductsSchema` except `controller_params`.
  */
-export interface ProductFormValues extends Product {
-  /** Form-only alias for bio VET label; stored as `vet_control`. */
-  vet_raw_control?: boolean;
-  commissioning_type?: CommissioningType;
-  commissioning_inn?: string | null;
-  additional_text?: string | null;
+export type ProductFormNestedLists = {
   aggregates?: ProductAggregate[];
-  aggregates_removed?: ProductAggregate['id'][];
   certificates?: ProductCertificate[];
-  certificates_removed?: ProductCertificate['cert_id'][];
   licences?: ProductLicence[];
-  licences_removed?: ProductLicence['lic_id'][];
-  controller_params?: ProductControllerParam[];
-  controller_params_removed?: ProductControllerParam['id'][];
   articles?: ProductArticle[];
-  articles_removed?: ProductArticle['id'][];
+};
+
+/**
+ * Main product form = API product object + nested list rows for tabs.
+ * UI-only fields (`commissioning_*`, `*_removed`, `vet_raw_control`) live in
+ * component state, not in the form object.
+ */
+export type ProductFormValues = Product & ProductFormNestedLists;
+
+/** Ids of nested rows marked for delete (held outside the form object). */
+export interface ProductFormRemovedIds {
+  aggregates_removed: Array<ProductAggregate['id']>;
+  certificates_removed: Array<ProductCertificate['cert_id']>;
+  licences_removed: Array<ProductLicence['lic_id']>;
+  controller_params_removed: Array<ProductControllerParam['id']>;
+  articles_removed: Array<ProductArticle['id']>;
 }
+
+/** Submit payload for Host / persist (form values + removed-id bags). */
+export type ProductFormSubmitValues = ProductFormValues & ProductFormRemovedIds;
+
+/** Empty removed-id bags for create / after hydrate. */
+export const EMPTY_PRODUCT_FORM_REMOVED_IDS: ProductFormRemovedIds = {
+  aggregates_removed: [],
+  certificates_removed: [],
+  licences_removed: [],
+  controller_params_removed: [],
+  articles_removed: [],
+};
 
 /** Nested aggregate create form values (gtin supplied by Host/section). */
 export interface AggregateFormValues {

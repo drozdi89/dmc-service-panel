@@ -1,13 +1,9 @@
 import {
-  LINE_TASK_TYPES_QUERY_KEY,
-  createLineOptions,
   formatLineTaskType,
-  updateLineOptions,
   useLineTaskTypesQuery,
+  useSaveLineTaskTypesMutation,
   type LineTaskTypeRow,
 } from '@/entities/integration';
-import { ApiError } from '@/shared/api';
-import { createIdempotencyKey } from '@/shared/api/headers';
 import {
   DRAWER_FILLED_CONTENT_STYLE,
   DRAWER_FILLED_STYLES,
@@ -15,7 +11,6 @@ import {
   useTableBodyScrollY,
 } from '@/shared/ui/drawerFilledTable';
 import { PageSpinner } from '@/shared/ui/loading';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Drawer, Flex, Pagination, Space, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -33,7 +28,6 @@ const PAGE_SIZE = 20;
  */
 export function LineTaskTypeDrawer({ open, onClose }: LineTaskTypeDrawerProps) {
   const { message } = App.useApp();
-  const queryClient = useQueryClient();
   const [rows, setRows] = useState<LineTaskTypeRow[]>([]);
   const [initialRows, setInitialRows] = useState<LineTaskTypeRow[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<number[]>([]);
@@ -51,49 +45,23 @@ export function LineTaskTypeDrawer({ open, onClose }: LineTaskTypeDrawerProps) {
     setPage(1);
   }, [linesQuery.data, linesQuery.isSuccess, open]);
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const changed = rows.filter((row) => {
-        const initial = initialRows.find((item) => item.lineid === row.lineid);
-        return initial?.reserve_disabled !== row.reserve_disabled;
-      });
-      await Promise.all(
-        changed.map((row) => {
-          const key = createIdempotencyKey();
-          if (row.hasOptions) {
-            return updateLineOptions(
-              row.lineid,
-              { reserve_disabled: row.reserve_disabled },
-              key,
-            );
-          }
-          return createLineOptions(
-            {
-              lineid: row.lineid,
-              reserve_disabled: row.reserve_disabled,
-              must_scan_before_start: false,
-              cam_disable: false,
-              cam_hide: false,
-              ask_befor_task: false,
-              control_task_date: false,
-              validate_ean: false,
-              can_add_task: false,
-            },
-            key,
-          );
-        }),
-      );
-      return changed.length;
-    },
+  const saveMutation = useSaveLineTaskTypesMutation({
     onSuccess: (count) => {
       message.success(`Типы заданий сохранены (${count} линий)`);
-      void queryClient.invalidateQueries({ queryKey: LINE_TASK_TYPES_QUERY_KEY });
       onClose();
     },
     onError: (error: Error) => {
-      message.error(error instanceof ApiError ? error.message : error.message);
+      message.error(error.message);
     },
   });
+
+  const handleSave = useCallback(() => {
+    const changed = rows.filter((row) => {
+      const initial = initialRows.find((item) => item.lineid === row.lineid);
+      return initial?.reserve_disabled !== row.reserve_disabled;
+    });
+    saveMutation.mutate(changed);
+  }, [initialRows, rows, saveMutation]);
 
   const applyTaskType = useCallback(
     (reserveDisabled: boolean) => {
@@ -155,7 +123,7 @@ export function LineTaskTypeDrawer({ open, onClose }: LineTaskTypeDrawerProps) {
           <Button
             type="primary"
             loading={saveMutation.isPending}
-            onClick={() => saveMutation.mutate()}
+            onClick={handleSave}
           >
             Сохранить
           </Button>

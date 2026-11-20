@@ -31,6 +31,9 @@ export interface ProductAggregatesTabProps {
   isEdit: boolean;
   loading: boolean;
   visibility?: ReturnType<typeof visibilityFormControl>;
+  /** Ids marked for delete (held outside the form object). */
+  itemsRemoved: Array<ProductAggregate['id']>;
+  onItemsRemovedChange: (next: Array<ProductAggregate['id']>) => void;
 }
 
 let ii = 0;
@@ -45,9 +48,10 @@ export function ProductAggregatesTab({
   gtin,
   loading,
   visibility,
+  itemsRemoved,
+  onItemsRemovedChange,
 }: ProductAggregatesTabProps) {
   const items = Form.useWatch('aggregates', form) || [];
-  const itemsRemoved = Form.useWatch('aggregates_removed', form) || [];
 
   const [subForm] = Form.useForm<AggregateFormValues>();
   const [modalOpen, setModalOpen] = useState(false);
@@ -59,31 +63,6 @@ export function ProductAggregatesTab({
   const maxLevel = useMemo(() => {
     return items.reduce((max, item) => Math.max(max, item.level), 0) + (items?.length ? 1: 0);
   }, [items]);
-  
-  // const invalidateAggregates = () => {
-  //   if (!gtin) {
-  //     return;
-  //   }
-  //   void queryClient.invalidateQueries({
-  //     queryKey: productRelatedQueryKeys.aggregates(gtin),
-  //   });
-  // };
-  // const aggregateCreateMutation = useMutation({
-  //   mutationFn: ({
-  //     parentGtin,
-  //     values,
-  //   }: {
-  //     parentGtin: string;
-  //     values: AggregateFormValues;
-  //   }) => createProductAggregate(parentGtin, values),
-  //   onSuccess: () => {
-  //     message.success('Агрегат добавлен');
-  //     setModalOpen(false);
-  //     subForm.resetFields();
-  //     invalidateAggregates();
-  //   },
-  //   onError: (error: Error) => message.error(error.message),
-  // });
 
   const submitItem = (values: AggregateFormValues) => {
     if (values?.id) {
@@ -97,14 +76,14 @@ export function ProductAggregatesTab({
     if (!record.id) {
       return;
     }
-    form.setFieldValue('aggregates_removed', [...(itemsRemoved ?? []), record.id]);
+    onItemsRemovedChange([...(itemsRemoved ?? []), record.id]);
   };
 
   const recucleItem = (record: ProductAggregate) => {
     if (!record.id) {
       return;
     }
-    form.setFieldValue('aggregates_removed', itemsRemoved.filter((id) => id !== record.id));
+    onItemsRemovedChange(itemsRemoved.filter((id) => id !== record.id));
   };
   
   const itemColumns: ColumnsType<ProductAggregate> = [
@@ -156,7 +135,6 @@ export function ProductAggregatesTab({
   return (
     <>
       <Form.Item name="aggregates" hidden></Form.Item>
-      <Form.Item name="aggregates_removed" hidden></Form.Item>
       <Space orientation="vertical" style={{ width: '100%' }}>
         <ButtonLoading
           type="primary"

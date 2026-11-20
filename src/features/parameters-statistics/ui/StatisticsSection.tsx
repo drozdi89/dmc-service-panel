@@ -4,18 +4,12 @@ import { useEffect, useRef } from 'react';
 import type { ParametersSettingsBundle } from '@/entities/parameters';
 import { ButtonLoading } from '@/shared/ui/loading';
 
-/** Statistics options form values. */
-export interface StatisticsFormValues {
-  disable_statistics: boolean;
-  disable_statistics_export: boolean;
-}
-
 /** Props for statistics section at the bottom of Parameters page. */
 export interface StatisticsSectionProps {
-  form: FormInstance<StatisticsFormValues>;
+  form: FormInstance<ParametersSettingsBundle>;
   initialValues: ParametersSettingsBundle | undefined;
   saving: boolean;
-  onSave: (values: StatisticsFormValues) => void;
+  onSave: (values: ParametersSettingsBundle) => void;
 }
 
 /**
@@ -31,10 +25,7 @@ export function StatisticsSection({
 
   useEffect(() => {
     if (initialValues && !initializedRef.current) {
-      form.setFieldsValue({
-        disable_statistics: initialValues.disable_statistics,
-        disable_statistics_export: initialValues.disable_statistics_export,
-      });
+      form.setFieldsValue(initialValues);
       initializedRef.current = true;
     }
   }, [form, initialValues]);

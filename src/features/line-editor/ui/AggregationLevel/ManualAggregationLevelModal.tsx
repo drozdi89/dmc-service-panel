@@ -1,9 +1,9 @@
 import {
   CODE_GENERATOR_OPTIONS,
   CODE_GENERATOR_SSCC,
-  createAggregationClientKey,
   validateManualAggregationLevel,
   type AggregationLevelFormState,
+  type AggregationLevelLabels,
 } from '@/entities/line';
 import { useSettingsBundleQuery } from '@/entities/parameters';
 import { App, Form, Input, Modal, Select } from 'antd';
@@ -15,12 +15,12 @@ import { LineResourcePickerField } from '../LineResourcePickerField';
 export interface ManualAggregationLevelModalProps {
   open: boolean;
   initialLevel?: AggregationLevelFormState;
+  initialLabels?: AggregationLevelLabels;
   onCancel: () => void;
-  onSave: (level: AggregationLevelFormState) => void;
+  onSave: (level: AggregationLevelFormState, labels: AggregationLevelLabels) => void;
 }
 
 const DEFAULT_LEVEL: AggregationLevelFormState = {
-  clientKey: createAggregationClientKey(),
   name: '',
   level: 0,
   is_manual: true,
@@ -103,6 +103,7 @@ function FormFieldError({ fieldName }: { fieldName: 'printer_ids' | 'template_id
 export function ManualAggregationLevelModal({
   open,
   initialLevel,
+  initialLabels,
   onCancel,
   onSave,
 }: ManualAggregationLevelModalProps) {
@@ -121,14 +122,14 @@ export function ManualAggregationLevelModal({
       const level = initialLevel ?? DEFAULT_LEVEL;
       form.setFieldsValue(level);
       const printerId = level.printer_ids[0];
-      setTemplateLabel(level.templateLabel);
-      setPrinterLabel(printerId ? level.printerLabels?.[printerId] : undefined);
+      setTemplateLabel(initialLabels?.templateLabel);
+      setPrinterLabel(printerId ? initialLabels?.printerLabels?.[printerId] : undefined);
     } else {
       form.resetFields();
       setTemplateLabel(undefined);
       setPrinterLabel(undefined);
     }
-  }, [form, initialLevel, open]);
+  }, [form, initialLabels, initialLevel, open]);
 
   const printerIds = Form.useWatch('printer_ids', form) ?? [];
   const templateId = Form.useWatch('template_id', form) ?? null;
@@ -164,24 +165,30 @@ export function ManualAggregationLevelModal({
     }
 
     const resolvedPrinterId = printerIdsValue[0];
-    onSave({
-      ...(initialLevel ?? DEFAULT_LEVEL),
-      ...values,
-      is_manual: true,
-      aggregation_type: 'manual',
-      printer_ids: printerIdsValue,
-      template_id: templateIdValue,
-      templateLabel: templateIdValue ? templateLabel ?? initialLevel?.templateLabel : undefined,
+    const labels: AggregationLevelLabels = {
+      templateLabel: templateIdValue ? templateLabel ?? initialLabels?.templateLabel : undefined,
       printerLabels:
         resolvedPrinterId !== undefined
           ? {
               [resolvedPrinterId]:
                 printerLabel ??
-                initialLevel?.printerLabels?.[resolvedPrinterId] ??
+                initialLabels?.printerLabels?.[resolvedPrinterId] ??
                 `#${resolvedPrinterId}`,
             }
           : undefined,
-    });
+    };
+
+    onSave(
+      {
+        ...(initialLevel ?? DEFAULT_LEVEL),
+        ...values,
+        is_manual: true,
+        aggregation_type: 'manual',
+        printer_ids: printerIdsValue,
+        template_id: templateIdValue,
+      },
+      labels,
+    );
   };
 
   return (
@@ -218,7 +225,9 @@ export function ManualAggregationLevelModal({
           kind="device"
           deviceType="printer"
           value={printerId}
-          valueLabel={printerLabel ?? (printerId ? initialLevel?.printerLabels?.[printerId] : undefined)}
+          valueLabel={
+            printerLabel ?? (printerId ? initialLabels?.printerLabels?.[printerId] : undefined)
+          }
           onChange={(id, label) => {
             const nextPrinterIds = id ? [id] : [];
             form.setFieldValue('printer_ids', nextPrinterIds);
@@ -235,7 +244,7 @@ export function ManualAggregationLevelModal({
           label="Шаблон"
           kind="template"
           value={templateId}
-          valueLabel={templateLabel ?? initialLevel?.templateLabel}
+          valueLabel={templateLabel ?? initialLabels?.templateLabel}
           onChange={(id, label) => {
             form.setFieldValue('template_id', id);
             setTemplateLabel(label);

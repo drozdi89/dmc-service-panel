@@ -1,6 +1,7 @@
 import {
   computeLineEditorVisibility,
   type LineEditorFormState,
+  type LineEditorResourceLabels,
 } from '@/entities/line';
 import type { FormInstance, TabsProps } from 'antd';
 import { Form, Tabs } from 'antd';
@@ -33,6 +34,10 @@ export interface LineEditorFormProps {
    */
   initialValues: LineEditorFormState;
   /**
+   * Resource display labels parallel to {@link initialValues} (not stored in Form).
+   */
+  initialResourceLabels: LineEditorResourceLabels;
+  /**
    * Receives the Form instance so the page can `getFieldsValue(true)` on save
    * and `Form.useWatch('name', form)` for the title.
    * Called with `null` on unmount so the page clears a detached handle.
@@ -51,10 +56,17 @@ export function LineEditorForm({
   isNew,
   disabled,
   initialValues,
+  initialResourceLabels,
   onFormReady,
 }: LineEditorFormProps) {
   const [form] = Form.useForm<LineEditorFormState>();
   const [activeTab, setActiveTab] = useState('main');
+  const [resourceLabels, setResourceLabels] =
+    useState<LineEditorResourceLabels>(initialResourceLabels);
+
+  useEffect(() => {
+    setResourceLabels(initialResourceLabels);
+  }, [initialResourceLabels]);
 
   const watchedValues = Form.useWatch([], form) as LineEditorFormState | undefined;
   const visibility = useMemo(
@@ -77,25 +89,46 @@ export function LineEditorForm({
   }, [form, onFormReady]);
 
   const tabItems = useMemo((): NonNullable<TabsProps['items']> => {
-    return [{
-      key: 'main',
-      label: 'Основные',
-      children: <LineMainTab isNew={isNew} visibility={visibility} />,
-    }, {
-      key: 'aggregation',
-      label: 'Агрегация',
-      children: <LineAggregationTab visibility={visibility} />,
-    }, {
-      key: 'products',
-      label: 'Продукция',
-      children: (
-        <LineFavouriteProductsTab visibility={visibility} />
-      ),
-    }];
-  }, [isNew, visibility]);
+    return [
+      {
+        key: 'main',
+        label: 'Основные',
+        children: (
+          <LineMainTab
+            isNew={isNew}
+            visibility={visibility}
+            resourceLabels={resourceLabels}
+            onResourceLabelsChange={setResourceLabels}
+          />
+        ),
+      },
+      {
+        key: 'aggregation',
+        label: 'Агрегация',
+        children: (
+          <LineAggregationTab
+            visibility={visibility}
+            resourceLabels={resourceLabels}
+            onResourceLabelsChange={setResourceLabels}
+          />
+        ),
+      },
+      {
+        key: 'products',
+        label: 'Продукция',
+        children: <LineFavouriteProductsTab visibility={visibility} />,
+      },
+    ];
+  }, [isNew, resourceLabels, visibility]);
 
   return (
-    <Form form={form} component={false} layout="horizontal" initialValues={initialValues} disabled={disabled}>
+    <Form
+      form={form}
+      component={false}
+      layout="horizontal"
+      initialValues={initialValues}
+      disabled={disabled}
+    >
       <LineIdentityFields visibility={visibility} />
       <Form.Item name="aggregation_levels" hidden preserve noStyle>
         <FormStoreField />
@@ -106,11 +139,19 @@ export function LineEditorForm({
       <Form.Item name="favourite_gtins" hidden preserve noStyle>
         <FormStoreField />
       </Form.Item>
-      {visibility.showExtendedTabs && <Tabs size="small" activeKey={activeTab} onChange={setActiveTab} items={tabItems} styles={{
-        header: {
-          marginBottom: 4,
-        }
-      }} />}
+      {visibility.showExtendedTabs && (
+        <Tabs
+          size="small"
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={tabItems}
+          styles={{
+            header: {
+              marginBottom: 4,
+            },
+          }}
+        />
+      )}
     </Form>
   );
 }

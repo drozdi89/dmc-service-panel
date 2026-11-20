@@ -1,4 +1,7 @@
-import { codeGeneratorTemplateQueries } from '@/entities/code-generator-template';
+import {
+  codeGeneratorTemplateQueries,
+  type CodeGeneratorTemplate,
+} from '@/entities/code-generator-template';
 import type { ResourceFormSubmitOptions } from '@/shared/model/resourceFormUiBridge';
 import { resourceFormModalFooter } from '@/shared/ui/ResourceFormModalFooter';
 import { ButtonLoading, LoadingOverlay } from '@/shared/ui/loading';
@@ -24,7 +27,6 @@ import {
 import { CodeGeneratorTemplateHelpContent } from '../model/helpContent';
 import type {
   CodeGeneratorTemplateFormModalProps,
-  CodeGeneratorTemplateFormValues,
   CodeGeneratorTemplatePreviewFormValues,
 } from '../model/types';
 import {
@@ -102,7 +104,7 @@ export function CodeGeneratorTemplateFormModal({
   onSubmit,
 }: CodeGeneratorTemplateFormModalProps) {
   const { modal, message } = App.useApp();
-  const [form] = Form.useForm<CodeGeneratorTemplateFormValues>();
+  const [form] = Form.useForm<CodeGeneratorTemplate>();
   const [previewForm] = Form.useForm<CodeGeneratorTemplatePreviewFormValues>();
   const templateRef = useRef<TextAreaRef>(null);
   const previewAbortRef = useRef<AbortController | null>(null);
@@ -266,7 +268,7 @@ export function CodeGeneratorTemplateFormModal({
       return;
     }
 
-    let values: CodeGeneratorTemplateFormValues & {
+    let values: CodeGeneratorTemplate & {
       level: number;
     };
 
@@ -343,7 +345,7 @@ export function CodeGeneratorTemplateFormModal({
         return;
       }
 
-      let values: CodeGeneratorTemplateFormValues;
+      let values: CodeGeneratorTemplate;
       try {
         values = await form.validateFields();
       } catch {

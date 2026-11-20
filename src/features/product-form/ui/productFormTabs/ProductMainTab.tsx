@@ -1,6 +1,8 @@
 import {
   amountFieldLabel,
   isVsdRequired,
+  resolveCommissioningType,
+  type CommissioningType,
   type Product,
   type ProductFormValues,
   SelectCrptTemplateIdx,
@@ -10,12 +12,12 @@ import {
   SelectProductGroupsDm,
   showsVetControl,
   vetControlLabel,
-  visibilityFormControl
+  visibilityFormControl,
 } from '@/entities/product';
 import { NumberInput } from '@/shared/ui/input';
 import { Divider, Form, Input, InputNumber, Segmented, Space, Switch, Typography } from 'antd';
 import type { FormInstance } from 'antd/es/form';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 /** Props for the main product fields tab. */
 export interface ProductMainTabProps {
@@ -31,11 +33,22 @@ export interface ProductMainTabProps {
 export function ProductMainTab({
   form,
   isEdit,
-  product: _product,
+  product,
   visibility,
 }: ProductMainTabProps) {
   const values = form.getFieldsValue();
   const pg = Form.useWatch('pg', form) as string | undefined;
+  const [commissioningType, setCommissioningType] = useState<CommissioningType>(
+    product ? resolveCommissioningType(product) : 'owner',
+  );
+
+  useEffect(() => {
+    if (product) {
+      setCommissioningType(resolveCommissioningType(product));
+    } else {
+      setCommissioningType('owner');
+    }
+  }, [product]);
 
   const {
     showCrptTemplateIdx,
@@ -348,18 +361,36 @@ export function ProductMainTab({
       </Divider>
       <Form.Item label="ИНН">
         <Space.Compact block>
-          <Form.Item noStyle name="commissioning_type">
-            <Segmented
-              disabled={!contractCommissioning}
-              options={[
-                { value: 'owner', label: 'владельца' },
-                { value: 'producer', label: 'производителя' },
-              ]}
-            />
-          </Form.Item>
+          <Segmented
+            disabled={!contractCommissioning}
+            value={commissioningType}
+            options={[
+              { value: 'owner', label: 'владельца' },
+              { value: 'producer', label: 'производителя' },
+            ]}
+            onChange={(next) => {
+              const nextType = next as CommissioningType;
+              const currentInn =
+                (form.getFieldValue(
+                  commissioningType === 'owner' ? 'owner_inn' : 'producer_inn',
+                ) as string | null | undefined) ?? '';
+              setCommissioningType(nextType);
+              if (nextType === 'owner') {
+                form.setFieldsValue({
+                  owner_inn: currentInn,
+                  producer_inn: null,
+                });
+              } else {
+                form.setFieldsValue({
+                  producer_inn: currentInn,
+                  owner_inn: null,
+                });
+              }
+            }}
+          />
           <Form.Item
             noStyle
-            name="commissioning_inn"
+            name={commissioningType === 'owner' ? 'owner_inn' : 'producer_inn'}
             rules={[
               {
                 pattern: /^[0-9]{10,12}/,

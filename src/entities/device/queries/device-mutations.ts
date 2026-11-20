@@ -36,7 +36,7 @@ export async function invalidateDeviceQueries(queryClient: QueryClient): Promise
  *
  * @param mutateAsync - Idempotent API mutation executor.
  * @param values - Form values from DeviceFormModal.
- * @param editId - Explicit edit id (picker/list); falls back to `payload.id` when omitted.
+ * @param editId - Explicit edit id (picker/list); falls back to `values.id` when omitted.
  */
 export async function persistDeviceFormValues(
   mutateAsync: (variables: IdempotentMutationVariables) => Promise<DeviceDetail>,
@@ -45,8 +45,7 @@ export async function persistDeviceFormValues(
 ): Promise<DeviceRef> {
   const type = values.device_type;
   const payload = mapFormValuesToPayload(values);
-  const resolvedEditId =
-    editId ?? (typeof payload.id === 'number' ? (payload.id as number) : undefined);
+  const resolvedEditId = editId ?? values.id;
 
   const detail = await mutateAsync(
     resolvedEditId !== undefined

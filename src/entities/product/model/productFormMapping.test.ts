@@ -20,9 +20,11 @@ import type {
   ProductArticle,
   ProductCertificate,
   ProductControllerParam,
+  ProductFormSubmitValues,
   ProductFormValues,
   ProductLicence,
 } from './types';
+import { EMPTY_PRODUCT_FORM_REMOVED_IDS } from './types';
 
 function minimalProduct(overrides: Partial<Product> = {}): Product {
   return {
@@ -52,13 +54,13 @@ function minimalProduct(overrides: Partial<Product> = {}): Product {
 }
 
 describe('mapProductToFormValues', () => {
-  it('maps API fields and defaults commissioning to owner', () => {
+  it('maps API fields including vet_control', () => {
     const values = mapProductToFormValues(minimalProduct());
     expect(values.gtin).toBe('04601234567890');
     expect(values.auto_send_aggregate).toBe(true);
-    expect(values.commissioning_type).toBe('owner');
-    expect(values.commissioning_inn).toBe('');
-    expect(values.vet_raw_control).toBe(true);
+    expect(values.vet_control).toBe(true);
+    expect(values.owner_inn ?? null).toBeNull();
+    expect(values.producer_inn ?? null).toBeNull();
   });
 
   it('maps package_weight, weight bounds and auto_export_to_1c', () => {
@@ -77,7 +79,7 @@ describe('mapProductToFormValues', () => {
     expect(values.auto_export_to_1c).toBe(true);
   });
 
-  it('prefers owner_inn for commissioning UI', () => {
+  it('keeps owner_inn and producer_inn from API', () => {
     const values = mapProductToFormValues(
       minimalProduct({
         contract_commissioning: true,
@@ -85,11 +87,11 @@ describe('mapProductToFormValues', () => {
         producer_inn: '1234567890',
       }),
     );
-    expect(values.commissioning_type).toBe('owner');
-    expect(values.commissioning_inn).toBe('7707083893');
+    expect(values.owner_inn).toBe('7707083893');
+    expect(values.producer_inn).toBe('1234567890');
   });
 
-  it('falls back to producer_inn when owner is empty', () => {
+  it('keeps producer_inn when owner is empty', () => {
     const values = mapProductToFormValues(
       minimalProduct({
         contract_commissioning: true,
@@ -97,8 +99,8 @@ describe('mapProductToFormValues', () => {
         producer_inn: '1234567890',
       }),
     );
-    expect(values.commissioning_type).toBe('producer');
-    expect(values.commissioning_inn).toBe('1234567890');
+    expect(values.owner_inn).toBe('');
+    expect(values.producer_inn).toBe('1234567890');
   });
 });
 
@@ -119,8 +121,8 @@ describe('mapFormValuesToCreatePayload / Update', () => {
     expect(payload.auto_send_aggregate).toBe(true);
     expect(payload.auto_export_to_1c).toBe(false);
     expect(payload.package_weight).toBe(0);
-    expect(payload).not.toHaveProperty('commissioning_type');
-    expect(payload).not.toHaveProperty('vet_raw_control');
+    expect(payload).not.toHaveProperty('aggregates');
+    expect(payload).not.toHaveProperty('aggregates_removed');
   });
 
   it('saves package_weight and auto_export_to_1c from form on update', () => {
@@ -178,8 +180,8 @@ describe('mapFormValuesToCreatePayload / Update', () => {
     const payload = mapFormValuesToCreatePayload({
       ...baseForm,
       contract_commissioning: true,
-      commissioning_type: 'owner',
-      commissioning_inn: '7707083893',
+      owner_inn: '7707083893',
+      producer_inn: null,
     });
     expect(payload.contract_commissioning).toBe(true);
     expect(payload.owner_inn).toBe('7707083893');
@@ -190,8 +192,8 @@ describe('mapFormValuesToCreatePayload / Update', () => {
     const payload = mapFormValuesToCreatePayload({
       ...baseForm,
       contract_commissioning: true,
-      commissioning_type: 'producer',
-      commissioning_inn: '1234567890',
+      owner_inn: null,
+      producer_inn: '1234567890',
     });
     expect(payload.owner_inn).toBeNull();
     expect(payload.producer_inn).toBe('1234567890');
@@ -201,8 +203,8 @@ describe('mapFormValuesToCreatePayload / Update', () => {
     const payload = mapFormValuesToCreatePayload({
       ...baseForm,
       contract_commissioning: false,
-      commissioning_type: 'owner',
-      commissioning_inn: '7707083893',
+      owner_inn: '7707083893',
+      producer_inn: null,
     });
     expect(payload.owner_inn).toBeNull();
     expect(payload.producer_inn).toBeNull();
@@ -212,15 +214,10 @@ describe('mapFormValuesToCreatePayload / Update', () => {
     const nestedForm: ProductFormValues = {
       ...baseForm,
       aggregates: [{ id: 1, gtin: baseForm.gtin, level: 1, name: 'Box', short_name: 'B', size: 10, rows: 1, width_mm: 0, package_weight: 0 }],
-      aggregates_removed: [1],
       certificates: [],
-      certificates_removed: [2],
       licences: [],
-      licences_removed: [3],
       articles: [],
-      articles_removed: [4],
       controller_params: [],
-      controller_params_removed: [5],
     };
     const createPayload = mapFormValuesToCreatePayload(nestedForm);
     const updatePayload = mapFormValuesToUpdatePayload(nestedForm);
@@ -509,13 +506,14 @@ describe('mapArticlesToPayload', () => {
   });
 });
 
-function baseForm(): ProductFormValues {
+function baseForm(): ProductFormSubmitValues {
   return {
     ...DEFAULT_PRODUCT_FORM_VALUES,
+    ...EMPTY_PRODUCT_FORM_REMOVED_IDS,
     gtin: '04601234567890',
     name: 'Milk',
     assortment_number: '100',
     pg: 'milk',
     auto_send_aggregate: true,
-  } as ProductFormValues;
+  } as ProductFormSubmitValues;
 }

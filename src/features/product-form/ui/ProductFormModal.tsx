@@ -1,5 +1,6 @@
 import {
   DEFAULT_PRODUCT_FORM_VALUES,
+  EMPTY_PRODUCT_FORM_REMOVED_IDS,
   mapProductToFormValues,
   useProductAggregatesQuery,
   useProductArticlesQuery,
@@ -8,7 +9,9 @@ import {
   useProductDetailQuery,
   useProductLicencesQuery,
   visibilityFormControl,
-  type ProductFormValues
+  type ProductFormRemovedIds,
+  type ProductFormSubmitValues,
+  type ProductFormValues,
 } from '@/entities/product';
 import type { ResourceFormSubmitOptions } from '@/shared/model/resourceFormUiBridge';
 import { resourceFormModalFooter } from '@/shared/ui/ResourceFormModalFooter';
@@ -43,7 +46,7 @@ export interface ProductFormModalProps {
   submitting?: boolean;
   onCancel: () => void;
   onSubmit: (
-    values: ProductFormValues,
+    values: ProductFormSubmitValues,
     options: ResourceFormSubmitOptions,
   ) => void;
 }
@@ -67,6 +70,9 @@ export function ProductFormModal({
   const isEdit = mode === 'edit';
   const [form] = Form.useForm<ProductFormValues>();
   const [activeTab, setActiveTab] = useState('main');
+  const [removedIds, setRemovedIds] = useState<ProductFormRemovedIds>(
+    EMPTY_PRODUCT_FORM_REMOVED_IDS,
+  );
   const detailGtin = gtin ?? '';
 
   const canLoad = open && isEdit && Boolean(detailGtin);
@@ -102,11 +108,13 @@ export function ProductFormModal({
     if (!open) {
       form.resetFields();
       setActiveTab('main');
+      setRemovedIds(EMPTY_PRODUCT_FORM_REMOVED_IDS);
       return;
     }
     if (canLoad) {
       if (product) {
         form.setFieldsValue(mapProductToFormValues(product));
+        setRemovedIds(EMPTY_PRODUCT_FORM_REMOVED_IDS);
         // Re-apply nested lists after product hydrate — product refetch must not
         // leave packaging/certs empty when related queries already have data.
         if (aggregatesQuery.data) {
@@ -125,6 +133,7 @@ export function ProductFormModal({
       return;
     }
     form.setFieldsValue(DEFAULT_PRODUCT_FORM_VALUES);
+    setRemovedIds(EMPTY_PRODUCT_FORM_REMOVED_IDS);
   }, [
     open,
     product,
@@ -192,7 +201,7 @@ export function ProductFormModal({
               await form.validateFields();
               /** Prefer full store: `validateFields()` can omit nested/noStyle fields. */
               const values = form.getFieldsValue(true) as ProductFormValues;
-              onSubmit(values, options);
+              onSubmit({ ...values, ...removedIds }, options);
             } catch {
               // Validation errors are shown on form fields.
             }
@@ -260,6 +269,13 @@ export function ProductFormModal({
                     isEdit={isEdit}
                     loading={aggregatesQuery.isFetching}
                     visibility={visibility}
+                    itemsRemoved={removedIds.aggregates_removed}
+                    onItemsRemovedChange={(next) =>
+                      setRemovedIds((prev) => ({
+                        ...prev,
+                        aggregates_removed: next,
+                      }))
+                    }
                   />
                 ),
               },
@@ -274,6 +290,13 @@ export function ProductFormModal({
                     isEdit={isEdit}
                     loading={certsQuery.isFetching}
                     visibility={visibility}
+                    itemsRemoved={removedIds.certificates_removed}
+                    onItemsRemovedChange={(next) =>
+                      setRemovedIds((prev) => ({
+                        ...prev,
+                        certificates_removed: next,
+                      }))
+                    }
                   />
                 ),
               },
@@ -288,6 +311,13 @@ export function ProductFormModal({
                     isEdit={isEdit}
                     loading={licencesQuery.isFetching}
                     visibility={visibility}
+                    itemsRemoved={removedIds.licences_removed}
+                    onItemsRemovedChange={(next) =>
+                      setRemovedIds((prev) => ({
+                        ...prev,
+                        licences_removed: next,
+                      }))
+                    }
                   />
                 ),
               },
@@ -302,6 +332,14 @@ export function ProductFormModal({
                     isEdit={!productLoading}
                     loading={productLoading}
                     visibility={visibility}
+                    aggregatesRemoved={removedIds.aggregates_removed}
+                    itemsRemoved={removedIds.controller_params_removed}
+                    onItemsRemovedChange={(next) =>
+                      setRemovedIds((prev) => ({
+                        ...prev,
+                        controller_params_removed: next,
+                      }))
+                    }
                   />
                 ),
               },
@@ -316,6 +354,13 @@ export function ProductFormModal({
                     isEdit={!productLoading}
                     loading={articlesQuery.isFetching}
                     visibility={visibility}
+                    itemsRemoved={removedIds.articles_removed}
+                    onItemsRemovedChange={(next) =>
+                      setRemovedIds((prev) => ({
+                        ...prev,
+                        articles_removed: next,
+                      }))
+                    }
                   />
                 ),
               },

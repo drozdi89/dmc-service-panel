@@ -4,7 +4,7 @@ import {
   resetProductFormUiStore,
   useProductFormSave,
   useProductFormUiStore,
-  type ProductFormValues,
+  type ProductFormSubmitValues,
 } from '@/entities/product';
 import { ProductFormModal } from '@/features/product-form';
 import type { ResourceFormSubmitOptions } from '@/shared/model/resourceFormUiBridge';
@@ -53,7 +53,7 @@ export function ProductFormModalHost() {
 
   const handleSubmit = useCallback(
     async (
-      values: ProductFormValues,
+      values: ProductFormSubmitValues,
       options: ResourceFormSubmitOptions = RESOURCE_FORM_SUBMIT_SAVE,
     ) => {
       const submittedGeneration = mountGenerationRef.current;

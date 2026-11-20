@@ -1,16 +1,11 @@
+import type { components } from '@/shared/api';
 import type { ListQueryParams } from '@/shared/types/listQuery';
 
-/** Unified device type keys used by GET /api/v2/devices/. */
-export type DeviceType = 'camera' | 'printer' | 'scale' | 'controller' | 'divider';
-
 /** Row returned by the unified devices list endpoint. */
-export interface DeviceListItem {
-  device_type: DeviceType;
-  id: number;
-  name: string;
-  host?: string | null;
-  port?: number | string | null;
-}
+export type DeviceListItem = components['schemas']['DeviceListItem'];
+
+/** Unified device type keys used by GET /api/v2/devices/. */
+export type DeviceType = DeviceListItem['device_type'];
 
 /** Lightweight device reference after create/edit (ResourcePicker-ready). */
 export interface DeviceRef {

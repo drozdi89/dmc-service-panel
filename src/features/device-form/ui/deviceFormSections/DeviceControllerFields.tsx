@@ -34,7 +34,7 @@ export function DeviceControllerFields() {
           children: (
             <>
               <Form.Item
-                name="controller_type"
+                name="type"
                 label="Тип контроллера"
                 rules={[{ required: true, message: 'Выберите тип' }]}
               >
@@ -43,7 +43,7 @@ export function DeviceControllerFields() {
               <Row gutter={12}>
                 <Col span={16}>
                   <Form.Item
-                    name="controller_port"
+                    name="port"
                     label="Адрес (COM/IP:port)"
                     rules={[hostFormRule('controller_port', true)]}
                   >

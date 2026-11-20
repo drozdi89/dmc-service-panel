@@ -4,15 +4,12 @@ import { useEffect } from 'react';
 import type { WatchdogConfiguration } from '@/entities/parameters';
 import { ButtonLoading } from '@/shared/ui/loading';
 
-/** Watchdog form values. */
-export type WatchdogFormValues = WatchdogConfiguration;
-
 /** Props for watchdog configuration section. */
 export interface WatchdogSectionProps {
-  form: FormInstance<WatchdogFormValues>;
+  form: FormInstance<WatchdogConfiguration>;
   initialConfig: WatchdogConfiguration | undefined;
   saving: boolean;
-  onSave: (values: WatchdogFormValues) => void;
+  onSave: (values: WatchdogConfiguration) => void;
 }
 
 /**

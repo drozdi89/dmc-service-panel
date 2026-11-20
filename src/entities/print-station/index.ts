@@ -12,7 +12,6 @@ export {
   mapFormValuesToCreatePayload,
   mapFormValuesToUpdatePayload,
   mapPrintStationToFormValues,
-  type PrintStationFormValues,
   type PrintStationResourceLabels,
 } from './model/printStationFormMapping';
 export {

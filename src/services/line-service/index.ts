@@ -7,3 +7,7 @@ export {
   type LineSaveMutator,
   type LineSaveResult,
 } from './model/lineSaveOrchestration';
+export {
+  useSaveLineConfigurationMutation,
+  type SaveLineConfigurationVariables,
+} from './model/queries';

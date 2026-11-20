@@ -1,4 +1,12 @@
-import type { Product, ProductFormValues } from '@/entities/product';
+import type { Product, ProductFormSubmitValues } from '@/entities/product';
+
+const emptyRemoved = {
+  aggregates_removed: [],
+  certificates_removed: [],
+  licences_removed: [],
+  controller_params_removed: [],
+  articles_removed: [],
+} as const;
 import {
   PersistProductError,
   resetProductFormUiStore,
@@ -33,9 +41,10 @@ vi.mock('@/features/product-form', () => ({
           onClick={() =>
             onSubmit(
               {
+                ...emptyRemoved,
                 gtin: '4601234567890',
                 name: 'Saved',
-              } as ProductFormValues,
+              } as ProductFormSubmitValues,
               { close: true },
             )
           }
@@ -47,9 +56,10 @@ vi.mock('@/features/product-form', () => ({
           onClick={() =>
             onSubmit(
               {
+                ...emptyRemoved,
                 gtin: '4601234567890',
                 name: 'Saved',
-              } as ProductFormValues,
+              } as ProductFormSubmitValues,
               { close: false },
             )
           }

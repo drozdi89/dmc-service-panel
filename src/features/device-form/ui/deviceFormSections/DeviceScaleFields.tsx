@@ -28,7 +28,7 @@ export function DeviceScaleFields({
   return (
     <>
       <Form.Item
-        name="scale_type"
+        name="type"
         label="Модель весов"
         rules={[{ required: true, message: 'Выберите модель' }]}
       >
@@ -37,7 +37,7 @@ export function DeviceScaleFields({
             const host = form.getFieldValue('host');
             const wasSerial = isSerialScale(scaleType, host);
             const willBeSerial = isSerialScale(nextScaleType, host);
-            const updates: Partial<DeviceFormValues> = { scale_type: nextScaleType };
+            const updates: Partial<DeviceFormValues> = { type: nextScaleType };
             if (wasSerial !== willBeSerial) {
               updates.port = willBeSerial
                 ? DEFAULT_SERIAL_SCALE_PORT

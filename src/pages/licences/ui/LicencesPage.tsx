@@ -1,25 +1,23 @@
 import {
   CLIENTS_QUERY_ENTRY,
-  REGISTERED_CLIENTS_QUERY_KEY,
   daysUntil,
   decodePcData,
-  deleteClients,
   fetchClients,
-  fetchMactPersonalAccount,
   formatDate,
   formatDateTime,
   formatSubscriptionText,
-  refreshMactLicences,
-  refreshMactSubscription,
-  unregisterClientLicense,
+  useDeleteClientMutation,
+  useRefetchClientsMutation,
+  useRefreshMactMutation,
+  useRegisterClientLicenceMutation,
   useRegisteredClientsQuery,
+  useUnregisterClientLicenceMutation,
   type DmcClient,
   type MactLicenceList,
 } from '@/entities/licence';
 import { HardwareInfoModal } from '@/features/licence-hardware-info';
 import { LicenceMactSummaryCard } from '@/features/licence-mact-summary';
 import { RegisterLicenceModal } from '@/features/licence-register';
-import { useIdempotentMutation } from '@/shared/hooks';
 import { Template } from '@/shared/model';
 import { ButtonLoading } from '@/shared/ui/loading';
 import { ServerDataTable } from '@/shared/ui/ServerDataTable';
@@ -30,7 +28,6 @@ import {
   InfoCircleOutlined,
   KeyOutlined,
 } from '@ant-design/icons';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
   Popconfirm,
@@ -48,9 +45,6 @@ const { Text } = Typography;
  * Licences administration: DMC clients list and MACT licence refresh (Qt `tab_licences` parity).
  */
 export default function LicencesPage() {
-  const queryClient = useQueryClient();
-  const idempotentMutation = useIdempotentMutation();
-
   const [mactSnapshot, setMactSnapshot] = useState<MactLicenceList | null>(null);
   const [subscriptionText, setSubscriptionText] = useState<string>(
     'Данные о подписке недоступны..',
@@ -63,10 +57,6 @@ export default function LicencesPage() {
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const [registerClientId, setRegisterClientId] = useState<string | null>(null);
   const [selectedLicencePin, setSelectedLicencePin] = useState<string | null>(null);
-  const [refreshingClients, setRefreshingClients] = useState(false);
-  const [unregisteringId, setUnregisteringId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
   const registeredQuery = useRegisteredClientsQuery();
 
   const licenceByClientId = useMemo(() => {
@@ -75,7 +65,7 @@ export default function LicencesPage() {
       if (row.licence_key) {
         map.set(row.client_id, {
           licence_key: row.licence_key,
-          valid_until: row.valid_until,
+          valid_until: row.valid_until ?? null,
         });
       }
     }
@@ -87,20 +77,11 @@ export default function LicencesPage() {
     [mactSnapshot],
   );
 
-  const mactRefreshMutation = useMutation({
-    mutationFn: async () => {
-      const [licences, subscription, account] = await Promise.all([
-        refreshMactLicences(50),
-        refreshMactSubscription(),
-        fetchMactPersonalAccount(),
-      ]);
-      return { licences, subscription, account };
-    },
+  const mactRefreshMutation = useRefreshMactMutation({
     onSuccess: ({ licences, subscription, account }) => {
       setMactSnapshot(licences);
       setSubscriptionText(formatSubscriptionText(subscription));
       setPersonalAccountUrl(account.url || null);
-      void queryClient.invalidateQueries({ queryKey: REGISTERED_CLIENTS_QUERY_KEY });
       message.success('Данные лицензирования обновлены');
     },
     onError: (error: Error) => {
@@ -111,22 +92,48 @@ export default function LicencesPage() {
     },
   });
 
-  const refreshClientsList = useCallback(async () => {
-    setRefreshingClients(true);
-    try {
-      await Promise.all([
-        queryClient.refetchQueries({ queryKey: CLIENTS_QUERY_ENTRY }),
-        queryClient.refetchQueries({ queryKey: REGISTERED_CLIENTS_QUERY_KEY }),
-      ]);
+  const refetchClientsMutation = useRefetchClientsMutation({
+    onSuccess: () => {
       message.success('Список клиентов обновлён');
-    } catch (error) {
-      message.error(
-        error instanceof Error ? error.message : 'Ошибка обновления списка клиентов',
-      );
-    } finally {
-      setRefreshingClients(false);
-    }
-  }, [queryClient]);
+    },
+    onError: (error) => {
+      message.error(error.message || 'Ошибка обновления списка клиентов');
+    },
+  });
+
+  const registerMutation = useRegisterClientLicenceMutation({
+    onSuccess: () => {
+      setRegisterModalOpen(false);
+      setRegisterClientId(null);
+      setSelectedLicencePin(null);
+      message.success('Лицензия привязана');
+      mactRefreshMutation.mutate();
+    },
+    onError: (error) => {
+      message.error(error.message || 'Ошибка привязки лицензии');
+    },
+  });
+
+  const unregisterMutation = useUnregisterClientLicenceMutation({
+    onSuccess: () => {
+      message.success('Лицензия отвязана');
+      mactRefreshMutation.mutate();
+    },
+    onError: (error) => {
+      message.error(error.message || 'Ошибка отвязки лицензии');
+    },
+  });
+  const unregisteringId = unregisterMutation.isPending ? unregisterMutation.variables : null;
+
+  const deleteClientMutation = useDeleteClientMutation({
+    onSuccess: () => {
+      message.success('Клиент удалён');
+    },
+    onError: (error) => {
+      message.error(error.message || 'Ошибка удаления клиента');
+    },
+  });
+  const deletingId = deleteClientMutation.isPending ? deleteClientMutation.variables : null;
 
   const openHwInfo = useCallback((client: DmcClient) => {
     setHwModalText(decodePcData(client.pc_data));
@@ -148,7 +155,7 @@ export default function LicencesPage() {
     [availableLicences],
   );
 
-  const handleRegister = useCallback(async () => {
+  const handleRegister = useCallback(() => {
     if (!registerClientId || !selectedLicencePin) {
       return;
     }
@@ -157,68 +164,25 @@ export default function LicencesPage() {
       message.error('Выберите лицензию');
       return;
     }
-    try {
-      await idempotentMutation.mutateAsync({
-        path: '/api/v2/client_licencing/register',
-        method: 'POST',
-        body: {
-          client_id: registerClientId,
-          licence_key: licence.pin,
-          valid_until: licence.valid_until,
-        },
-      });
-      setRegisterModalOpen(false);
-      setRegisterClientId(null);
-      setSelectedLicencePin(null);
-      message.success('Лицензия привязана');
-      void queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_ENTRY });
-      void queryClient.invalidateQueries({ queryKey: REGISTERED_CLIENTS_QUERY_KEY });
-      mactRefreshMutation.mutate();
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : 'Ошибка привязки лицензии');
-    }
-  }, [
-    registerClientId,
-    selectedLicencePin,
-    availableLicences,
-    idempotentMutation,
-    queryClient,
-    mactRefreshMutation,
-  ]);
+    registerMutation.mutate({
+      client_id: registerClientId,
+      licence_key: licence.pin,
+      valid_until: licence.valid_until,
+    });
+  }, [registerClientId, selectedLicencePin, availableLicences, registerMutation]);
 
   const handleUnregister = useCallback(
-    async (clientId: string) => {
-      setUnregisteringId(clientId);
-      try {
-        await unregisterClientLicense(clientId);
-        message.success('Лицензия отвязана');
-        void queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_ENTRY });
-        void queryClient.invalidateQueries({ queryKey: REGISTERED_CLIENTS_QUERY_KEY });
-        mactRefreshMutation.mutate();
-      } catch (error) {
-        message.error(error instanceof Error ? error.message : 'Ошибка отвязки лицензии');
-      } finally {
-        setUnregisteringId(null);
-      }
+    (clientId: string) => {
+      unregisterMutation.mutate(clientId);
     },
-    [queryClient, mactRefreshMutation],
+    [unregisterMutation],
   );
 
   const handleDeleteClient = useCallback(
-    async (clientId: string) => {
-      setDeletingId(clientId);
-      try {
-        await deleteClients([clientId]);
-        message.success('Клиент удалён');
-        void queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_ENTRY });
-        void queryClient.invalidateQueries({ queryKey: REGISTERED_CLIENTS_QUERY_KEY });
-      } catch (error) {
-        message.error(error instanceof Error ? error.message : 'Ошибка удаления клиента');
-      } finally {
-        setDeletingId(null);
-      }
+    (clientId: string) => {
+      deleteClientMutation.mutate(clientId);
     },
-    [queryClient],
+    [deleteClientMutation],
   );
 
   const columns = useMemo<ColumnsType<DmcClient>>(
@@ -300,7 +264,7 @@ export default function LicencesPage() {
                   title={`Отвязать лицензию от клиента ${record.id}?`}
                   okText="Отвязать"
                   cancelText="Отмена"
-                  onConfirm={() => void handleUnregister(record.id)}
+                  onConfirm={() => handleUnregister(record.id)}
                 >
                   <ButtonLoading
                     type="text"
@@ -325,7 +289,7 @@ export default function LicencesPage() {
                 okText="Удалить"
                 cancelText="Отмена"
                 okButtonProps={{ danger: true }}
-                onConfirm={() => void handleDeleteClient(record.id)}
+                onConfirm={() => handleDeleteClient(record.id)}
               >
                 <ButtonLoading
                   type="text"
@@ -391,8 +355,8 @@ export default function LicencesPage() {
           <Space wrap>
             <ButtonLoading
               icon={<DatabaseOutlined />}
-              loading={refreshingClients}
-              onClick={() => void refreshClientsList()}
+              loading={refetchClientsMutation.isPending}
+              onClick={() => refetchClientsMutation.mutate()}
             >
               Обновить клиентов
             </ButtonLoading>
@@ -419,14 +383,14 @@ export default function LicencesPage() {
         clientId={registerClientId}
         availableLicences={availableLicences}
         selectedLicencePin={selectedLicencePin}
-        confirmLoading={idempotentMutation.isPending}
+        confirmLoading={registerMutation.isPending}
         onSelectedLicencePinChange={setSelectedLicencePin}
         onCancel={() => {
           setRegisterModalOpen(false);
           setRegisterClientId(null);
           setSelectedLicencePin(null);
         }}
-        onRegister={() => void handleRegister()}
+        onRegister={handleRegister}
       />
     </Space>
   );

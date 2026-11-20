@@ -3,7 +3,7 @@ import {
   fetchPaginatedList,
   type ApiRequestOptions,
 } from '@/shared/api';
-import type { components } from '@/shared/api/types';
+import type { components } from '@/shared/api';
 import type { ListQueryParams, PaginatedResponse } from '@/shared/types/listQuery';
 import type {
   AutoorderOptions,

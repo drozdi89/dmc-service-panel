@@ -1,6 +1,9 @@
-import type { components } from '@/shared/api/types';
+import type { components } from '@/shared/api';
 
-/** CRPT organization row from list/detail API. */
+/**
+ * CRPT organization row from list/detail API.
+ * OpenAPI is incomplete: detail also returns `crpt_template_idx` (stored in marking options).
+ */
 export type CrptOrganization = components['schemas']['GetCrptOrganizationsSchema'] & {
   crpt_template_idx?: number | null;
 };
@@ -23,30 +26,33 @@ export type AutoorderOptions = components['schemas']['AutoorderOptionsPayload'];
 /** Per-product autoorder row. */
 export type AutoorderProductRow = components['schemas']['ProdOrderDataSchema'];
 
-/** Per-product autosend flags. */
-export type AutosendProductSettings = components['schemas']['AutosendProductSettings'];
-
-/** Autosend CRPT transfer mode (OpenAPI TaskerSchedule lacks send_mode). */
-export type AutosendSendMode = 'unit_codes' | 'last_aggregate';
-
-/** Autosend scheduler settings (extended with send_mode from backend TaskerSchedule). */
-export type TaskerSchedule = components['schemas']['TaskerSchedule'] & {
-  send_mode?: AutosendSendMode;
+/**
+ * Per-product autosend flags.
+ * OpenAPI is incomplete: the autosend endpoint also returns and accepts `auto_send_aggregate`.
+ */
+export type AutosendProductSettings = components['schemas']['AutosendProductSettings'] & {
+  auto_send_aggregate?: boolean;
 };
 
-/** Autosend configuration payload (schedule includes send_mode). */
+/** Autosend CRPT transfer mode. */
+export type AutosendSendMode = components['schemas']['AutosendSendMode'];
+
+/** Autosend scheduler settings. */
+export type TaskerSchedule = components['schemas']['TaskerSchedule'];
+
+/** Autosend configuration (GET response, PUT body). */
 export type AutosendSettingsPayload = Omit<
-  components['schemas']['AutosendSettingsPayload'],
-  'schedule'
+  components['schemas']['AutosendSettingsPayload-Output'],
+  'products'
 > & {
-  schedule?: TaskerSchedule;
+  products?: AutosendProductSettings[];
 };
 
 /** Production line list row. */
 export type LineListItem = components['schemas']['GetLinesSchema'];
 
 /** Line runtime options. */
-export type LineOptions = components['schemas']['LinesOptionsSchema-Output'];
+export type LineOptions = components['schemas']['LinesOptionsSchema'];
 
 /** Line with options for task type configuration. */
 export interface LineTaskTypeRow {
@@ -56,10 +62,13 @@ export interface LineTaskTypeRow {
   hasOptions: boolean;
 }
 
-/** Server activation info (allowed CRPT org count). */
-export interface ServerActivationInfo {
+/**
+ * Server activation info (allowed CRPT org count).
+ * OpenAPI is incomplete: GET returns `allowed_company_count` (present only in `ServerActivationUpdate`).
+ */
+export type ServerActivationInfo = components['schemas']['ServerActivationState'] & {
   allowed_company_count?: number | null;
-}
+};
 
 /** 1C Alife exchange singleton settings (GET/PUT). */
 export type OneCExchangeSettings = components['schemas']['UpdateOneCExchangeSettingsPayload'];
@@ -67,57 +76,17 @@ export type OneCExchangeSettings = components['schemas']['UpdateOneCExchangeSett
 /** 1C Alife exchange PUT payload. */
 export type OneCExchangeSettingsPayload = components['schemas']['UpdateOneCExchangeSettingsPayload'];
 
-/** One DMC server entry from GET /one_c_exchange/servers. */
-export interface OneCExchangeServer {
-  code: number;
-  name: string;
-  ip: string;
-  port: string;
-}
+/** Response from GET /one_c_exchange/servers. */
+export type OneCExchangeServersResponse = components['schemas']['OneCExchangeServersResultSchema'];
 
-/** Response envelope from GET /one_c_exchange/servers. */
-export interface OneCExchangeServersResponse {
-  result: boolean;
-  message?: string | unknown[] | null;
-  detail?: string | string[] | null;
-  servers: OneCExchangeServer[];
-}
+/** One DMC server entry from GET /one_c_exchange/servers. */
+export type OneCExchangeServer = NonNullable<OneCExchangeServersResponse['servers']>[number];
+
+/** WMS (Efko) exchange singleton settings (GET). */
+export type WmsEfkoSettings = components['schemas']['WmsEfkoSettingsData'];
 
 /** WMS (Efko) line filter mode. */
-export type WmsEfkoLineFilterMode = 'all' | 'include' | 'exclude';
-
-/** WMS (Efko) exchange singleton settings (GET/PUT). */
-export interface WmsEfkoSettings {
-  enabled: boolean;
-  mssql_host?: string | null;
-  mssql_port?: number | null;
-  mssql_database?: string | null;
-  mssql_username?: string | null;
-  api_host?: string | null;
-  api_port?: number | null;
-  line_filter_mode: WmsEfkoLineFilterMode;
-  line_ids: number[];
-}
+export type WmsEfkoLineFilterMode = WmsEfkoSettings['line_filter_mode'];
 
 /** WMS (Efko) exchange PUT payload (`mssql_password` optional). */
-export interface WmsEfkoSettingsPayload extends WmsEfkoSettings {
-  mssql_password?: string | null;
-}
-
-/** CRPT organization form values. */
-export interface CrptOrganizationFormValues {
-  inn: string;
-  name: string;
-  kpp?: string;
-  thumbprint: string;
-  is_demo: boolean;
-  oms_id: string;
-  oms_connection: string;
-  load_wares: boolean;
-  auto_bill: boolean;
-  bill_sum: number;
-  bill_min: number;
-  bill_email?: string;
-  mods_list: string;
-  short_template: boolean;
-}
+export type WmsEfkoSettingsPayload = components['schemas']['UpdateWmsEfkoSettingsPayload'];

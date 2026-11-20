@@ -1,13 +1,8 @@
-/** Form values for print template create/edit (persisted fields). */
-export interface TemplateFormValues {
-  id?: number;
-  name: string;
-  template: string;
-}
+import type { PrintTemplate } from '@/entities/print-template';
 
-/** Empty defaults for create mode. */
-export const EMPTY_TEMPLATE_FORM_VALUES: TemplateFormValues = {
-  id: undefined,
+/** Empty defaults for create mode (API object shape). */
+export const EMPTY_TEMPLATE_FORM_VALUES: PrintTemplate = {
+  id: 0,
   name: '',
   template: '',
 };

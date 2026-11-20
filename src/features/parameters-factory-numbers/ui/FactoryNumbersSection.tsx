@@ -1,46 +1,58 @@
 import {
   FACTORY_NUMBERS_QUERY_KEY,
-  createFactoryNumber,
-  deleteFactoryNumbers,
+  factoryNumbersMutations,
   fetchFactoryNumbers,
-  updateFactoryNumber,
   type FactoryNumberRow,
 } from '@/entities/parameters';
-import { createIdempotencyKey } from '@/shared/api/headers';
 import type { ListQueryParams } from '@/shared/types/listQuery';
 import { ServerDataTable } from '@/shared/ui/ServerDataTable';
 import { ButtonLoading } from '@/shared/ui/loading';
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
-import { useQueryClient } from '@tanstack/react-query';
 import { Button, Checkbox, Form, Input, Modal, Popconfirm, Space, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useCallback, useMemo, useState } from 'react';
-
-/** Form values for factory number create/edit modal. */
-interface FactoryNumberFormValues {
-  factory_number: string;
-  is_default: boolean;
-}
 
 /**
  * Factory numbers CRUD table with server-side search, sort, and pagination.
  */
 export function FactoryNumbersSection() {
-  const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<FactoryNumberRow | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [form] = Form.useForm<FactoryNumberFormValues>();
+  const [form] = Form.useForm<FactoryNumberRow>();
 
   const fetchFn = useCallback(
     (params: ListQueryParams) => fetchFactoryNumbers(params),
     [],
   );
 
-  const invalidateList = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: FACTORY_NUMBERS_QUERY_KEY });
-  }, [queryClient]);
+  const showSaveError = (error: Error) => message.error(error.message || 'Ошибка сохранения');
+
+  const createMutation = factoryNumbersMutations.useCreateMutation({
+    onSuccess: () => {
+      message.success('Заводской номер добавлен');
+      setModalOpen(false);
+    },
+    onError: showSaveError,
+  });
+
+  const updateMutation = factoryNumbersMutations.useUpdateMutation({
+    onSuccess: () => {
+      message.success('Заводской номер обновлён');
+      setModalOpen(false);
+    },
+    onError: showSaveError,
+  });
+
+  const deleteMutation = factoryNumbersMutations.useDeleteMutation({
+    onSuccess: () => {
+      message.success('Заводской номер удалён');
+    },
+    onError: (error) => {
+      message.error(error.message || 'Ошибка удаления');
+    },
+  });
+  const deletingId = deleteMutation.isPending ? deleteMutation.variables : null;
+  const saving = createMutation.isPending || updateMutation.isPending;
 
   const openCreate = useCallback(() => {
     setEditingRow(null);
@@ -51,51 +63,27 @@ export function FactoryNumbersSection() {
   const openEdit = useCallback(
     (row: FactoryNumberRow) => {
       setEditingRow(row);
-      form.setFieldsValue({
-        factory_number: row.factory_number,
-        is_default: row.is_default,
-      });
+      form.setFieldsValue(row);
       setModalOpen(true);
     },
     [form],
   );
 
   const handleDelete = useCallback(
-    async (row: FactoryNumberRow) => {
-      setDeletingId(row.id);
-      try {
-        await deleteFactoryNumbers([row.id], createIdempotencyKey());
-        message.success('Заводской номер удалён');
-        invalidateList();
-      } catch (error) {
-        message.error(error instanceof Error ? error.message : 'Ошибка удаления');
-      } finally {
-        setDeletingId(null);
-      }
+    (row: FactoryNumberRow) => {
+      deleteMutation.mutate(row.id);
     },
-    [invalidateList],
+    [deleteMutation],
   );
 
   const handleModalOk = useCallback(async () => {
     const values = await form.validateFields();
-    setSaving(true);
-    try {
-      const key = createIdempotencyKey();
-      if (editingRow) {
-        await updateFactoryNumber(editingRow.id, values, key);
-        message.success('Заводской номер обновлён');
-      } else {
-        await createFactoryNumber(values, key);
-        message.success('Заводской номер добавлен');
-      }
-      setModalOpen(false);
-      invalidateList();
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : 'Ошибка сохранения');
-    } finally {
-      setSaving(false);
+    if (editingRow) {
+      updateMutation.mutate({ ...values, id: editingRow.id });
+    } else {
+      createMutation.mutate(values);
     }
-  }, [editingRow, form, invalidateList]);
+  }, [createMutation, editingRow, form, updateMutation]);
 
   const columns = useMemo<ColumnsType<FactoryNumberRow>>(
     () => [
@@ -127,7 +115,7 @@ export function FactoryNumbersSection() {
               okText="Удалить"
               cancelText="Отмена"
               okButtonProps={{ danger: true }}
-              onConfirm={() => void handleDelete(record)}
+              onConfirm={() => handleDelete(record)}
             >
               <Button
                 type="text"

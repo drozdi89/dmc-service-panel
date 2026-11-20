@@ -1,4 +1,4 @@
-import type { PrintStation, PrintStationFormValues } from '@/entities/print-station';
+import type { CreatePrintStationPayload, PrintStation } from '@/entities/print-station';
 import {
   resetPrintStationFormUiStore,
   usePrintStationFormUiStore,
@@ -42,12 +42,12 @@ vi.mock('@/features/print-station-form', () => ({
             onSubmit(
               {
                 name: 'Saved',
-                printer_id: null,
-                camera_id: null,
+                printer: null,
+                camera: null,
                 template_id: null,
                 max_failures: 5,
                 grade_percent: 0,
-              } satisfies PrintStationFormValues,
+              } satisfies CreatePrintStationPayload,
               { close: true },
             )
           }

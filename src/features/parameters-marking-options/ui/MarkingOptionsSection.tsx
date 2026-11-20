@@ -14,68 +14,26 @@ import { useEffect, useRef } from 'react';
 import { MINIMAL_GRADE_OPTIONS, type ParametersSettingsBundle } from '@/entities/parameters';
 import { ButtonLoading } from '@/shared/ui/loading';
 
-/** Form values for marking options section. */
-export interface MarkingOptionsFormValues {
-  use_special_numbers: boolean;
-  batch_number_mandatory: boolean;
-  export_data_path: string;
-  use_batch_number_template: boolean;
-  batch_template: string;
-  use_vsd_import: boolean;
-  vsd_import_path: string;
-  dm_lifetime_days: number;
-  dm_lifetime_warning_days: number;
-  gln: string;
-  tasks_limit: number;
-  man_date_switch_time: string;
-  minimal_culling_grade: string;
-  man_date_switch_enabled: boolean;
-  sscc_with_ai00_enabled: boolean;
-  store_pdf_on_task_finish: boolean;
-  sscc_generate_on_new_task: boolean;
-  dm_is_introduced_option: boolean;
-  calculate_mandate_by_days: boolean;
-  subacc_products_archived: boolean;
-}
-
 /** Props for marking options form section. */
 export interface MarkingOptionsSectionProps {
-  form: FormInstance<MarkingOptionsFormValues>;
+  form: FormInstance<ParametersSettingsBundle>;
   initialValues: ParametersSettingsBundle | undefined;
   isSlaveMode: boolean;
   saving: boolean;
-  onSave: (values: MarkingOptionsFormValues) => void;
+  onSave: (values: ParametersSettingsBundle) => void;
 }
 
 /**
- * Converts bundle API data to form initial values.
+ * Settings bundle with UI defaults for empty values.
  *
  * @param bundle - Settings bundle from API.
  */
 export function bundleToMarkingFormValues(
   bundle: ParametersSettingsBundle,
-): MarkingOptionsFormValues {
+): ParametersSettingsBundle {
   return {
-    use_special_numbers: bundle.use_special_numbers,
-    batch_number_mandatory: bundle.batch_number_mandatory,
-    export_data_path: bundle.export_data_path,
-    use_batch_number_template: bundle.use_batch_number_template,
-    batch_template: bundle.batch_template,
-    use_vsd_import: bundle.use_vsd_import,
-    vsd_import_path: bundle.vsd_import_path,
-    dm_lifetime_days: bundle.dm_lifetime_days,
-    dm_lifetime_warning_days: bundle.dm_lifetime_warning_days,
-    gln: bundle.gln,
-    tasks_limit: bundle.tasks_limit,
-    man_date_switch_time: bundle.man_date_switch_time,
+    ...bundle,
     minimal_culling_grade: bundle.minimal_culling_grade || 'E',
-    man_date_switch_enabled: bundle.man_date_switch_enabled,
-    sscc_with_ai00_enabled: bundle.sscc_with_ai00_enabled,
-    store_pdf_on_task_finish: bundle.store_pdf_on_task_finish,
-    sscc_generate_on_new_task: bundle.sscc_generate_on_new_task,
-    dm_is_introduced_option: bundle.dm_is_introduced_option,
-    calculate_mandate_by_days: bundle.calculate_mandate_by_days,
-    subacc_products_archived: bundle.subacc_products_archived,
   };
 }
 

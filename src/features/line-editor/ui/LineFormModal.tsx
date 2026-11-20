@@ -1,9 +1,12 @@
 import {
+  createDefaultLineEditorLabels,
   createDefaultLineFormState,
   mapLineConfigurationToForm,
+  mapLineConfigurationToLabels,
   useLineAllowPrintedDmQuery,
   useLineConfigurationQuery,
   type LineEditorFormState,
+  type LineEditorResourceLabels,
 } from '@/entities/line';
 import type { ResourceFormSubmitOptions } from '@/shared/model/resourceFormUiBridge';
 import { resourceFormModalFooter } from '@/shared/ui/ResourceFormModalFooter';
@@ -64,9 +67,12 @@ export function LineFormModal({
   const [hydrated, setHydrated] = useState<{
     key: string;
     values: LineEditorFormState;
+    resourceLabels: LineEditorResourceLabels;
   } | null>(null);
 
   const initialValues = hydrated?.key === lineKey ? hydrated.values : null;
+  const initialResourceLabels =
+    hydrated?.key === lineKey ? hydrated.resourceLabels : null;
   const watchedName = Form.useWatch('name', editorForm ?? undefined);
 
   const configQuery = useLineConfigurationQuery(lineId ?? 0, {
@@ -99,7 +105,11 @@ export function LineFormModal({
     }
 
     if (!isExisting) {
-      setHydrated({ key: lineKey, values: createDefaultLineFormState() });
+      setHydrated({
+        key: lineKey,
+        values: createDefaultLineFormState(),
+        resourceLabels: createDefaultLineEditorLabels(),
+      });
       return;
     }
 
@@ -107,6 +117,7 @@ export function LineFormModal({
       setHydrated({
         key: lineKey,
         values: mapLineConfigurationToForm(configQuery.data, allowPrintedQuery.data),
+        resourceLabels: mapLineConfigurationToLabels(configQuery.data),
       });
     }
   }, [
@@ -186,7 +197,7 @@ export function LineFormModal({
             message={loadErrorMessage}
             description="Сохранение недоступно. Закройте окно и попробуйте снова."
           />
-        ) : initialValues ? (
+        ) : initialValues && initialResourceLabels ? (
           <>
             {showRefetchError ? (
               <Alert
@@ -200,6 +211,7 @@ export function LineFormModal({
               key={lineKey}
               isNew={!isExisting}
               initialValues={initialValues}
+              initialResourceLabels={initialResourceLabels}
               onFormReady={handleFormReady}
             />
           </>

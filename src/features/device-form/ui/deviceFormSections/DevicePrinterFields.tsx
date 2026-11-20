@@ -8,7 +8,7 @@ export function DevicePrinterFields() {
   return (
     <>
       <Form.Item
-        name="printer_type"
+        name="type"
         label="Модель принтера"
         rules={[{ required: true, message: 'Выберите модель' }]}
       >

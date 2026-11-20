@@ -51,7 +51,7 @@ src/
 ├── entities/                # домен: api, model, queries, ui, lib
 └── shared/
     ├── api/                 # client, schema.d.ts, types, headers, listQuery
-    ├── queries/             # factoryQuery, factoryMutation, ключи, defineQueryOptions
+    ├── queries/             # factoryQuery, factoryMutation, useInvalidatingMutation, ключи, defineQueryOptions
     ├── lib/                 # admin-routing, даты; factory-query — реэкспорт @/shared/queries
     ├── hooks/               # useServerListQuery, useIdempotentMutation, …
     ├── model/               # кросс-доменные типы (resource form bridge)
@@ -65,7 +65,7 @@ src/
 Сценарии: `*-form`, `line-editor`, `integration-*`, `parameters-*`, `licence-*`, `task-list`.  
 Экраны: `parameters`, `integrations`, `manager`, `products`, `devices`, `templates`, `code-generator-templates`, `lines`, `print-stations`, `licences`.
 
-Отдельного сегмента `stores/` нет. Zustand домена — в `entities/<domain>/model`. Фабрики серверного кэша — `@/shared/queries` (`factoryQuery`, `factoryMutation`). `@/shared/lib/factory-query` только реэкспортирует их.
+Отдельного сегмента `stores/` нет. Zustand домена — в `entities/<domain>/model`. Фабрики серверного кэша — `@/shared/queries` (`factoryQuery`, `factoryMutation`, `useInvalidatingMutation`). `@/shared/lib/factory-query` только реэкспортирует их.
 
 ## 3. Slice segments
 
@@ -73,7 +73,7 @@ src/
 |---------|------------|
 | `api/` | HTTP (`apiRequest` / `apiRequestData`, `fetch*`, `create*`, `update*`) |
 | `model/` | Алиасы схем API, константы, `*FormUiStore` (Zustand) |
-| `queries/` | Хуки сущности поверх `@/shared/queries` (`factoryQuery` / `factoryMutation`) |
+| `queries/` | Хуки сущности поверх `@/shared/queries` (`factoryQuery` / `factoryMutation` / `useInvalidatingMutation`) |
 | `ui/` | Виджеты сущности (select и т.п.) |
 | `lib/` | Хелперы слайса |
 | `hooks/` | Хуки сущности, если не хватает `queries/` |
@@ -109,6 +109,8 @@ Deep-import (`@/entities/product/api/...`) в новом коде не испо�
 - `factoryQuery`: ключи `all` / `list` / `lookup` / `detail` (`queriesOptionsKeys`). `fetchList` и `fetchLookup` — разные функции: список и lookup ходят на свои эндпоинты. Оба возвращают `PaginatedResponse` (массив в `response`). Хуки списка и lookup идут через `useServerListQuery` (ключ `[...entry, scope, params]`, предыдущая страница остаётся на экране). Detail — `useQuery`, fetcher `(id, signal)`; если fetcher вернул сырой конверт, `select: selectEnvelopeData`.
 - `selectListItems` читает `page.response`. Конверт `{ success, data }` к этому моменту уже снят `apiRequestData`.
 - `factoryMutation` — create / update / delete одного ресурса с полем `id`: после успеха инвалидирует `keys.all()` и кладёт запись в detail-кэш. Тосты остаются в feature. Составное сохранение (вложенные строки, idempotency, «Применить») пишется в `entities/*/queries` и само инвалидирует `keys.all()`.
+- `useInvalidatingMutation` — мутации singleton / batch без поля `id` в ответе: после успеха инвалидирует переданный `invalidate: QueryKey[]`, затем вызывает `onSuccess` вызывающего. Используется в `entities/*/queries` (integration, parameters, licence) и в `services/*/model/queries.ts`.
+- Сценарии без UI, которые оркеструют несколько entity (сохранение линии, CRPT-шаблоны продуктов), держат query/mutation-хуки в `services/*/model/queries.ts`, а не в features/pages.
 - `defineQueryOptions` задаёт `staleTime` / `gcTime` / `retry` точечно. `factoryQuery` эти тайминги на все запросы не навешивает.
 - Серверный список целиком в Zustand не дублировать.
 
@@ -133,12 +135,12 @@ form.setFieldsValue(product) // product — запись из GET, тип compon
 - Тело создания и обновления — схема create/update из того же контракта (или тот же объект, если бэкенд принимает его).
 - Пустые значения и формат дат приводятся на границе `entities/*/api` или в `queries` при сборке тела запроса.
 
-В объект формы не добавляются переменные, которых нет в объекте API: отдельные `*FormValues`, переименованные поля, UI-алиасы, списки `*_removed`, временные id, флаги только для экрана.
+В объект формы не добавляются переменные, которых нет в объекте API: отдельные `*FormValues`, переименованные поля, UI-алиасы, списки `*_removed`, временные id, `clientKey`, `*Label`, флаги только для экрана.
 
 Состояние сценария живёт рядом с формой, не внутри неё:
 
 - открытие диалога, `consumerId`, `lastSaved` — Zustand `*FormUiStore`;
-- id записей, которые нужно удалить отдельным запросом, и прочий UI-контекст — локальный state компонента или тот же store.
+- id записей, которые нужно удалить отдельным запросом (`*_removed`), commissioning UI, resource labels, `clientKey` — локальный state компонента или тот же store.
 
 Если в OpenAPI нет поля, которое API реально отдаёт, тип сущности расширяется от схемы (`Schema & { field?: … }`) с комментарием, что спецификация неполная. Форма получает уже этот объект. Выдуманные поля, которых нет ни в спецификации, ни в ответе API, в тип и в форму не добавлять.
 

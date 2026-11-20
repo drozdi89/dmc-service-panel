@@ -11,7 +11,7 @@
     "lint:fsd": "eslint src --quiet",
     "test": "vitest run",
     "test:watch": "vitest",
-    "generate:api-types": "openapi-typescript ../docs/API/openapi.json -o src/shared/api/schema.d.ts"
+    "generate:api-types": "openapi-typescript src/openapi.json -o src/shared/api/schema.d.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",

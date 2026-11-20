@@ -1,19 +1,12 @@
 import {
-  fetchCodeGeneratorTemplateVariables,
+  useCodeGeneratorTemplateVariablesQuery,
   type CodeGeneratorTemplateVariable,
   type CodeGeneratorVariableGroup,
 } from '@/entities/code-generator-template';
 import { LoadingOverlay } from '@/shared/ui/loading';
-import { useQuery } from '@tanstack/react-query';
 import { Alert, Modal, Table, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo } from 'react';
-
-/** Stable query key for the variables catalog. */
-export const CODE_GENERATOR_TEMPLATE_VARIABLES_QUERY_KEY = [
-  'code-generator-templates',
-  'variables',
-] as const;
 
 const GROUP_ORDER: CodeGeneratorVariableGroup[] = [
   'task',
@@ -54,12 +47,7 @@ export function VariablesCatalogModal({
     isLoading,
     isError,
     error,
-  } = useQuery({
-    queryKey: CODE_GENERATOR_TEMPLATE_VARIABLES_QUERY_KEY,
-    queryFn: ({ signal }) => fetchCodeGeneratorTemplateVariables(signal),
-    enabled: open,
-    staleTime: 5 * 60_000,
-  });
+  } = useCodeGeneratorTemplateVariablesQuery(open);
 
   const sorted = useMemo(() => {
     const order = new Map(GROUP_ORDER.map((group, index) => [group, index]));

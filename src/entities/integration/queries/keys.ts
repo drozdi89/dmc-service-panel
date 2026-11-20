@@ -61,6 +61,9 @@ export const ONE_C_EXCHANGE_QUERY_KEY = [
 /** WMS (Efko) exchange singleton settings. */
 export const WMS_EFKO_QUERY_KEY = [...INTEGRATIONS_QUERY_ROOT, 'wms-efko'] as const;
 
+/** All production lines for the WMS (Efko) line filter. */
+export const WMS_EFKO_LINES_QUERY_KEY = [...INTEGRATIONS_QUERY_ROOT, 'wms-efko-lines'] as const;
+
 /**
  * Single line runtime options.
  *

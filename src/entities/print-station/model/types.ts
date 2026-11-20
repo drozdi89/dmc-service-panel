@@ -1,9 +1,7 @@
 import type { components } from '@/shared/api';
 
 /** Print station row from list/detail API. */
-export type PrintStation = components['schemas']['PrintStationsSchema'] & {
-  station_id: number;
-};
+export type PrintStation = components['schemas']['GetPrintStationsSchema'];
 
 /** Payload for creating a print station. */
 export type CreatePrintStationPayload = components['schemas']['PrintStationsSchema'];

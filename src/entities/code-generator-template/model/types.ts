@@ -1,59 +1,57 @@
 import type { components } from '@/shared/api';
 
-/** Counter definition from template `counter_config` (OpenAPI `CounterSpec`). */
-export type CounterSpec = components['schemas']['CounterSpec'];
-
-/** Allowed counter type discriminator values. */
-export type CounterSpecType = CounterSpec['type'];
-
 /**
- * Code generator template row from list/detail API.
+ * Counter definition from template `counter_config`.
  *
- * Local type: OpenAPI has no `GetCodeGeneratorTemplateSchema` export;
- * fields mirror backend response (`id`, counters, system flags).
+ * `src/openapi.json` (b0962) describes `CounterSpecSchema` as
+ * `name / width / key_fields / min / max`; the counter editor still works with the
+ * previous contract (`CounterSpec` in b0428: `type / format / key_template /
+ * level_from / initial_value`). Kept until the counter editor moves to the new schema.
  */
-export interface CodeGeneratorTemplate {
-  id: number;
+export interface CounterSpec {
   name: string;
-  description?: string | null;
-  template: string;
-  counter_config?: CounterSpec[];
-  validation_regex?: string | null;
-  /** Read-only legacy builtin type (0–9) for seeded system rows. */
-  legacy_type?: number | null;
-  /** Read-only; system templates cannot be edited/deleted via API. */
-  is_system?: boolean;
+  type: CounterSpecType;
+  format: string;
+  key_template: string;
+  level_from: string;
+  initial_value: number;
 }
+
+/** Allowed counter type discriminator values (previous `CounterSpec` contract). */
+export type CounterSpecType = 'sscc_level' | 'gln_sscc' | 'date_serial' | 'task_pack' | 'none';
+
+/** Code generator template row from list/detail API. */
+export type CodeGeneratorTemplate = Omit<
+  components['schemas']['GetCodeGeneratorTemplateSchema'],
+  'counter_config'
+> & {
+  counter_config?: CounterSpec[];
+};
 
 /** Lightweight lookup row (`GET …/lookup`, user templates only). */
-export interface CodeGeneratorTemplateLookup {
-  id: number;
-  name: string;
-}
-
-/** Variable catalog group from `GET …/variables`. */
-export type CodeGeneratorVariableGroup =
-  | 'task'
-  | 'product'
-  | 'dates'
-  | 'weight'
-  | 'special';
+export type CodeGeneratorTemplateLookup = components['schemas']['CodeGeneratorTemplateLookupSchema'];
 
 /** Catalog row describing one allowed template placeholder. */
-export interface CodeGeneratorTemplateVariable {
-  name: string;
-  description: string;
-  example: string;
-  group: CodeGeneratorVariableGroup;
-}
+export type CodeGeneratorTemplateVariable = components['schemas']['CodeGeneratorVariableSchema'];
+
+/** Variable catalog group from `GET …/variables`. */
+export type CodeGeneratorVariableGroup = CodeGeneratorTemplateVariable['group'];
 
 /** Payload for creating a code generator template. */
-export type CreateCodeGeneratorTemplatePayload =
-  components['schemas']['CodeGeneratorTemplateSchema'];
+export type CreateCodeGeneratorTemplatePayload = Omit<
+  components['schemas']['CodeGeneratorTemplateSchema'],
+  'counter_config'
+> & {
+  counter_config?: CounterSpec[];
+};
 
 /** Payload for updating a code generator template. */
-export type UpdateCodeGeneratorTemplatePayload =
-  components['schemas']['UpdateCodeGeneratorTemplateSchema'];
+export type UpdateCodeGeneratorTemplatePayload = Omit<
+  components['schemas']['UpdateCodeGeneratorTemplateSchema'],
+  'counter_config'
+> & {
+  counter_config?: CounterSpec[] | null;
+};
 
 /** Payload for deleting code generator templates. */
 export type DeleteCodeGeneratorTemplatesPayload =

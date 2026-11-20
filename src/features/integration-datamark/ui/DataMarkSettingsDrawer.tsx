@@ -1,26 +1,20 @@
 import {
-  DATAMARK_QUERY_KEY,
-  createDataMarkCredentials,
-  deleteDataMarkCredentials,
-  saveDataMarkCredentials,
   useDataMarkCredentialsQuery,
+  useDeleteDataMarkCredentialsMutation,
+  useSaveDataMarkCredentialsMutation,
   type DataMarkCredentials,
 } from '@/entities/integration';
-import { ApiError } from '@/shared/api';
-import { createIdempotencyKey } from '@/shared/api/headers';
 import { PageSpinner } from '@/shared/ui/loading';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Checkbox, Drawer, Form, Input, Popconfirm, Space } from 'antd';
 import { useCallback, useEffect } from 'react';
 
-/** Form values for DataMark credentials drawer. */
-interface DataMarkFormValues {
-  unp: string;
-  name: string;
-  demo: boolean;
-  username: string;
-  password: string;
-}
+const EMPTY_CREDENTIALS: DataMarkCredentials = {
+  unp: '',
+  name: '',
+  demo: false,
+  username: '',
+  password: '',
+};
 
 /** Props for DataMark integration settings drawer. */
 export interface DataMarkSettingsDrawerProps {
@@ -33,84 +27,48 @@ export interface DataMarkSettingsDrawerProps {
  */
 export function DataMarkSettingsDrawer({ open, onClose }: DataMarkSettingsDrawerProps) {
   const { message } = App.useApp();
-  const queryClient = useQueryClient();
-  const [form] = Form.useForm<DataMarkFormValues>();
+  const [form] = Form.useForm<DataMarkCredentials>();
 
   const settingsQuery = useDataMarkCredentialsQuery({ enabled: open });
+  const currentUnp = settingsQuery.data?.unp;
 
   useEffect(() => {
     if (!open || !settingsQuery.isSuccess) {
       return;
     }
-    const data = settingsQuery.data;
-    if (data?.unp) {
-      form.setFieldsValue({
-        unp: data.unp,
-        name: data.name ?? '',
-        demo: data.demo ?? false,
-        username: data.username ?? '',
-        password: data.password ?? '',
-      });
-      return;
-    }
-    form.setFieldsValue({
-      unp: '',
-      name: '',
-      demo: false,
-      username: '',
-      password: undefined,
-    });
+    form.setFieldsValue({ ...EMPTY_CREDENTIALS, ...settingsQuery.data });
   }, [form, open, settingsQuery.data, settingsQuery.isSuccess]);
 
-  const saveMutation = useMutation({
-    mutationFn: async (values: DataMarkFormValues) => {
-      console.log(values)
-      const payload: DataMarkCredentials = {
-        unp: values.unp.trim(),
-        name: values.name.trim(),
-        demo: values.demo,
-        username: values.username.trim(),
-        password: values.password,
-      };
-      console.log(payload)
-      const key = createIdempotencyKey();
-      if (settingsQuery.data?.unp) {
-        return saveDataMarkCredentials(settingsQuery.data.unp, payload, key);
-      }
-      return createDataMarkCredentials(payload, key);
-    },
+  const showError = (error: Error) => message.error(error.message);
+
+  const saveMutation = useSaveDataMarkCredentialsMutation({
     onSuccess: () => {
       message.success('Настройки DataMark сохранены');
-      void queryClient.invalidateQueries({ queryKey: DATAMARK_QUERY_KEY });
       onClose();
     },
-    onError: (error: Error) => {
-      message.error(error instanceof ApiError ? error.message : error.message);
-    },
+    onError: showError,
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      const unp = settingsQuery.data?.unp;
-      if (!unp) {
-        return;
-      }
-      return deleteDataMarkCredentials([unp], createIdempotencyKey());
-    },
+  const deleteMutation = useDeleteDataMarkCredentialsMutation({
     onSuccess: () => {
       message.success('Настройки DataMark удалены');
-      void queryClient.invalidateQueries({ queryKey: DATAMARK_QUERY_KEY });
       onClose();
     },
-    onError: (error: Error) => {
-      message.error(error instanceof ApiError ? error.message : error.message);
-    },
+    onError: showError,
   });
 
   const handleSave = useCallback(async () => {
     const values = await form.validateFields();
-    saveMutation.mutate(values);
-  }, [form, saveMutation]);
+    saveMutation.mutate({
+      currentUnp,
+      credentials: {
+        ...values,
+        unp: values.unp.trim(),
+        name: values.name.trim(),
+        username: values.username?.trim() ?? '',
+      },
+    });
+  }, [currentUnp, form, saveMutation]);
 
   return (
     <Drawer
@@ -121,10 +79,10 @@ export function DataMarkSettingsDrawer({ open, onClose }: DataMarkSettingsDrawer
       destroyOnClose
       extra={
         <Space>
-          {settingsQuery.data?.unp ? (
+          {currentUnp ? (
             <Popconfirm
               title="Удалить настройки DataMark?"
-              onConfirm={() => deleteMutation.mutate()}
+              onConfirm={() => deleteMutation.mutate(currentUnp)}
             >
               <Button danger loading={deleteMutation.isPending}>
                 Удалить
@@ -152,7 +110,7 @@ export function DataMarkSettingsDrawer({ open, onClose }: DataMarkSettingsDrawer
             rules={[{ required: true, message: 'Укажите УНП' }]}
             style={{ marginBottom: 4 }}
           >
-            <Input disabled={Boolean(settingsQuery.data?.unp)} />
+            <Input disabled={Boolean(currentUnp)} />
           </Form.Item>
           <Form.Item
             name="name"

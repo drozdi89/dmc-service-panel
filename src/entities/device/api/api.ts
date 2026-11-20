@@ -1,4 +1,4 @@
-import type { components } from '@/shared/api/types';
+import type { components } from '@/shared/api';
 import { apiRequestData, fetchPaginatedList } from '@/shared/api';
 import type { ListQueryParams, PaginatedResponse } from '@/shared/types/listQuery';
 import type { DeviceDetail } from '../model/deviceFormMapping';

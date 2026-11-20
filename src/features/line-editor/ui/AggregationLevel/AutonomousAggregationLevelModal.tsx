@@ -1,6 +1,6 @@
 import {
-  createAggregationClientKey,
-  type AggregationLevelFormState
+  type AggregationLevelFormState,
+  type AggregationLevelLabels,
 } from '@/entities/line';
 import { StepperNumberInput } from '@/shared/ui/StepperNumberInput';
 import { App, Flex, Form, Input, Modal } from 'antd';
@@ -11,15 +11,27 @@ export interface AutonomousAggregationLevelModalProps {
   open: boolean;
   initialLevel?: AggregationLevelFormState;
   onCancel: () => void;
-  onSave: (level: AggregationLevelFormState) => void;
+  onSave: (level: AggregationLevelFormState, labels: AggregationLevelLabels) => void;
 }
 
-const DEFAULT_LEVEL: Partial<AggregationLevelFormState> = {
-  clientKey: createAggregationClientKey(),
+const DEFAULT_LEVEL: AggregationLevelFormState = {
   name: '',
   level: 0,
   is_manual: false,
-  aggregation_type: 'automated',
+  use_count_method: false,
+  template_id: null,
+  plain_template_id: null,
+  camera_id: null,
+  print_camera_id: null,
+  controller_id: null,
+  divider_id: null,
+  generator_type: 0,
+  two_cam_mode: false,
+  aggr_timeout_ms: 2000,
+  print_on_error: false,
+  unit_camera_ids: [],
+  printer_ids: [],
+  aggregation_type: 'autonomous',
 };
 
 /**
@@ -45,12 +57,15 @@ export function AutonomousAggregationLevelModal({
 
   const handleSubmit = async () => {
     const values = await form.validateFields();
-    onSave({
-      ...(initialLevel ?? DEFAULT_LEVEL),
-      ...values,
-      is_manual: false,
-      aggregation_type: 'autonomous',
-    });
+    onSave(
+      {
+        ...(initialLevel ?? DEFAULT_LEVEL),
+        ...values,
+        is_manual: false,
+        aggregation_type: 'autonomous',
+      },
+      {},
+    );
   };
 
   return (

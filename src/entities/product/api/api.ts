@@ -214,6 +214,19 @@ export async function updateProduct(
 }
 
 /**
+ * Archives or restores a product (PATCH with `archived` only).
+ *
+ * @param gtin - Product GTIN.
+ * @param archived - Target archive flag.
+ */
+export async function setProductArchived(gtin: string, archived: boolean): Promise<Product> {
+  return apiRequestData<Product>(`/api/v2/products/${encodeURIComponent(gtin)}`, {
+    method: 'PATCH',
+    body: { archived },
+  });
+}
+
+/**
  * Fetches supported product groups from /info.
  */
 export async function fetchProductGroupOptions(): Promise<ProductGroupOption[]> {
@@ -287,6 +300,7 @@ export async function createProductAggregate(
     rows: values.rows ?? 1,
     width_mm: values.width_mm ?? 0,
     package_weight: 0,
+    print_only: values.print_only ?? false,
   };
   return apiRequestData<ProductAggregate>('/api/v2/product_aggregates/', {
     method: 'POST',

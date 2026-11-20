@@ -1,4 +1,4 @@
-import type { components, operations } from '@/shared/api/types';
+import type { components, operations } from '@/shared/api';
 import type { PaginatedResponse } from '@/shared/types/listQuery';
 
 /** Query parameters for GET /api/v2/tasks/list (OpenAPI tasks_list_get). */

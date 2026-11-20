@@ -5,7 +5,6 @@ import {
   usePrintTemplateFormUiStore,
   type PrintTemplate,
 } from '@/entities/print-template';
-import type { TemplateFormValues } from '@/features/template-form';
 import { TemplateFormModal } from '@/features/template-form';
 import type { ResourceFormSubmitOptions } from '@/shared/model/resourceFormUiBridge';
 import { RESOURCE_FORM_SUBMIT_SAVE } from '@/shared/model/resourceFormUiBridge';
@@ -51,7 +50,7 @@ export function TemplateFormModalHost() {
 
   const handleSubmit = useCallback(
     async (
-      values: TemplateFormValues,
+      values: PrintTemplate,
       options: ResourceFormSubmitOptions = RESOURCE_FORM_SUBMIT_SAVE,
     ) => {
       const submittedGeneration = mountGenerationRef.current;

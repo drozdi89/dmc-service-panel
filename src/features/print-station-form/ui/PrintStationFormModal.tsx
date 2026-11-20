@@ -3,7 +3,7 @@ import {
   DEFAULT_PRINT_STATION_FORM_VALUES,
   mapPrintStationToFormValues,
   printStationQueries,
-  type PrintStationFormValues,
+  type CreatePrintStationPayload,
   type PrintStationResourceLabels,
 } from '@/entities/print-station';
 import { fetchPrintTemplateById, PrintTemplateResourcePicker } from '@/entities/print-template';
@@ -34,7 +34,7 @@ export interface PrintStationFormModalProps {
   submitting?: boolean;
   onCancel: () => void;
   onSubmit: (
-    values: PrintStationFormValues,
+    values: CreatePrintStationPayload,
     options: ResourceFormSubmitOptions,
   ) => void;
 }
@@ -55,7 +55,7 @@ export function PrintStationFormModal({
   onCancel,
   onSubmit,
 }: PrintStationFormModalProps) {
-  const [form] = Form.useForm<PrintStationFormValues>();
+  const [form] = Form.useForm<CreatePrintStationPayload>();
   const [resourceLabels, setResourceLabels] = useState<PrintStationResourceLabels>({});
 
   const resolvedMode: 'create' | 'edit' =
@@ -143,8 +143,8 @@ export function PrintStationFormModal({
     }
   }, [form, isEdit, loadedStation, open, resolveResourceLabels]);
 
-  const printerId = Form.useWatch('printer_id', form) as number | null | undefined;
-  const cameraId = Form.useWatch('camera_id', form) as number | null | undefined;
+  const printerId = Form.useWatch('printer', form) as number | null | undefined;
+  const cameraId = Form.useWatch('camera', form) as number | null | undefined;
   const templateId = Form.useWatch('template_id', form) as number | null | undefined;
 
   const fieldsDisabled = isLoadError;
@@ -213,7 +213,7 @@ export function PrintStationFormModal({
               ResourcePickers own their value/onChange; keep ids in the form store
               via setFieldValue + hidden items.
             */}
-            <Form.Item label="Принтер" name="printer_id" style={{ marginBottom: 4 }}>
+            <Form.Item label="Принтер" name="printer" style={{ marginBottom: 4 }}>
               <DeviceResourcePicker
                 types={['printer']}
                 deviceType="printer"
@@ -228,7 +228,7 @@ export function PrintStationFormModal({
                     nextValue === null || nextValue === undefined
                       ? null
                       : Number(nextValue);
-                  form.setFieldValue('printer_id', id);
+                  form.setFieldValue('printer', id);
                   setResourceLabels((prev) => ({
                     ...prev,
                     printerName: option?.label,
@@ -282,7 +282,7 @@ export function PrintStationFormModal({
                     nextValue === null || nextValue === undefined
                       ? null
                       : Number(nextValue);
-                  form.setFieldValue('camera_id', id);
+                  form.setFieldValue('camera', id);
                   setResourceLabels((prev) => ({
                     ...prev,
                     cameraName: option?.label,
@@ -290,7 +290,7 @@ export function PrintStationFormModal({
                 }}
               />
             </Form.Item>
-            <Form.Item name="camera_id" hidden>
+            <Form.Item name="camera" hidden>
               <InputNumber />
             </Form.Item>
 

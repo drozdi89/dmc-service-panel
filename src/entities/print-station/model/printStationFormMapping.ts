@@ -1,24 +1,18 @@
 import type { CreatePrintStationPayload, PrintStation, UpdatePrintStationPayload } from './types';
 
-/** Default values for a new print station form. */
-export const DEFAULT_PRINT_STATION_FORM_VALUES: PrintStationFormValues = {
+/**
+ * Default values for a new print station form (create schema).
+ * In the form `printer` / `camera` hold `null` for «not used»; the API stores `0`.
+ */
+export const DEFAULT_PRINT_STATION_FORM_VALUES: CreatePrintStationPayload = {
   name: '',
-  printer_id: null,
-  camera_id: null,
+  printer: null,
+  camera: null,
   template_id: null,
   max_failures: 5,
   grade_percent: 0,
+  skip_initial_noread: 0,
 };
-
-/** Form values for print station create/edit modal. */
-export interface PrintStationFormValues {
-  name: string;
-  printer_id: number | null;
-  camera_id: number | null;
-  template_id: number | null;
-  max_failures: number;
-  grade_percent: number;
-}
 
 /** Optional display labels for linked resources in ResourcePicker. */
 export interface PrintStationResourceLabels {
@@ -85,46 +79,52 @@ export function buildLinkedResourceNameMap(
 }
 
 /**
- * Maps print station API record to form values.
+ * Puts the GET record into the form: same fields, unused devices as `null`.
  *
  * @param station - Station detail from GET.
  */
-export function mapPrintStationToFormValues(station: PrintStation): PrintStationFormValues {
+export function mapPrintStationToFormValues(station: PrintStation): CreatePrintStationPayload {
   return {
-    name: station.name,
-    printer_id: mapApiDeviceIdToForm(station.printer),
-    camera_id: mapApiDeviceIdToForm(station.camera),
+    ...station,
+    printer: mapApiDeviceIdToForm(station.printer),
+    camera: mapApiDeviceIdToForm(station.camera),
     template_id: station.template_id ?? null,
-    max_failures: station.max_failures,
-    grade_percent: station.grade_percent,
   };
 }
 
 /**
- * Maps form values to POST payload.
+ * Builds POST body from the form object.
  *
  * @param values - Validated form values.
  */
 export function mapFormValuesToCreatePayload(
-  values: PrintStationFormValues,
+  values: CreatePrintStationPayload,
 ): CreatePrintStationPayload {
   return {
     name: values.name.trim(),
-    printer: mapFormDeviceIdToApi(values.printer_id),
-    camera: mapFormDeviceIdToApi(values.camera_id),
-    template_id: values.template_id,
+    printer: mapFormDeviceIdToApi(values.printer),
+    camera: mapFormDeviceIdToApi(values.camera),
+    template_id: values.template_id ?? null,
     max_failures: values.max_failures,
     grade_percent: values.grade_percent,
+    skip_initial_noread: values.skip_initial_noread ?? 0,
   };
 }
 
 /**
- * Maps form values to PATCH payload.
+ * Builds PATCH body from the form object (`skip_initial_noread` is not edited here).
  *
  * @param values - Validated form values.
  */
 export function mapFormValuesToUpdatePayload(
-  values: PrintStationFormValues,
+  values: CreatePrintStationPayload,
 ): UpdatePrintStationPayload {
-  return mapFormValuesToCreatePayload(values);
+  return {
+    name: values.name.trim(),
+    printer: mapFormDeviceIdToApi(values.printer),
+    camera: mapFormDeviceIdToApi(values.camera),
+    template_id: values.template_id ?? null,
+    max_failures: values.max_failures,
+    grade_percent: values.grade_percent,
+  };
 }

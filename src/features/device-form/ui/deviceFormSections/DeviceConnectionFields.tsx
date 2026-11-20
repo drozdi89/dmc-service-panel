@@ -51,7 +51,7 @@ export function DeviceConnectionFields({
         <Form.Item
           name="port"
           label="Порт"
-          dependencies={activeType === 'scale' ? ['scale_type', 'host'] : undefined}
+          dependencies={activeType === 'scale' ? ['type', 'host'] : undefined}
           rules={activeType === 'scale' ? scalePortRules : [portFormRule(true)]}
         >
           {activeType === 'scale' ? (
