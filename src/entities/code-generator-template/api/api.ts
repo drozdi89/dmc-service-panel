@@ -5,6 +5,8 @@ import type {
   CodeGeneratorTemplatePreviewQuery,
   CodeGeneratorTemplatePreviewResult,
   CodeGeneratorTemplateVariable,
+  CreateCodeGeneratorTemplatePayload,
+  UpdateCodeGeneratorTemplatePayload,
 } from '../model/types';
 
 /** Collection path for code generator templates CRUD. */
@@ -91,6 +93,46 @@ export function fetchCodeGeneratorTemplateVariables(
  * @param query - Runtime context (`task_id` + `aggregation_level` required).
  * @param signal - Optional abort signal.
  */
+/** Creates a code generator template. */
+export async function createCodeGeneratorTemplate(
+  payload: CreateCodeGeneratorTemplatePayload,
+  idempotencyKey: string,
+): Promise<CodeGeneratorTemplate> {
+  return apiRequestData<CodeGeneratorTemplate>(CODE_GENERATOR_TEMPLATES_PATH, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey,
+  });
+}
+
+/** Updates a code generator template. */
+export async function updateCodeGeneratorTemplate(
+  id: number,
+  payload: UpdateCodeGeneratorTemplatePayload,
+  idempotencyKey: string,
+): Promise<CodeGeneratorTemplate> {
+  return apiRequestData<CodeGeneratorTemplate>(
+    `${CODE_GENERATOR_TEMPLATES_PATH}${id}`,
+    {
+      method: 'PATCH',
+      body: payload,
+      idempotencyKey,
+    },
+  );
+}
+
+/** Deletes code generator templates by id list. */
+export async function deleteCodeGeneratorTemplates(
+  ids: number[],
+  idempotencyKey: string,
+): Promise<string> {
+  return apiRequestData<string>(CODE_GENERATOR_TEMPLATES_PATH, {
+    method: 'DELETE',
+    body: { id_code_generator_templates: ids },
+    idempotencyKey,
+  });
+}
+
 export function previewCodeGeneratorTemplate(
   id: number,
   query: CodeGeneratorTemplatePreviewQuery,

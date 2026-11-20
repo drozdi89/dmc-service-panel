@@ -1,6 +1,10 @@
 import { apiRequestData, fetchPaginatedList } from '@/shared/api';
 import type { ListQueryParams } from '@/shared/types/listQuery';
-import type { PrintStation } from '../model/types';
+import type {
+  CreatePrintStationPayload,
+  PrintStation,
+  UpdatePrintStationPayload,
+} from '../model/types';
 
 const PRINT_STATIONS_PATH = '/api/v2/print_stations/';
 const PRINT_STATIONS_LOOKUP_PATH = '/api/v2/print_stations/lookup';
@@ -34,4 +38,41 @@ export function fetchPrintStationById(
   signal?: AbortSignal,
 ): Promise<PrintStation> {
   return apiRequestData<PrintStation>(`${PRINT_STATIONS_PATH}${stationId}`, { signal });
+}
+
+/** Creates a print station. */
+export async function createPrintStation(
+  payload: CreatePrintStationPayload,
+  idempotencyKey: string,
+): Promise<PrintStation> {
+  return apiRequestData<PrintStation>(PRINT_STATIONS_PATH, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey,
+  });
+}
+
+/** Updates a print station. */
+export async function updatePrintStation(
+  stationId: number,
+  payload: UpdatePrintStationPayload,
+  idempotencyKey: string,
+): Promise<PrintStation> {
+  return apiRequestData<PrintStation>(`${PRINT_STATIONS_PATH}${stationId}`, {
+    method: 'PATCH',
+    body: payload,
+    idempotencyKey,
+  });
+}
+
+/** Deletes print stations by id list. */
+export async function deletePrintStations(
+  stationIds: number[],
+  idempotencyKey: string,
+): Promise<string> {
+  return apiRequestData<string>(PRINT_STATIONS_PATH, {
+    method: 'DELETE',
+    body: { station_id: stationIds },
+    idempotencyKey,
+  });
 }

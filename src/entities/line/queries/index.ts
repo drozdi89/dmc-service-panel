@@ -1,7 +1,7 @@
 export {
   invalidateLineQueries,
-  useLineMutations,
-  type LineMutationHandlers,
+  lineListFactory,
+  type LineListMutationItem,
 } from './line-mutations';
 export {
   LINE_QUERY_ENTRY,

@@ -1,9 +1,10 @@
-import type { IdempotentMutationVariables } from '@/shared/hooks/useIdempotentMutation';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Product, ProductFormValues } from '../model/types';
 import { PersistProductError, persistProductFormValues } from './product-persist';
 
 const {
+  createProduct,
+  updateProduct,
   createProductAggregate,
   updateProductAggregate,
   deleteProductAggregates,
@@ -17,6 +18,8 @@ const {
   updateProductArticle,
   deleteProductArticles,
 } = vi.hoisted(() => ({
+  createProduct: vi.fn(),
+  updateProduct: vi.fn(),
   createProductAggregate: vi.fn(),
   updateProductAggregate: vi.fn(),
   deleteProductAggregates: vi.fn(),
@@ -32,6 +35,8 @@ const {
 }));
 
 vi.mock('@/entities/product/api/api', () => ({
+  createProduct,
+  updateProduct,
   createProductAggregate,
   updateProductAggregate,
   deleteProductAggregates,
@@ -73,6 +78,8 @@ function buildFormValues(
 describe('persistProductFormValues', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    createProduct.mockResolvedValue({ ...baseProduct });
+    updateProduct.mockResolvedValue({ ...baseProduct });
     createProductAggregate.mockResolvedValue({ id: 1 });
     updateProductAggregate.mockResolvedValue({ id: 2 });
     deleteProductAggregates.mockResolvedValue(undefined);
@@ -89,8 +96,12 @@ describe('persistProductFormValues', () => {
 
   it('create: POST product → aggregates → controller PATCH → certs → licences → articles', async () => {
     const callOrder: string[] = [];
-    const mutateAsync = vi.fn(async (vars: IdempotentMutationVariables) => {
-      callOrder.push(`${vars.method} ${vars.path}`);
+    createProduct.mockImplementation(async () => {
+      callOrder.push('POST product');
+      return { ...baseProduct };
+    });
+    updateProduct.mockImplementation(async () => {
+      callOrder.push('PATCH product');
       return { ...baseProduct };
     });
 
@@ -158,14 +169,11 @@ describe('persistProductFormValues', () => {
       ],
     });
 
-    await persistProductFormValues(mutateAsync, values);
+    await persistProductFormValues(values);
 
-    expect(callOrder).toEqual([
-      'POST /api/v2/products/',
-      `PATCH /api/v2/products/${baseProduct.gtin}`,
-    ]);
-    expect(mutateAsync.mock.calls[0]?.[0].body).not.toHaveProperty('controller_params');
-    expect(mutateAsync.mock.calls[1]?.[0].body).toEqual(
+    expect(callOrder).toEqual(['POST product', 'PATCH product']);
+    expect(createProduct.mock.calls[0]?.[0]).not.toHaveProperty('controller_params');
+    expect(updateProduct.mock.calls[0]?.[1]).toEqual(
       expect.objectContaining({ controller_params: expect.any(Array) }),
     );
 
@@ -227,12 +235,12 @@ describe('persistProductFormValues', () => {
     // controller PATCH → certs → licences → articles
     const aggregateDeleteOrder = deleteProductAggregates.mock.invocationCallOrder[0]!;
     const aggregateCreateOrder = createProductAggregate.mock.invocationCallOrder[0]!;
-    const controllerPatchOrder = mutateAsync.mock.invocationCallOrder[1]!;
+    const controllerPatchOrder = updateProduct.mock.invocationCallOrder[0]!;
     const certDeleteOrder = deleteProductCertificates.mock.invocationCallOrder[0]!;
     const licDeleteOrder = deleteProductLicences.mock.invocationCallOrder[0]!;
     const artDeleteOrder = deleteProductArticles.mock.invocationCallOrder[0]!;
 
-    expect(mutateAsync.mock.invocationCallOrder[0]).toBeLessThan(aggregateDeleteOrder);
+    expect(createProduct.mock.invocationCallOrder[0]).toBeLessThan(aggregateDeleteOrder);
     expect(aggregateDeleteOrder).toBeLessThan(aggregateCreateOrder);
     expect(aggregateCreateOrder).toBeLessThan(controllerPatchOrder);
     expect(controllerPatchOrder).toBeLessThan(certDeleteOrder);
@@ -241,50 +249,38 @@ describe('persistProductFormValues', () => {
   });
 
   it('edit: PATCH product first, then nested steps with editGtin', async () => {
-    const mutateAsync = vi.fn(async (vars: IdempotentMutationVariables) => {
-      expect(vars.method).toBe('PATCH');
-      expect(vars.path).toBe(`/api/v2/products/${baseProduct.gtin}`);
-      return { ...baseProduct, name: 'Updated' };
-    });
+    updateProduct.mockResolvedValue({ ...baseProduct, name: 'Updated' });
 
     await persistProductFormValues(
-      mutateAsync,
       buildFormValues({ name: 'Updated' }),
       baseProduct.gtin,
       baseProduct,
     );
 
-    expect(mutateAsync).toHaveBeenCalledTimes(2);
-    expect(mutateAsync.mock.calls[0]?.[0].body).toEqual(
+    expect(updateProduct).toHaveBeenCalledTimes(2);
+    expect(updateProduct.mock.calls[0]?.[1]).toEqual(
       expect.objectContaining({ name: 'Updated' }),
     );
-    expect(mutateAsync.mock.calls[0]?.[0].body).not.toHaveProperty('gtin');
+    expect(updateProduct.mock.calls[0]?.[1]).not.toHaveProperty('gtin');
   });
 
   it('stops before nested steps when product mutate fails', async () => {
-    const mutateAsync = vi.fn(async () => {
-      throw new Error('product failed');
-    });
+    createProduct.mockRejectedValueOnce(new Error('product failed'));
 
-    await expect(
-      persistProductFormValues(mutateAsync, buildFormValues()),
-    ).rejects.toThrow('product failed');
+    await expect(persistProductFormValues(buildFormValues())).rejects.toThrow('product failed');
 
     expect(deleteProductAggregates).not.toHaveBeenCalled();
     expect(createProductAggregate).not.toHaveBeenCalled();
-    expect(mutateAsync).toHaveBeenCalledTimes(1);
+    expect(createProduct).toHaveBeenCalledTimes(1);
   });
 
   it('create: wraps nested failure as PersistProductError with gtin', async () => {
-    const mutateAsync = vi.fn(async () => ({ ...baseProduct }));
+    createProduct.mockResolvedValue({ ...baseProduct });
     deleteProductAggregates.mockRejectedValueOnce(new Error('agg failed'));
 
     let caught: unknown;
     try {
-      await persistProductFormValues(
-        mutateAsync,
-        buildFormValues({ aggregates_removed: [1] }),
-      );
+      await persistProductFormValues(buildFormValues({ aggregates_removed: [1] }));
     } catch (error) {
       caught = error;
     }
@@ -294,18 +290,17 @@ describe('persistProductFormValues', () => {
       message: 'agg failed',
       gtin: baseProduct.gtin,
     });
-    expect(mutateAsync).toHaveBeenCalledTimes(1);
+    expect(createProduct).toHaveBeenCalledTimes(1);
     expect(createProductCertificate).not.toHaveBeenCalled();
   });
 
   it('edit: rethrows nested failure without PersistProductError', async () => {
-    const mutateAsync = vi.fn(async () => ({ ...baseProduct }));
+    updateProduct.mockResolvedValue({ ...baseProduct });
     deleteProductAggregates.mockRejectedValueOnce(new Error('agg failed'));
 
     let caught: unknown;
     try {
       await persistProductFormValues(
-        mutateAsync,
         buildFormValues({ aggregates_removed: [1] }),
         baseProduct.gtin,
       );

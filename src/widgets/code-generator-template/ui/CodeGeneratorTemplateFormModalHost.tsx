@@ -1,5 +1,4 @@
 import {
-  CODE_GENERATOR_TEMPLATES_PATH,
   useCodeGeneratorTemplateActions,
   isSameCodeGeneratorTemplateFormDialog,
   resetCodeGeneratorTemplateFormUiStore,
@@ -35,7 +34,7 @@ export function CodeGeneratorTemplateFormModalHost() {
   const mountGenerationRef = useRef(0);
 
 
-  const { saveMutation } = useCodeGeneratorTemplateActions();
+  const { createMutation, updateMutation, isSavePending } = useCodeGeneratorTemplateActions();
 
 
   const open = dialog.kind !== 'none';
@@ -67,30 +66,21 @@ export function CodeGeneratorTemplateFormModalHost() {
         let saved: CodeGeneratorTemplate;
 
 
+        const body = {
+          name: values.name,
+          description: values.description,
+          template: values.template,
+          counter_config: values.counter_config,
+          validation_regex: values.validation_regex,
+        };
+
         if (submitted.kind === 'edit') {
-          saved = await saveMutation.mutateAsync({
-            path: `${CODE_GENERATOR_TEMPLATES_PATH}${submitted.templateId}`,
-            method: 'PATCH',
-            body: {
-              name: values.name,
-              description: values.description,
-              template: values.template,
-              counter_config: values.counter_config,
-              validation_regex: values.validation_regex,
-            },
+          saved = await updateMutation.mutateAsync({
+            id: submitted.templateId,
+            ...body,
           });
         } else {
-          saved = await saveMutation.mutateAsync({
-            path: CODE_GENERATOR_TEMPLATES_PATH,
-            method: 'POST',
-            body: {
-              name: values.name,
-              description: values.description,
-              template: values.template,
-              counter_config: values.counter_config,
-              validation_regex: values.validation_regex,
-            },
-          });
+          saved = await createMutation.mutateAsync(body);
         }
 
 
@@ -125,7 +115,7 @@ export function CodeGeneratorTemplateFormModalHost() {
         // Errors are surfaced by codeGeneratorTemplateMutations.onError.
       }
     },
-    [close, saveMutation, setLastSaved],
+    [close, createMutation, updateMutation, setLastSaved],
   );
 
 
@@ -134,7 +124,7 @@ export function CodeGeneratorTemplateFormModalHost() {
       open={open}
       mode={mode}
       templateId={templateId}
-      submitting={saveMutation.isPending}
+      submitting={isSavePending}
       onCancel={close}
       onSubmit={(values, options) => {
         void handleSubmit(values, options);

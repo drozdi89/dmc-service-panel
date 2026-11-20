@@ -1,7 +1,4 @@
-export {
-  useCodeGeneratorTemplateMutations,
-  type CodeGeneratorTemplateMutationHandlers,
-} from './code-generator-template-mutations';
+export { codeGeneratorTemplateFactory } from './code-generator-template-mutations';
 export {
   CODE_GENERATOR_TEMPLATE_VARIABLES_QUERY_KEY,
   codeGeneratorTemplateQueries,

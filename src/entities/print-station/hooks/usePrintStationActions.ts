@@ -1,7 +1,7 @@
 import { App } from 'antd';
 import { useCallback } from 'react';
 import { type PrintStation } from '../model/types';
-import { usePrintStationMutations } from '../queries/print-station-mutations';
+import { printStationFactory } from '../queries/print-station-mutations';
 
 /**
  * Print station save/delete with toasts and delete confirmation.
@@ -15,19 +15,32 @@ export function usePrintStationActions({
 } = {}) {
   const { message, modal } = App.useApp();
 
-  const { saveMutation, deleteMutation, invalidatePrintStations } = usePrintStationMutations({
-    onSaveSuccess: () => {
+  const createMutation = printStationFactory.useCreateMutation({
+    onSuccess: () => {
       message.success('Станция печати сохранена');
       callbackSave?.();
     },
-    onSaveError: (error) => {
+    onError: (error) => {
       message.error(error.message || 'Не удалось сохранить станцию печати');
     },
-    onDeleteSuccess: () => {
+  });
+
+  const updateMutation = printStationFactory.useUpdateMutation({
+    onSuccess: () => {
+      message.success('Станция печати сохранена');
+      callbackSave?.();
+    },
+    onError: (error) => {
+      message.error(error.message || 'Не удалось сохранить станцию печати');
+    },
+  });
+
+  const deleteMutation = printStationFactory.useDeleteMutation({
+    onSuccess: () => {
       message.success('Станция печати удалена');
       callbackDelete?.();
     },
-    onDeleteError: (error) => {
+    onError: (error) => {
       message.error(error.message || 'Не удалось удалить станцию печати');
     },
   });
@@ -42,11 +55,7 @@ export function usePrintStationActions({
         cancelText: 'Отмена',
         okButtonProps: { loading: deleteMutation.isPending },
         onOk: async () => {
-          await deleteMutation.mutateAsync({
-            path: '/api/v2/print_stations/',
-            method: 'DELETE',
-            body: { station_id: [record.station_id] },
-          });
+          await deleteMutation.mutateAsync(record.station_id);
         },
       });
     },
@@ -54,9 +63,10 @@ export function usePrintStationActions({
   );
 
   return {
-    saveMutation,
+    createMutation,
+    updateMutation,
     deleteMutation,
     handleDelete,
-    invalidatePrintStations,
+    isSavePending: createMutation.isPending || updateMutation.isPending,
   };
 }

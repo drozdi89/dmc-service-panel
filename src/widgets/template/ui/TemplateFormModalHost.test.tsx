@@ -16,10 +16,9 @@ vi.mock('@/entities/print-template', async () => {
   return {
     ...store,
     usePrintTemplateActions: () => ({
-      saveMutation: {
-        mutateAsync,
-        isPending: false,
-      },
+      createMutation: { mutateAsync, isPending: false },
+      updateMutation: { mutateAsync, isPending: false },
+      isSavePending: false,
     }),
   };
 });

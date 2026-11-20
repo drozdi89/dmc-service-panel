@@ -61,11 +61,11 @@ export {
   scalesLookupQueryKey,
   scalesLookupQueryOptions,
   useDeviceDetailQuery,
-  useDeviceMutations,
   useDevicesListQuery,
   useDevicesLookupQuery,
+  useDeleteDeviceMutation,
+  useSaveDeviceMutation,
   useScalesLookupQuery,
-  type DeviceMutationHandlers,
 } from './queries';
 export * from './ui';
 

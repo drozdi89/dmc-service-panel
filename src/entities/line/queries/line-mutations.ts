@@ -1,81 +1,34 @@
-import { useIdempotentMutation } from '@/shared/hooks/useIdempotentMutation';
-import { useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
-import { type LineListItem } from '../model/types';
-import { lineQueries } from './line-queries';
+import { createIdempotencyKey } from '@/shared/api';
+import { factoryMutation } from '@/shared/queries';
+import { createLine, deleteLines, updateLine } from '../api/api';
+import type { LineListItem } from '../model/types';
 
-export type LineMutationHandlers = {
-  onSaveSuccess?: () => void;
-  onSaveError?: (error: Error) => void;
-  onDeleteSuccess?: () => void;
-  onDeleteError?: (error: Error) => void;
-};
+/** Line list row with `id` for {@link factoryMutation} detail cache. */
+export type LineListMutationItem = LineListItem & { id: number };
 
-/**
- * Invalidates all line entity queries (list, lookup, detail, settings).
- */
-export function invalidateLineQueries(queryClient: QueryClient): Promise<void> {
-  return queryClient.invalidateQueries({ queryKey: lineQueries.keys.all() });
+function withMutationId(row: LineListItem): LineListMutationItem {
+  return { ...row, id: row.lineid };
 }
 
 /**
- * List-row CRUD mutations for lines (React Query only).
+ * List-row CRUD mutations for lines.
  * Full editor save orchestration lives in `services/line-service`.
  */
-export function useLineMutations(handlers?: LineMutationHandlers) {
-  const queryClient = useQueryClient();
+export const lineListFactory = factoryMutation<LineListMutationItem, number>({
+  entry: ['lines'] as const,
+  fetchCreate: (data) =>
+    createLine(data as Partial<LineListItem>, createIdempotencyKey()).then(withMutationId),
+  fetchUpdate: (id, data) =>
+    updateLine(id, data as Partial<LineListItem>, createIdempotencyKey()).then(withMutationId),
+  fetchDelete: async (id) => {
+    await deleteLines([id], createIdempotencyKey());
+    return null;
+  },
+});
 
-  const invalidate = useCallback(() => {
-    void invalidateLineQueries(queryClient);
-  }, [queryClient]);
-
-  const saveMutation = useIdempotentMutation<LineListItem>({
-    onSuccess: () => {
-      invalidate();
-      handlers?.onSaveSuccess?.();
-    },
-    onError: (error) => {
-      handlers?.onSaveError?.(
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    },
-  });
-
-  const deleteMutation = useIdempotentMutation<string>({
-    onSuccess: () => {
-      invalidate();
-      handlers?.onDeleteSuccess?.();
-    },
-    onError: (error) => {
-      handlers?.onDeleteError?.(
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    },
-  });
-
-  const handleSubmit = useCallback(
-    (values: Partial<LineListItem>) => {
-      if (!values.lineid) {
-        saveMutation.mutate({
-          path: '/api/v2/lines/',
-          method: 'POST',
-          body: values,
-        });
-        return;
-      }
-
-      saveMutation.mutate({
-        path: `/api/v2/lines/${values.lineid}`,
-        method: 'PATCH',
-        body: values,
-      });
-    },
-    [saveMutation],
-  );
-
-  return {
-    saveMutation,
-    deleteMutation,
-    handleSubmit,
-  };
+/** @deprecated Use {@link lineListFactory} / invalidate via factory onSuccess. */
+export async function invalidateLineQueries(
+  queryClient: import('@tanstack/react-query').QueryClient,
+): Promise<void> {
+  return queryClient.invalidateQueries({ queryKey: lineListFactory.keys.all() });
 }

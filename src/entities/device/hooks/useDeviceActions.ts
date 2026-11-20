@@ -1,8 +1,12 @@
 import { App } from 'antd';
 import { useCallback } from 'react';
-import { getDeviceCollectionPath, getDeviceDeleteBody } from '../api/api';
 import type { DeviceListItem } from '../model/types';
-import { useDeviceMutations } from '../queries/device-mutations';
+import {
+  persistDeviceFormValues,
+  useDeleteDeviceMutation,
+  useSaveDeviceMutation,
+} from '../queries/device-mutations';
+import type { DeviceFormValues } from '../model/deviceFormMapping';
 
 /**
  * Device list page actions: save/delete with toasts and delete confirmation.
@@ -16,22 +20,35 @@ export function useDeviceActions({
 } = {}) {
   const { message, modal } = App.useApp();
 
-  const { saveMutation, deleteMutation, handleSubmit } = useDeviceMutations({
-    onSaveSuccess: () => {
+  const saveMutation = useSaveDeviceMutation({
+    onSuccess: () => {
       message.success('Устройство сохранено');
       callbackSave?.();
     },
-    onSaveError: (error) => {
+    onError: (error) => {
       message.error(error.message || 'Ошибка сохранения');
     },
-    onDeleteSuccess: () => {
+  });
+
+  const deleteMutation = useDeleteDeviceMutation({
+    onSuccess: () => {
       message.success('Устройство удалено');
       callbackDelete?.();
     },
-    onDeleteError: (error) => {
+    onError: (error) => {
       message.error(error.message || 'Ошибка удаления');
     },
   });
+
+  const handleSubmit = useCallback(
+    async (values: DeviceFormValues) => {
+      await persistDeviceFormValues(
+        (variables) => saveMutation.mutateAsync(variables),
+        values,
+      );
+    },
+    [saveMutation],
+  );
 
   const handleDelete = useCallback(
     (record: DeviceListItem) => {
@@ -43,11 +60,7 @@ export function useDeviceActions({
         cancelText: 'Отмена',
         okButtonProps: { loading: deleteMutation.isPending },
         onOk: async () => {
-          await deleteMutation.mutateAsync({
-            path: getDeviceCollectionPath(record.device_type),
-            method: 'DELETE',
-            body: getDeviceDeleteBody(record.device_type, record.id),
-          });
+          await deleteMutation.mutateAsync(record);
         },
       });
     },

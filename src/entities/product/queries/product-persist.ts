@@ -1,6 +1,8 @@
-import type { IdempotentMutationVariables } from '@/shared/hooks/useIdempotentMutation';
+import { createIdempotencyKey } from '@/shared/api';
 import {
+  createProduct,
   createProductAggregate,
+  updateProduct,
   createProductArticle,
   createProductCertificate,
   createProductLicence,
@@ -269,17 +271,15 @@ async function persistProductArticles(
  * 4) certificates → licences → articles.
  *
  * Fail-fast: throws on the first failed step (caller shows toast).
- * Nested writes use entity API helpers; product POST/PATCH use `mutateAsync`
- * (Idempotency-Key via {@link useIdempotentMutation}).
+ * Nested writes use entity API helpers; product POST/PATCH use {@link createProduct}
+ * / {@link updateProduct} with Idempotency-Key.
  *
- * @param mutateAsync - Idempotent product mutation executor.
  * @param values - Validated product form values.
  * @param editGtin - When set, step 1 is PATCH for this GTIN; otherwise POST create.
  * @param cachedProduct - Optional cached detail for update payload compatibility.
  * @returns Product from the last product PATCH (controller params) or create response.
  */
 export async function persistProductFormValues(
-  mutateAsync: (variables: IdempotentMutationVariables) => Promise<Product>,
   values: ProductFormSubmitValues,
   editGtin?: string,
   cachedProduct?: Product | null,
@@ -289,18 +289,14 @@ export async function persistProductFormValues(
   const isCreate = !editGtin;
 
   if (editGtin) {
-    saved = await mutateAsync({
-      path: `/api/v2/products/${encodeURIComponent(editGtin)}`,
-      method: 'PATCH',
-      body: mapFormValuesToUpdatePayload(values, cachedProduct),
-    });
+    saved = await updateProduct(
+      editGtin,
+      mapFormValuesToUpdatePayload(values, cachedProduct),
+      createIdempotencyKey(),
+    );
     gtin = saved.gtin || editGtin;
   } else {
-    saved = await mutateAsync({
-      path: '/api/v2/products/',
-      method: 'POST',
-      body: mapFormValuesToCreatePayload(values),
-    });
+    saved = await createProduct(mapFormValuesToCreatePayload(values), createIdempotencyKey());
     gtin = saved.gtin;
     if (!gtin) {
       throw new Error('Сервер не вернул GTIN созданной продукции');
@@ -310,11 +306,11 @@ export async function persistProductFormValues(
   try {
     await persistProductAggregates(gtin, values);
 
-    saved = await mutateAsync({
-      path: `/api/v2/products/${encodeURIComponent(gtin)}`,
-      method: 'PATCH',
-      body: mapControllerParamsToPayload(values),
-    });
+    saved = await updateProduct(
+      gtin,
+      mapControllerParamsToPayload(values),
+      createIdempotencyKey(),
+    );
 
     await persistProductCertificates(gtin, values);
     await persistProductLicences(gtin, values);

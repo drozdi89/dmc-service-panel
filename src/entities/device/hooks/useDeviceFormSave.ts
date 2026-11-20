@@ -1,8 +1,11 @@
 import { App } from 'antd';
 import { useCallback } from 'react';
 import type { DeviceFormValues } from '../model/deviceFormMapping';
-import { persistDeviceFormValues, useDeviceMutations } from '../queries/device-mutations';
 import type { DeviceRef } from '../model/types';
+import {
+  persistDeviceFormValues,
+  useSaveDeviceMutation,
+} from '../queries/device-mutations';
 
 /**
  * Nested picker/list save: POST/PATCH + invalidate lookup/list, returns {@link DeviceRef}.
@@ -13,13 +16,13 @@ export function useDeviceFormSave(options?: { showSuccessMessage?: boolean }) {
   const { message } = App.useApp();
   const showSuccessMessage = options?.showSuccessMessage ?? false;
 
-  const { saveMutation } = useDeviceMutations({
-    onSaveSuccess: () => {
+  const saveMutation = useSaveDeviceMutation({
+    onSuccess: () => {
       if (showSuccessMessage) {
         message.success('Устройство сохранено');
       }
     },
-    onSaveError: (error) => {
+    onError: (error) => {
       message.error(
         error.message || 'Не удалось сохранить устройство',
       );

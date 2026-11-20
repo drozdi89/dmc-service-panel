@@ -1,7 +1,7 @@
 import { App } from 'antd';
 import { useCallback } from 'react';
 import type { LineListItem } from '../model/types';
-import { useLineMutations } from '../queries/line-mutations';
+import { lineListFactory } from '../queries/line-mutations';
 
 /**
  * Line list delete/save with toasts and delete confirmation.
@@ -15,22 +15,47 @@ export function useLineActions({
 } = {}) {
   const { message, modal } = App.useApp();
 
-  const { saveMutation, deleteMutation, handleSubmit } = useLineMutations({
-    onSaveSuccess: () => {
+  const createMutation = lineListFactory.useCreateMutation({
+    onSuccess: () => {
       message.success('Линия сохранена');
       callbackSave?.();
     },
-    onSaveError: (error) => {
+    onError: (error) => {
       message.error(error.message || 'Не удалось сохранить линию');
     },
-    onDeleteSuccess: () => {
+  });
+
+  const updateMutation = lineListFactory.useUpdateMutation({
+    onSuccess: () => {
+      message.success('Линия сохранена');
+      callbackSave?.();
+    },
+    onError: (error) => {
+      message.error(error.message || 'Не удалось сохранить линию');
+    },
+  });
+
+  const deleteMutation = lineListFactory.useDeleteMutation({
+    onSuccess: () => {
       message.success('Линия удалена');
       callbackDelete?.();
     },
-    onDeleteError: (error) => {
+    onError: (error) => {
       message.error(error.message || 'Не удалось удалить линию');
     },
   });
+
+  const handleSubmit = useCallback(
+    (values: Partial<LineListItem>) => {
+      if (!values.lineid) {
+        createMutation.mutate(values);
+        return;
+      }
+
+      updateMutation.mutate({ id: values.lineid, ...values });
+    },
+    [createMutation, updateMutation],
+  );
 
   const handleDelete = useCallback(
     (record: LineListItem) => {
@@ -42,11 +67,7 @@ export function useLineActions({
         cancelText: 'Отмена',
         okButtonProps: { loading: deleteMutation.isPending },
         onOk: async () => {
-          await deleteMutation.mutateAsync({
-            path: '/api/v2/lines/',
-            method: 'DELETE',
-            body: { id_lines: [record.lineid] },
-          });
+          await deleteMutation.mutateAsync(record.lineid);
         },
       });
     },
@@ -54,7 +75,8 @@ export function useLineActions({
   );
 
   return {
-    saveMutation,
+    createMutation,
+    updateMutation,
     deleteMutation,
     handleSubmit,
     handleDelete,

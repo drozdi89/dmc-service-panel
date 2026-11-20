@@ -250,5 +250,45 @@ export function getDeviceDeleteBody(
   return { [deleteBodyKey]: [id] };
 }
 
+/** Creates a device record for the given type. */
+export async function createDevice(
+  deviceType: DeviceType,
+  body: unknown,
+  idempotencyKey: string,
+): Promise<DeviceDetail> {
+  return apiRequestData<DeviceDetail>(getDeviceCollectionPath(deviceType), {
+    method: 'POST',
+    body,
+    idempotencyKey,
+  });
+}
+
+/** Updates a device record for the given type. */
+export async function updateDevice(
+  deviceType: DeviceType,
+  id: number,
+  body: unknown,
+  idempotencyKey: string,
+): Promise<DeviceDetail> {
+  return apiRequestData<DeviceDetail>(getDeviceItemPath(deviceType, id), {
+    method: 'PATCH',
+    body,
+    idempotencyKey,
+  });
+}
+
+/** Deletes a device record for the given type. */
+export async function deleteDevice(
+  deviceType: DeviceType,
+  id: number,
+  idempotencyKey: string,
+): Promise<string> {
+  return apiRequestData<string>(getDeviceCollectionPath(deviceType), {
+    method: 'DELETE',
+    body: getDeviceDeleteBody(deviceType, id),
+    idempotencyKey,
+  });
+}
+
 /** Re-export for list tables that use the shared fetchPaginatedList helper. */
 export { fetchPaginatedList };

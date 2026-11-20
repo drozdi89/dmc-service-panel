@@ -17,10 +17,9 @@ vi.mock('@/entities/code-generator-template', async () => {
     ...store,
     CODE_GENERATOR_TEMPLATES_PATH: '/api/v2/code_generator_templates/',
     useCodeGeneratorTemplateActions: () => ({
-      saveMutation: {
-        mutateAsync,
-        isPending: false,
-      },
+      createMutation: { mutateAsync, isPending: false },
+      updateMutation: { mutateAsync, isPending: false },
+      isSavePending: false,
     }),
   };
 });

@@ -75,8 +75,7 @@ function resolveId<TId>(variables: TId | { id: TId }): TId {
  *
  * Success invalidates `keys.all()` (list, lookup, detail and extra scopes
  * under the entry) and writes the saved record into the detail cache.
- * Errors are left to the caller: this panel shows toasts in the feature,
- * and a nested picker save stays silent.
+ * Errors are left to the caller: toasts and confirm live in entity hooks.
  */
 export function factoryMutation<
 	TItem extends FactoryMutationItem<TId>,

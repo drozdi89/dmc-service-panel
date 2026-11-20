@@ -53,7 +53,7 @@ src/
     ├── api/                 # client, schema.d.ts, types, headers, listQuery
     ├── queries/             # factoryQuery, factoryMutation, useInvalidatingMutation, ключи, defineQueryOptions
     ├── lib/                 # admin-routing, даты; factory-query — реэкспорт @/shared/queries
-    ├── hooks/               # useServerListQuery, useIdempotentMutation, …
+    ├── hooks/               # useServerListQuery, …
     ├── model/               # кросс-доменные типы (resource form bridge)
     ├── ui/                  # обёртки antd (таблица, picker, модалки)
     ├── types/               # list query contract
@@ -110,7 +110,7 @@ Deep-import (`@/entities/product/api/...`) в новом коде не испо�
 - Списки, lookup, detail и тонкие мутации — в `entities/*/queries`, через `@/shared/queries`.
 - `factoryQuery`: ключи `all` / `list` / `lookup` / `detail` (`queriesOptionsKeys`). `fetchList` и `fetchLookup` — разные функции: список и lookup ходят на свои эндпоинты. Оба возвращают `PaginatedResponse` (массив в `response`). Хуки списка и lookup идут через `useServerListQuery` (ключ `[...entry, scope, params]`, предыдущая страница остаётся на экране). Detail — `useQuery`, fetcher `(id, signal)`; если fetcher вернул сырой конверт, `select: selectEnvelopeData`.
 - `selectListItems` читает `page.response`. Конверт `{ success, data }` к этому моменту уже снят `apiRequestData`.
-- `factoryMutation` — create / update / delete одного ресурса с полем `id`: после успеха инвалидирует `keys.all()` и кладёт запись в detail-кэш. Тосты и confirm — в `entities/*/hooks` или feature/Host, не в `queries/`. Составное сохранение (вложенные строки, idempotency) — логика в `queries/` или `api/`; побочные UI-эффекты после успеха — в `hooks/`.
+- `factoryMutation` — create / update / delete одного ресурса с полем `id`: `fetchCreate|Update|Delete` в `entities/*/api` с `createIdempotencyKey()`; после успеха инвалидирует `keys.all()` и кладёт запись в detail-кэш. Тосты и confirm — в `entities/*/hooks`, не в `queries/`. Полиморфный CRUD (device) — `useInvalidatingMutation` + api. Составное сохранение (product persist) — `api/` и оркестрация в `queries/`; UI — в `hooks/`.
 - `useInvalidatingMutation` — мутации singleton / batch без поля `id` в ответе: после успеха инвалидирует переданный `invalidate: QueryKey[]`, затем вызывает `onSuccess` вызывающего. Используется в `entities/*/queries` (integration, parameters, licence) и в `services/*/model/queries.ts`.
 - Сценарии без UI, которые оркеструют несколько entity (сохранение линии, CRPT-шаблоны продуктов), держат query/mutation-хуки в `services/*/model/queries.ts`, а не в features/pages.
 - `defineQueryOptions` задаёт `staleTime` / `gcTime` / `retry` точечно. `factoryQuery` эти тайминги на все запросы не навешивает.

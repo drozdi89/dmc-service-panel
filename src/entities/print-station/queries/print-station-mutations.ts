@@ -1,58 +1,36 @@
-import { useIdempotentMutation } from '@/shared/hooks/useIdempotentMutation';
-import { useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
-import { type PrintStation } from '../model/types';
-import { printStationQueries } from './print-station-queries';
+import { createIdempotencyKey } from '@/shared/api';
+import { factoryMutation } from '@/shared/queries';
+import {
+  createPrintStation,
+  deletePrintStations,
+  updatePrintStation,
+} from '../api/api';
+import type {
+  CreatePrintStationPayload,
+  PrintStation,
+  UpdatePrintStationPayload,
+} from '../model/types';
 
-export type PrintStationMutationHandlers = {
-  onSaveSuccess?: () => void;
-  onSaveError?: (error: Error) => void;
-  onDeleteSuccess?: () => void;
-  onDeleteError?: (error: Error) => void;
-};
+/** Print station row with `id` for {@link factoryMutation} detail cache. */
+export type PrintStationItem = PrintStation & { id: number };
 
-/**
- * Create / update / delete mutations for print stations (React Query only).
- *
- * On success invalidates {@link printStationQueries.keys.all()}.
- */
-export function usePrintStationMutations(handlers?: PrintStationMutationHandlers) {
-  const queryClient = useQueryClient();
-
-  const invalidatePrintStations = useCallback(() => {
-    void queryClient.invalidateQueries({
-      queryKey: printStationQueries.keys.all(),
-    });
-  }, [queryClient]);
-
-  const saveMutation = useIdempotentMutation<PrintStation>({
-    onSuccess: () => {
-      invalidatePrintStations();
-      handlers?.onSaveSuccess?.();
-    },
-    onError: (error) => {
-      handlers?.onSaveError?.(
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    },
-  });
-
-  const deleteMutation = useIdempotentMutation<string>({
-    onSuccess: () => {
-      invalidatePrintStations();
-      handlers?.onDeleteSuccess?.();
-    },
-    onError: (error) => {
-      handlers?.onDeleteError?.(
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    },
-  });
-
-  return {
-    saveMutation,
-    deleteMutation,
-    /** Invalidates list + lookup under `printStationQueries.keys.all()`. */
-    invalidatePrintStations,
-  };
+function withMutationId(row: PrintStation): PrintStationItem {
+  return { ...row, id: row.station_id };
 }
+
+/** Create / update / delete mutations for print stations. */
+export const printStationFactory = factoryMutation<PrintStationItem, number>({
+  entry: ['print-stations'],
+  fetchCreate: (data) =>
+    createPrintStation(data as CreatePrintStationPayload, createIdempotencyKey()).then(
+      withMutationId,
+    ),
+  fetchUpdate: (id, data) =>
+    updatePrintStation(id, data as UpdatePrintStationPayload, createIdempotencyKey()).then(
+      withMutationId,
+    ),
+  fetchDelete: async (id) => {
+    await deletePrintStations([id], createIdempotencyKey());
+    return null;
+  },
+});

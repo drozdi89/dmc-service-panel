@@ -1,9 +1,25 @@
-import { useIdempotentMutation } from '@/shared/hooks/useIdempotentMutation';
-import { useInvalidatingMutation, type EntityMutationOptions } from '@/shared/queries';
+import { createIdempotencyKey } from '@/shared/api';
+import { factoryMutation, useInvalidatingMutation, type EntityMutationOptions } from '@/shared/queries';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { setProductArchived } from '../api/api';
-import type { Product } from '../model/types';
+import { createProduct, setProductArchived, updateProduct } from '../api/api';
+import type { Product, ProductCreatePayload, ProductUpdatePayload } from '../model/types';
 import { productQueries, productRelatedQueryKeys } from './product-queries';
+
+/** Product row with `id` (= gtin) for {@link factoryMutation} detail cache. */
+export type ProductMutationItem = Product & { id: string };
+
+function withMutationId(row: Product): ProductMutationItem {
+  return { ...row, id: row.gtin };
+}
+
+/** Create / update mutations for the product resource (no list delete here). */
+export const productFactory = factoryMutation<ProductMutationItem, string>({
+  entry: ['products'],
+  fetchCreate: (data) =>
+    createProduct(data as ProductCreatePayload, createIdempotencyKey()).then(withMutationId),
+  fetchUpdate: (id, data) =>
+    updateProduct(id, data as ProductUpdatePayload, createIdempotencyKey()).then(withMutationId),
+});
 
 /**
  * Invalidates product list / lookup / detail under {@link productQueries.keys.all()}.
@@ -55,11 +71,4 @@ export function useSetProductArchivedMutation(
     mutationFn: ({ gtin, archived }: SetProductArchivedVariables) =>
       setProductArchived(gtin, archived),
   });
-}
-
-/**
- * Idempotent mutate helper used by {@link import('../hooks/useProductFormSave').useProductFormSave}.
- */
-export function useProductSaveMutation() {
-  return useIdempotentMutation<Product>();
 }

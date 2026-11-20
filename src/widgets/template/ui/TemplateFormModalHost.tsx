@@ -32,7 +32,7 @@ export function TemplateFormModalHost() {
   const mountGenerationRef = useRef(0);
 
 
-  const { saveMutation } = usePrintTemplateActions();
+  const { createMutation, updateMutation, isSavePending } = usePrintTemplateActions();
 
 
   const open = dialog.kind !== 'none';
@@ -65,22 +65,15 @@ export function TemplateFormModalHost() {
 
 
         if (submitted.kind === 'edit') {
-          saved = await saveMutation.mutateAsync({
-            path: `/api/v2/print_templates/${submitted.templateId}`,
-            method: 'PATCH',
-            body: {
-              name: values.name,
-              template: values.template,
-            },
+          saved = await updateMutation.mutateAsync({
+            id: submitted.templateId,
+            name: values.name,
+            template: values.template ?? null,
           });
         } else {
-          saved = await saveMutation.mutateAsync({
-            path: '/api/v2/print_templates/',
-            method: 'POST',
-            body: {
-              name: values.name,
-              template: values.template,
-            },
+          saved = await createMutation.mutateAsync({
+            name: values.name,
+            template: values.template ?? '',
           });
         }
 
@@ -116,7 +109,7 @@ export function TemplateFormModalHost() {
         // Errors are surfaced by usePrintTemplateActions save handlers.
       }
     },
-    [close, saveMutation, setLastSaved],
+    [close, createMutation, updateMutation, setLastSaved],
   );
 
 
@@ -125,7 +118,7 @@ export function TemplateFormModalHost() {
       open={open}
       mode={mode}
       templateId={templateId}
-      submitting={saveMutation.isPending}
+      submitting={isSavePending}
       onCancel={close}
       onSubmit={(values, options) => {
         void handleSubmit(values, options);

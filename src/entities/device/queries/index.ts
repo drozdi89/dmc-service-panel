@@ -1,8 +1,8 @@
 export {
   invalidateDeviceQueries,
   persistDeviceFormValues,
-  useDeviceMutations,
-  type DeviceMutationHandlers,
+  useDeleteDeviceMutation,
+  useSaveDeviceMutation,
 } from './device-mutations';
 export {
   DEVICE_QUERY_ENTRY, DEVICE_SCALES_LOOKUP_PREFIX, DEVICE_SCALES_PREFIX, deviceDetailQueryKey,

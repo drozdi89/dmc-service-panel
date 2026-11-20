@@ -35,7 +35,7 @@ export function PrintStationFormModalHost() {
   const mountGenerationRef = useRef(0);
 
 
-  const { saveMutation } = usePrintStationActions();
+  const { createMutation, updateMutation, isSavePending } = usePrintStationActions();
 
 
   const open = dialog.kind !== 'none';
@@ -68,17 +68,12 @@ export function PrintStationFormModalHost() {
 
 
         if (submitted.kind === 'edit') {
-          saved = await saveMutation.mutateAsync({
-            path: `/api/v2/print_stations/${submitted.stationId}`,
-            method: 'PATCH',
-            body: mapFormValuesToUpdatePayload(values),
+          saved = await updateMutation.mutateAsync({
+            id: submitted.stationId,
+            ...mapFormValuesToUpdatePayload(values),
           });
         } else {
-          saved = await saveMutation.mutateAsync({
-            path: '/api/v2/print_stations/',
-            method: 'POST',
-            body: mapFormValuesToCreatePayload(values),
-          });
+          saved = await createMutation.mutateAsync(mapFormValuesToCreatePayload(values));
         }
 
 
@@ -113,7 +108,7 @@ export function PrintStationFormModalHost() {
         // Errors are surfaced by usePrintStationActions save handlers.
       }
     },
-    [close, saveMutation, setLastSaved],
+    [close, createMutation, updateMutation, setLastSaved],
   );
 
 
@@ -122,7 +117,7 @@ export function PrintStationFormModalHost() {
       open={open}
       mode={mode}
       stationId={stationId}
-      submitting={saveMutation.isPending}
+      submitting={isSavePending}
       onCancel={close}
       onSubmit={(values, options) => {
         void handleSubmit(values, options);

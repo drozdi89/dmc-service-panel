@@ -1,8 +1,7 @@
 import { App } from 'antd';
 import { useCallback } from 'react';
-import { CODE_GENERATOR_TEMPLATES_PATH } from '../api/api';
 import type { CodeGeneratorTemplate } from '../model/types';
-import { useCodeGeneratorTemplateMutations } from '../queries/code-generator-template-mutations';
+import { codeGeneratorTemplateFactory } from '../queries/code-generator-template-mutations';
 
 /**
  * Code generator template save/delete with toasts and delete confirmation.
@@ -16,22 +15,47 @@ export function useCodeGeneratorTemplateActions({
 } = {}) {
   const { message, modal } = App.useApp();
 
-  const { saveMutation, deleteMutation, handleSubmit } = useCodeGeneratorTemplateMutations({
-    onSaveSuccess: () => {
+  const createMutation = codeGeneratorTemplateFactory.useCreateMutation({
+    onSuccess: () => {
       message.success('Шаблон сохранён');
       callbackSave?.();
     },
-    onSaveError: (error) => {
+    onError: (error) => {
       message.error(error.message || 'Не удалось сохранить шаблон');
     },
-    onDeleteSuccess: () => {
+  });
+
+  const updateMutation = codeGeneratorTemplateFactory.useUpdateMutation({
+    onSuccess: () => {
+      message.success('Шаблон сохранён');
+      callbackSave?.();
+    },
+    onError: (error) => {
+      message.error(error.message || 'Не удалось сохранить шаблон');
+    },
+  });
+
+  const deleteMutation = codeGeneratorTemplateFactory.useDeleteMutation({
+    onSuccess: () => {
       message.success('Шаблон удалён');
       callbackDelete?.();
     },
-    onDeleteError: (error) => {
+    onError: (error) => {
       message.error(error.message || 'Не удалось удалить шаблон');
     },
   });
+
+  const handleSubmit = useCallback(
+    (values: Partial<CodeGeneratorTemplate>) => {
+      if (!values.id) {
+        createMutation.mutate(values);
+        return;
+      }
+
+      updateMutation.mutate({ id: values.id, ...values });
+    },
+    [createMutation, updateMutation],
+  );
 
   const handleDelete = useCallback(
     (record: CodeGeneratorTemplate) => {
@@ -43,11 +67,7 @@ export function useCodeGeneratorTemplateActions({
         cancelText: 'Отмена',
         okButtonProps: { loading: deleteMutation.isPending },
         onOk: () => {
-          void deleteMutation.mutateAsync({
-            path: CODE_GENERATOR_TEMPLATES_PATH,
-            method: 'DELETE',
-            body: { id_code_generator_templates: [record.id] },
-          });
+          void deleteMutation.mutateAsync(record.id);
         },
       });
     },
@@ -55,9 +75,11 @@ export function useCodeGeneratorTemplateActions({
   );
 
   return {
-    saveMutation,
+    createMutation,
+    updateMutation,
     deleteMutation,
     handleSubmit,
     handleDelete,
+    isSavePending: createMutation.isPending || updateMutation.isPending,
   };
 }

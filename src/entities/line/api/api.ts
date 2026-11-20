@@ -25,6 +25,40 @@ export function fetchLinesLookup(params: ListQueryParams) {
   return fetchLinesList(params);
 }
 
+/** Creates a production line list row. */
+export async function createLine(
+  payload: Partial<LineListItem>,
+  idempotencyKey: string,
+): Promise<LineListItem> {
+  return apiRequestData<LineListItem>(LINES_PATH, {
+    method: 'POST',
+    body: payload,
+    idempotencyKey,
+  });
+}
+
+/** Updates a production line list row. */
+export async function updateLine(
+  lineId: number,
+  payload: Partial<LineListItem>,
+  idempotencyKey: string,
+): Promise<LineListItem> {
+  return apiRequestData<LineListItem>(`${LINES_PATH}${lineId}`, {
+    method: 'PATCH',
+    body: payload,
+    idempotencyKey,
+  });
+}
+
+/** Deletes production lines by id list. */
+export async function deleteLines(ids: number[], idempotencyKey: string): Promise<string> {
+  return apiRequestData<string>(LINES_PATH, {
+    method: 'DELETE',
+    body: { id_lines: ids },
+    idempotencyKey,
+  });
+}
+
 /**
  * Loads full line configuration for the editor.
  *

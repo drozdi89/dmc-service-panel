@@ -190,10 +190,14 @@ export async function fetchProductSetContents(
  *
  * @param payload - Product data including gtin.
  */
-export async function createProduct(payload: ProductCreatePayload): Promise<Product> {
+export async function createProduct(
+  payload: ProductCreatePayload,
+  idempotencyKey: string,
+): Promise<Product> {
   return apiRequestData<Product>('/api/v2/products/', {
     method: 'POST',
     body: payload,
+    idempotencyKey,
   });
 }
 
@@ -206,10 +210,12 @@ export async function createProduct(payload: ProductCreatePayload): Promise<Prod
 export async function updateProduct(
   gtin: string,
   payload: ProductUpdatePayload,
+  idempotencyKey: string,
 ): Promise<Product> {
   return apiRequestData<Product>(`/api/v2/products/${encodeURIComponent(gtin)}`, {
     method: 'PATCH',
     body: payload,
+    idempotencyKey,
   });
 }
 

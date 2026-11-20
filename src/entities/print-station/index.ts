@@ -36,9 +36,5 @@ export type {
   UpdatePrintStationPayload,
 } from './model/types';
 export { usePrintStationActions } from './hooks';
-export {
-  printStationQueries,
-  usePrintStationMutations,
-  type PrintStationMutationHandlers,
-} from './queries';
+export { printStationFactory, printStationQueries, type PrintStationItem } from './queries';
 export { SelectPrintStation } from './ui';

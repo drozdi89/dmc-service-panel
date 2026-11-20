@@ -7,7 +7,6 @@ import { productQueries } from '../queries/product-queries';
 import {
   invalidateProductQueries,
   invalidateProductRelatedQueries,
-  useProductSaveMutation,
 } from '../queries/product-mutations';
 
 /**
@@ -21,8 +20,6 @@ export function useProductFormSave(options?: { showSuccessMessage?: boolean }) {
   const showSuccessMessage = options?.showSuccessMessage ?? false;
   const [isPipelinePending, setIsPipelinePending] = useState(false);
 
-  const saveMutation = useProductSaveMutation();
-
   const saveProduct = useCallback(
     async (values: ProductFormSubmitValues, editGtin?: string): Promise<Product> => {
       setIsPipelinePending(true);
@@ -32,12 +29,7 @@ export function useProductFormSave(options?: { showSuccessMessage?: boolean }) {
             ? queryClient.getQueryData<Product>(productQueries.keys.detail(editGtin))
             : undefined;
 
-        const saved = await persistProductFormValues(
-          (variables) => saveMutation.mutateAsync(variables),
-          values,
-          editGtin,
-          cached,
-        );
+        const saved = await persistProductFormValues(values, editGtin, cached);
 
         const gtin = saved.gtin || editGtin || values.gtin;
         void invalidateProductQueries(queryClient).catch(() => undefined);
@@ -59,12 +51,11 @@ export function useProductFormSave(options?: { showSuccessMessage?: boolean }) {
         setIsPipelinePending(false);
       }
     },
-    [message, queryClient, saveMutation, showSuccessMessage],
+    [message, queryClient, showSuccessMessage],
   );
 
   return {
     saveProduct,
-    isPending: isPipelinePending || saveMutation.isPending,
-    saveMutation,
+    isPending: isPipelinePending,
   };
 }
