@@ -119,7 +119,7 @@ export function isSameDeviceFormDialog(
 /**
  * UI-intent store for device create/edit dialog (domain state in entity).
  *
- * Persist / list / detail stay in React Query (`useDeviceFormSave` / mutations).
+ * Persist / list / detail stay in React Query (`useDeviceActions` / mutations).
  * The feature form Host subscribes and saves; entity pickers dispatch open/consume.
  * Type-lock and default scale are carried on the dialog for line/picker create.
  */

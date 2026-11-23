@@ -71,10 +71,26 @@ function resolveId<TId>(variables: TId | { id: TId }): TId {
 }
 
 /**
+ * Refreshes list / lookup caches after CRUD without refetching open detail modals.
+ *
+ * @param client - React Query client.
+ * @param keys - Entity key builders from {@link queriesOptionsKeys}.
+ */
+export async function invalidateFactoryListAndLookup<TId = string | number>(
+	client: QueryClient,
+	keys: FactoryQueryKeys<TId>,
+): Promise<void> {
+	await Promise.all([
+		client.invalidateQueries({ queryKey: keys.list() }),
+		client.invalidateQueries({ queryKey: keys.lookup() }),
+	]);
+}
+
+/**
  * Builds create / update / delete mutations for one entity entry.
  *
- * Success invalidates `keys.all()` (list, lookup, detail and extra scopes
- * under the entry) and writes the saved record into the detail cache.
+ * Success writes the mutation response into the detail cache, then invalidates
+ * list / lookup only (not `keys.all()` — avoids redundant GET on nested Host save).
  * Errors are left to the caller: toasts and confirm live in entity hooks.
  */
 export function factoryMutation<
@@ -86,13 +102,6 @@ export function factoryMutation<
 	const { entry, fetchCreate, fetchUpdate, fetchDelete } = config;
 	const keys = queriesOptionsKeys<TId>(entry);
 
-	async function reload(client: QueryClient, id?: TId): Promise<void> {
-		await client.invalidateQueries({ queryKey: keys.all() });
-		if (id !== undefined) {
-			await client.invalidateQueries({ queryKey: keys.detail(id) });
-		}
-	}
-
 	function useCreateMutation(
 		options?: FactoryMutationHookOptions<TItem, Partial<TItem>>,
 	): UseMutationResult<TItem, Error, Partial<TItem>> {
@@ -103,8 +112,8 @@ export function factoryMutation<
 			...options,
 			mutationFn: async (data) => await fetchCreate(data),
 			onSuccess: (result, variables, onMutateResult, context) => {
-				void reload(queryClient, result.id);
 				queryClient.setQueryData(keys.detail(result.id), result);
+				void invalidateFactoryListAndLookup(queryClient, keys);
 				options?.onSuccess?.(result, variables, onMutateResult, context);
 			},
 		});
@@ -122,8 +131,8 @@ export function factoryMutation<
 				await fetchUpdate(id, data as Partial<TItem>),
 			onSuccess: (result, variables, onMutateResult, context) => {
 				const id = resolveId(variables);
-				void reload(queryClient, id);
 				queryClient.setQueryData(keys.detail(id), result);
+				void invalidateFactoryListAndLookup(queryClient, keys);
 				options?.onSuccess?.(result, variables, onMutateResult, context);
 			},
 		});
@@ -140,8 +149,8 @@ export function factoryMutation<
 			mutationFn: async (variables) => await fetchDelete(resolveId(variables)),
 			onSuccess: (result, variables, onMutateResult, context) => {
 				const id = resolveId(variables);
-				void reload(queryClient, id);
 				queryClient.removeQueries({ queryKey: keys.detail(id) });
+				void invalidateFactoryListAndLookup(queryClient, keys);
 				options?.onSuccess?.(result, variables, onMutateResult, context);
 			},
 		});

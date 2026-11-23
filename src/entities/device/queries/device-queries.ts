@@ -10,7 +10,9 @@ import {
 } from '@/shared/queries';
 import type { PaginatedResponse } from '@/shared/types/listQuery';
 import {
+  useMutation,
   useQuery,
+  useQueryClient,
   type QueryClient,
   type UseQueryResult,
 } from '@tanstack/react-query';
@@ -183,16 +185,24 @@ export const useDevicesListQuery = deviceQueries.useListQuery;
 export const useDevicesLookupQuery = deviceQueries.useLookupQuery;
 
 /**
- * Invalidates device list / lookup and detail prefix `['device-detail', …]`.
+ * Invalidates unified devices list / lookup (not polymorphic detail — use {@link writeDeviceDetailCache} after save).
  */
 export async function invalidateDeviceQueries(queryClient: QueryClient): Promise<void> {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: deviceQueries.keys.all() }),
-    queryClient.invalidateQueries({ queryKey: ['device-detail'] }),
-  ]);
+  await queryClient.invalidateQueries({ queryKey: deviceQueries.keys.all() });
 }
 
-const DEVICE_DETAIL_QUERY_KEY = ['device-detail'] as const;
+/**
+ * Writes a device detail payload into the RQ cache (PATCH/POST response).
+ * GET uses the same key — avoids redundant refetch after save (see `client.test` GET has no Idempotency-Key).
+ */
+export function writeDeviceDetailCache(
+  queryClient: QueryClient,
+  deviceType: DeviceType,
+  detail: DeviceDetail,
+): void {
+  const { id } = mapDeviceDetailToRef(deviceType, detail);
+  queryClient.setQueryData(deviceDetailQueryKey(deviceType, id), detail);
+}
 
 /** Saves device form values (create or update). */
 export function useSaveDeviceMutation(
@@ -201,9 +211,10 @@ export function useSaveDeviceMutation(
     { values: DeviceFormValues; editId?: number }
   >,
 ) {
-  return useInvalidatingMutation({
+  const queryClient = useQueryClient();
+
+  return useMutation({
     ...options,
-    invalidate: [deviceQueries.keys.all(), DEVICE_DETAIL_QUERY_KEY],
     mutationFn: ({ values, editId }) => {
       const type = values.device_type;
       const payload = mapFormValuesToPayload(values);
@@ -214,6 +225,12 @@ export function useSaveDeviceMutation(
       }
       return createDevice(type, payload, key);
     },
+    onSuccess: (result, variables, onMutateResult, context) => {
+      const type = variables.values.device_type;
+      writeDeviceDetailCache(queryClient, type, result);
+      void queryClient.invalidateQueries({ queryKey: deviceQueries.keys.all() });
+      return options?.onSuccess?.(result, variables, onMutateResult, context);
+    },
   });
 }
 
@@ -221,11 +238,19 @@ export function useSaveDeviceMutation(
 export function useDeleteDeviceMutation(
   options?: EntityMutationOptions<string, DeviceListItem>,
 ) {
-  return useInvalidatingMutation({
+  const queryClient = useQueryClient();
+
+  return useMutation({
     ...options,
-    invalidate: [deviceQueries.keys.all(), DEVICE_DETAIL_QUERY_KEY],
     mutationFn: (record) =>
       deleteDevice(record.device_type, record.id, createIdempotencyKey()),
+    onSuccess: (result, record, onMutateResult, context) => {
+      void queryClient.invalidateQueries({ queryKey: deviceQueries.keys.all() });
+      queryClient.removeQueries({
+        queryKey: deviceDetailQueryKey(record.device_type, record.id),
+      });
+      return options?.onSuccess?.(result, record, onMutateResult, context);
+    },
   });
 }
 

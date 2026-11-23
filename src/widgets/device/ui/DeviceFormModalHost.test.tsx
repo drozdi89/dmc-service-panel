@@ -13,7 +13,7 @@ vi.mock('@/entities/device', async () => {
   const store = await import('@/entities/device/model/deviceFormUiStore');
   return {
     ...store,
-    useDeviceFormSave: () => ({
+    useDeviceActions: () => ({
       saveDevice,
       isPending: false,
     }),

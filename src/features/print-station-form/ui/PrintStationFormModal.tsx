@@ -1,4 +1,4 @@
-import { fetchDeviceDetail } from '@/entities/device';
+import { deviceDetailQueryOptions } from '@/entities/device';
 import {
   DEFAULT_PRINT_STATION_FORM_VALUES,
   mapPrintStationToFormValues,
@@ -6,12 +6,13 @@ import {
   type CreatePrintStationPayload,
   type PrintStationResourceLabels,
 } from '@/entities/print-station';
-import { fetchPrintTemplateById } from '@/entities/print-template';
+import { printTemplateQueries } from '@/entities/print-template';
 import type { ResourceFormSubmitOptions } from '@/shared/model/resourceFormUiBridge';
 import { resourceFormModalFooter } from '@/shared/ui/ResourceFormModalFooter';
 import { LoadingOverlay } from '@/shared/ui/loading';
+import { useQueryClient } from '@tanstack/react-query';
 import { Form, Modal, Typography } from 'antd';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { PrintStationFormFields } from './PrintStationFormFields';
 
 /**
@@ -56,8 +57,11 @@ export function PrintStationFormModal({
   onCancel,
   onSubmit,
 }: PrintStationFormModalProps) {
+  const queryClient = useQueryClient();
   const [form] = Form.useForm<CreatePrintStationPayload>();
   const [resourceLabels, setResourceLabels] = useState<PrintStationResourceLabels>({});
+  const resourceLabelsRef = useRef(resourceLabels);
+  resourceLabelsRef.current = resourceLabels;
 
   const resolvedMode: 'create' | 'edit' =
     mode ?? (stationId !== null && stationId !== undefined ? 'edit' : 'create');
@@ -76,54 +80,67 @@ export function PrintStationFormModal({
     enabled: open && isEdit && resolvedStationId !== undefined,
   });
 
-  const resolveResourceLabels = useCallback(async (station: typeof loadedStation) => {
-    if (!station) {
-      setResourceLabels({});
-      return;
-    }
+  const hasResolvedName = (name: string | undefined, id: number): boolean =>
+    name != null && name.length > 0 && name !== `#${id}`;
 
-    const nextLabels: PrintStationResourceLabels = {};
-    const tasks: Promise<void>[] = [];
+  const resolveResourceLabels = useCallback(
+    async (station: NonNullable<typeof loadedStation>) => {
+      const prev = resourceLabelsRef.current;
+      const nextLabels: PrintStationResourceLabels = { ...prev };
+      const tasks: Promise<void>[] = [];
 
-    if (station.printer && station.printer > 0) {
-      tasks.push(
-        fetchDeviceDetail('printer', station.printer)
-          .then((device) => {
-            nextLabels.printerName = device.name;
-          })
-          .catch(() => {
-            nextLabels.printerName = `#${station.printer}`;
-          }),
-      );
-    }
+      if (station.printer && station.printer > 0) {
+        if (!hasResolvedName(prev.printerName, station.printer)) {
+          tasks.push(
+            queryClient
+              .fetchQuery(deviceDetailQueryOptions('printer', station.printer))
+              .then((device) => {
+                nextLabels.printerName = device.name;
+              })
+              .catch(() => {
+                nextLabels.printerName = `#${station.printer}`;
+              }),
+          );
+        }
+      }
 
-    if (station.camera && station.camera > 0) {
-      tasks.push(
-        fetchDeviceDetail('camera', station.camera)
-          .then((device) => {
-            nextLabels.cameraName = device.name;
-          })
-          .catch(() => {
-            nextLabels.cameraName = `#${station.camera}`;
-          }),
-      );
-    }
+      if (station.camera && station.camera > 0) {
+        if (!hasResolvedName(prev.cameraName, station.camera)) {
+          tasks.push(
+            queryClient
+              .fetchQuery(deviceDetailQueryOptions('camera', station.camera))
+              .then((device) => {
+                nextLabels.cameraName = device.name;
+              })
+              .catch(() => {
+                nextLabels.cameraName = `#${station.camera}`;
+              }),
+          );
+        }
+      }
 
-    if (station.template_id) {
-      tasks.push(
-        fetchPrintTemplateById(station.template_id)
-          .then((template) => {
-            nextLabels.templateName = template.name;
-          })
-          .catch(() => {
-            nextLabels.templateName = `#${station.template_id}`;
-          }),
-      );
-    }
+      if (station.template_id) {
+        if (!hasResolvedName(prev.templateName, station.template_id)) {
+          tasks.push(
+            queryClient
+              .fetchQuery(
+                printTemplateQueries.detailQueryOptions(station.template_id),
+              )
+              .then((template) => {
+                nextLabels.templateName = template.name;
+              })
+              .catch(() => {
+                nextLabels.templateName = `#${station.template_id}`;
+              }),
+          );
+        }
+      }
 
-    await Promise.all(tasks);
-    setResourceLabels(nextLabels);
-  }, []);
+      await Promise.all(tasks);
+      setResourceLabels(nextLabels);
+    },
+    [queryClient],
+  );
 
   useEffect(() => {
     if (!open) {

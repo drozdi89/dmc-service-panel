@@ -95,7 +95,10 @@ export function MarkingOptionsSection({
             label="Не использовать КМ старше"
             tooltip="Не резервировать коды в задание если остаточный срок жизни кода меньше этого значения."
           >
-            <InputNumber min={1} max={60} addonAfter="дней" style={{ width: '100%' }} />
+            <Space.Compact block style={{ width: '100%' }}>
+              <InputNumber min={1} max={60} style={{ width: '100%' }} />
+              <Input readOnly tabIndex={-1} value="дней" style={{ width: '4.5rem', pointerEvents: 'none' }} />
+            </Space.Compact>
           </Form.Item>
         </Col>
         <Col xs={24} md={12}>
@@ -104,7 +107,10 @@ export function MarkingOptionsSection({
             label="Предупреждать об истекающих КМ за"
             tooltip="За сколько дней до окончания срока жизни кода в задании показывать предупреждение."
           >
-            <InputNumber min={1} max={60} addonAfter="дней" style={{ width: '100%' }} />
+            <Space.Compact block style={{ width: '100%' }}>
+              <InputNumber min={1} max={60} style={{ width: '100%' }} />
+              <Input readOnly tabIndex={-1} value="дней" style={{ width: '4.5rem', pointerEvents: 'none' }} />
+            </Space.Compact>
           </Form.Item>
         </Col>
       </Row>

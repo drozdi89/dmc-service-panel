@@ -1,15 +1,20 @@
 import type { ApiEnvelope } from '../types/listQuery';
 import {
   buildApiHeaders,
+  consumeIdempotencyKeyForGet,
   createIdempotencyKey,
   IDEMPOTENCY_KEY_HEADER,
   requiresIdempotencyKey,
+  stashIdempotencyKeyForFollowUpGet,
 } from './headers';
 import { getHttpClient } from './http';
 
 /** Options for API requests. */
 export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
-  /** Optional explicit idempotency key (auto-generated for mutations if omitted). */
+  /**
+   * Optional Idempotency-Key. Auto-generated for POST/PATCH/PUT/DELETE.
+   * On GET, also applied when set explicitly or when linked from a prior PATCH/PUT on the same URL.
+   */
   idempotencyKey?: string;
   /** Query parameters appended to the URL. */
   params?: Record<
@@ -93,22 +98,31 @@ export async function apiRequest<T>(
   const { params, body, idempotencyKey, headers, method = 'GET', ...rest } = options;
   const normalizedMethod = method.toUpperCase();
 
+  const requestUrl = buildUrl(path, params);
   const requestHeaders = buildApiHeaders(headers);
 
   if (body !== undefined) {
     requestHeaders.set('Content-Type', 'application/json');
   }
 
+  let resolvedIdempotencyKey = idempotencyKey;
   if (requiresIdempotencyKey(normalizedMethod)) {
-    requestHeaders.set(
-      IDEMPOTENCY_KEY_HEADER,
-      idempotencyKey ?? createIdempotencyKey(),
-    );
+    resolvedIdempotencyKey = idempotencyKey ?? createIdempotencyKey();
+    if (normalizedMethod === 'PATCH' || normalizedMethod === 'PUT') {
+      stashIdempotencyKeyForFollowUpGet(requestUrl, resolvedIdempotencyKey);
+    }
+  } else if (normalizedMethod === 'GET') {
+    resolvedIdempotencyKey =
+      idempotencyKey ?? consumeIdempotencyKeyForGet(requestUrl);
+  }
+
+  if (resolvedIdempotencyKey !== undefined) {
+    requestHeaders.set(IDEMPOTENCY_KEY_HEADER, resolvedIdempotencyKey);
   }
 
   const response = await getHttpClient().request<unknown>({
     ...rest,
-    url: buildUrl(path, params),
+    url: requestUrl,
     method: normalizedMethod,
     headers: Object.fromEntries(requestHeaders.entries()),
     data: body !== undefined ? JSON.stringify(body) : undefined,

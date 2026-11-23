@@ -9,6 +9,8 @@
 | Модалка с табами + visibility | `features/product-form` + `ProductFormModalTabs` |
 | useWatch под Form | `features/print-station-form/ui/PrintStationFormFields.tsx` |
 | Сложная форма (линия) | `features/line-editor`, `services/line-service` |
+| CRUD Host + list delete | один `use*Actions` (device: `saveDevice` + `showSuccessMessage`; product: `useProductFormSave` + persist) |
+| После create/update | `factoryMutation`: `setQueryData(detail)` из ответа, invalidate только list/lookup — не `keys.all()` при открытой detail-модалке |
 
 ## FormModal (feature) — скелет
 

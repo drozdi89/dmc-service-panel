@@ -8,6 +8,7 @@ import {
   dateStringPickerValueProps,
   formatDatePickerValue,
 } from '@/shared/lib/dateStringPicker';
+import { FormHiddenInput } from '@/shared/ui/form/FormHiddenInput';
 import { ButtonLoading } from '@/shared/ui/loading';
 import { DeleteOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { FormInstance } from 'antd';
@@ -132,7 +133,6 @@ export function ProductLicencesTab({
 
   return (
     <>
-      <Form.Item name="licences" hidden></Form.Item>
       <Space orientation="vertical" style={{ width: '100%' }}>
         <ButtonLoading type="primary" disabled={!isEdit} onClick={() => {
           setModalOpen(true)
@@ -190,7 +190,9 @@ export function ProductLicencesTab({
         ]}
       >
         <Form form={subForm} layout="horizontal" labelCol={{ span: 8 }}>
-          <Form.Item name="lic_id" hidden></Form.Item>
+          <Form.Item name="lic_id" hidden>
+            <FormHiddenInput />
+          </Form.Item>
           <Form.Item
             name="lic_number"
             label="Номер"

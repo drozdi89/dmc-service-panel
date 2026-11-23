@@ -7,6 +7,7 @@ import {
   type ProductFormValues,
 } from '@/entities/product';
 import type { FormInstance } from 'antd';
+import { FormHiddenInput } from '@/shared/ui/form/FormHiddenInput';
 import { Form, Tabs } from 'antd';
 import { useMemo, useState } from 'react';
 import {
@@ -65,10 +66,10 @@ function ProductFormModalTabsInner({
   return (
     <>
       <Form.Item name="pg" hidden>
-        <span />
+        <FormHiddenInput />
       </Form.Item>
       <Form.Item name="type" hidden>
-        <span />
+        <FormHiddenInput />
       </Form.Item>
       <Tabs
         activeKey={activeTab}

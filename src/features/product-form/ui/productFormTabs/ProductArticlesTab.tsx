@@ -5,13 +5,14 @@ import {
   visibilityFormControl,
   type ProductArticle
 } from '@/entities/product';
+import { FormHiddenInput } from '@/shared/ui/form/FormHiddenInput';
 import { ButtonLoading } from '@/shared/ui/loading';
 import { DeleteOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { FormInstance } from 'antd';
 import { Divider, Form, Input, InputNumber, Modal, Space, Switch, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ComponentType } from 'react';
 
 export interface ProductArticlesTabProps {
   form: FormInstance<ProductFormValues>;
@@ -26,7 +27,13 @@ export interface ProductArticlesTabProps {
 let ii = 0;
 const keyPrefix = 'pa_';
 
-const defaultOverrides = {
+type ArticleOverrideFieldConfig = {
+  label: string;
+  component: ComponentType<Record<string, unknown>>;
+  [key: string]: unknown;
+};
+
+const defaultOverrides: Record<string, ArticleOverrideFieldConfig> = {
   "name": {
     label: 'Наименование',
     component: Input,
@@ -127,6 +134,46 @@ const defaultOverrides = {
   },
 };
 
+function ArticleOverrideFields({
+  fields,
+}: {
+  fields: Record<string, ArticleOverrideFieldConfig>;
+}) {
+  const disabled = Form.useWatch('disabled') || {};
+
+  return (
+    <>
+      {Object.entries(fields).map(([key, { label, component: Component, ...props }]) => (
+        <Form.Item
+          key={key}
+          name={['overrides', key]}
+          label={
+            <>
+              <Form.Item name={['disabled', key]} style={{ marginBottom: 0 }}>
+                <Switch />
+              </Form.Item>
+              {label}
+            </>
+          }
+          labelAlign="left"
+          style={{ marginBottom: 4, width: '100%' }}
+        >
+          <Component
+            {...props}
+            style={{
+              width:
+                Component === InputNumber || Component === Input
+                  ? '100%'
+                  : undefined,
+            }}
+            disabled={!disabled?.[key as keyof typeof disabled]}
+          />
+        </Form.Item>
+      ))}
+    </>
+  );
+}
+
 /**
  * Certificates table with nested create/delete dialogs for a product.
  */
@@ -144,6 +191,7 @@ export function ProductArticlesTab({
   const items = Form.useWatch('articles', form) || [];
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [subModalIsEdit, setSubModalIsEdit] = useState(false);
   const [subForm] = Form.useForm<ProductArticle>();
 
   const submitItem = (values: ProductArticle) => {
@@ -196,7 +244,8 @@ export function ProductArticlesTab({
             icon={<EditOutlined />}
             disabled={!isEdit}
             onClick={() => {
-              setModalOpen(true)
+              setSubModalIsEdit(true);
+              setModalOpen(true);
               subForm.setFieldsValue(record);
               subForm.setFieldValue('disabled', Object.fromEntries(
                 Object.entries(record.overrides || {}).map(([key, value]) => [key, true]),
@@ -232,14 +281,12 @@ export function ProductArticlesTab({
     },
   ];
   
-  const disabled = Form.useWatch('disabled', subForm) || {};
-
   return (
     <>
-      <Form.Item name="articles" hidden></Form.Item>
       <Space orientation="vertical" style={{ width: '100%' }}>
         <ButtonLoading type="primary" disabled={!isEdit} onClick={() => {
-          setModalOpen(true)
+          setSubModalIsEdit(false);
+          setModalOpen(true);
           subForm.resetFields();
         }}>
           Добавить артикул
@@ -272,7 +319,7 @@ export function ProductArticlesTab({
 
       <Modal
         open={modalOpen}
-        title={subForm.getFieldValue('id') ? "Редактировать сертификат" : "Новый сертификат"}
+        title={subModalIsEdit ? 'Редактировать артикул' : 'Новый артикул'}
         onCancel={() => setModalOpen(false)}
         width={1024}
         style={{ top: '1rem' }}
@@ -302,7 +349,9 @@ export function ProductArticlesTab({
           disabled: {},
           overrides: {}
         }} layout="horizontal" labelCol={{ span: 8 }}>
-          <Form.Item name="id" hidden></Form.Item>
+          <Form.Item name="id" hidden>
+            <FormHiddenInput />
+          </Form.Item>
           <Form.Item
             name="name"
             label="Название"
@@ -328,28 +377,7 @@ export function ProductArticlesTab({
           </Form.Item>
           <Divider style={{ margin: '0 0 4px' }} />
 
-          {Object.entries(defaultOverrides).map(([key, { label, component: Component, ...props }]) => (
-              <Form.Item
-                name={['overrides', key]}
-                label={
-                (<>
-                  <Form.Item
-                    name={['disabled', key]}
-                    style={{ marginBottom: 0 }}
-                  >
-                    <Switch />
-                    
-                  </Form.Item>
-                  {label}
-                </>)
-              }
-                labelAlign='left'
-                style={{ marginBottom: 4, width: '100%' }}
-              >
-                <Component {...props} style={{ width: Component === InputNumber ? '100%' : undefined }} disabled={!disabled?.[key as keyof typeof disabled]}/>
-              </Form.Item>
-          ))}        
-
+          <ArticleOverrideFields fields={defaultOverrides} />
         </Form>
       </Modal>
     </>

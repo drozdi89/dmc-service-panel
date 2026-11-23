@@ -2,6 +2,7 @@ import {
   DEFAULT_COUNTER_ROW,
   type CodeGeneratorTemplate,
   type CounterSpec,
+  type CounterSpecFormRow,
 } from '@/entities/code-generator-template';
 import type { CodeGeneratorTemplateFormFieldError } from './types';
 
@@ -37,8 +38,10 @@ export function isCounterRowFilledWithoutName(row: CounterSpec): boolean {
  *
  * @param rows - Form counter table rows.
  */
-export function normalizeCounterConfig(rows: CounterSpec[] | undefined): CounterSpec[] {
-  const result: CounterSpec[] = [];
+export function normalizeCounterConfig(
+  rows: CounterSpecFormRow[] | undefined,
+): CounterSpecFormRow[] {
+  const result: CounterSpecFormRow[] = [];
   for (const row of rows ?? []) {
     const name = (row.name ?? '').trim();
     if (!name) {
@@ -55,6 +58,14 @@ export function normalizeCounterConfig(rows: CounterSpec[] | undefined): Counter
         typeof row.initial_value === 'number' && !Number.isNaN(row.initial_value)
           ? row.initial_value
           : 0,
+      ...(typeof row.width === 'number'
+        ? {
+            width: row.width,
+            key_fields: row.key_fields,
+            min: row.min,
+            max: row.max,
+          }
+        : {}),
     });
   }
   return result;

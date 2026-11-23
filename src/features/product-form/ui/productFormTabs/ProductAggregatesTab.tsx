@@ -8,6 +8,7 @@ import {
   type ProductAggregate,
   type ProductFormValues
 } from '@/entities/product';
+import { FormHiddenInput } from '@/shared/ui/form/FormHiddenInput';
 import { NumberInput } from '@/shared/ui/input';
 import { ButtonLoading } from '@/shared/ui/loading';
 import { DeleteOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -55,6 +56,7 @@ export function ProductAggregatesTab({
 
   const [subForm] = Form.useForm<AggregateFormValues>();
   const [modalOpen, setModalOpen] = useState(false);
+  const [subModalIsEdit, setSubModalIsEdit] = useState(false);
 
 
   const minLevel = useMemo(() => {
@@ -98,7 +100,8 @@ export function ProductAggregatesTab({
             icon={<EditOutlined />}
             disabled={!isEdit}
             onClick={() => {
-              setModalOpen(true)
+              setSubModalIsEdit(true);
+              setModalOpen(true);
               subForm.setFieldsValue(record);
             }}
             type="primary"
@@ -134,13 +137,13 @@ export function ProductAggregatesTab({
 
   return (
     <>
-      <Form.Item name="aggregates" hidden></Form.Item>
       <Space orientation="vertical" style={{ width: '100%' }}>
         <ButtonLoading
           type="primary"
           disabled={!isEdit}
           onClick={() => {
-            setModalOpen(true)
+            setSubModalIsEdit(false);
+            setModalOpen(true);
             subForm.resetFields();
           }}
         >
@@ -173,7 +176,7 @@ export function ProductAggregatesTab({
       </Space>
       <Modal
         open={modalOpen}
-        title={subForm.getFieldValue('id') ? "Редактировать агрегат" : "Новый агрегат"}
+        title={subModalIsEdit ? 'Редактировать агрегат' : 'Новый агрегат'}
         onCancel={() => setModalOpen(false)}
         keyboard={isEdit}
         width={800}
@@ -209,8 +212,12 @@ export function ProductAggregatesTab({
           initialValues={{ rows: 1, width_mm: 0 }}
           labelCol={{ span: 8 }}
         >
-          <Form.Item name="id" hidden></Form.Item>
-          <Form.Item name="print_only" hidden></Form.Item>
+          <Form.Item name="id" hidden>
+            <FormHiddenInput />
+          </Form.Item>
+          <Form.Item name="print_only" hidden>
+            <FormHiddenInput />
+          </Form.Item>
           <Form.Item
             name="level"
             label="Уровень"
@@ -269,7 +276,7 @@ export function ProductAggregatesTab({
             <NumberInput min={0} suffix=" мм" style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="template_id" label="Шаблон кода агрегата"  style={{ marginBottom: 4 }}>
-            <SelectPrintTemplate defaultValue={''} selectedOption={{value: '', label: 'Системный шаблон'}} />
+            <SelectPrintTemplate selectedOption={{ value: '', label: 'Системный шаблон' }} />
           </Form.Item>
           <Form.Item name="plain_template_id" label="Шаблон БЕЗ кода агрегата"  style={{ marginBottom: 4 }} rules={[
               ({ getFieldValue }) => ({ 
@@ -281,12 +288,12 @@ export function ProductAggregatesTab({
                 }
               })
             ]}>
-            <SelectPrintTemplate defaultValue={''} selectedOption={{value: '', label: 'Системный шаблон'}} onChange={(value) => {
+            <SelectPrintTemplate selectedOption={{ value: '', label: 'Системный шаблон' }} onChange={(value) => {
               subForm.setFieldValue('print_only', Boolean(value));
             }}/>
           </Form.Item>
           <Form.Item name="code_generator_template_id" label="Генератор кода агрегата"  style={{ marginBottom: 4 }}>
-            <SelectCodeGeneratorTemplate defaultValue={''} selectedOption={{value: '', label: 'Системный генератор'}} />
+            <SelectCodeGeneratorTemplate selectedOption={{ value: '', label: 'Системный генератор' }} />
           </Form.Item>
         </Form>
       </Modal>

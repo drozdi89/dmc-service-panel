@@ -111,3 +111,38 @@ export function createIdempotencyKey(): string {
 export function requiresIdempotencyKey(method: string): boolean {
   return IDEMPOTENT_METHODS.has(method.toUpperCase());
 }
+
+/** One-shot Idempotency-Key for the next GET on the same request URL after PATCH/PUT. */
+const followUpGetIdempotencyByUrl = new Map<string, string>();
+
+/**
+ * Remembers a mutation key so the following GET to the same URL can send it (backend trial).
+ *
+ * @param requestUrl - Resolved URL from {@link buildUrl} (pathname + search).
+ * @param key - Idempotency-Key used on PATCH/PUT.
+ */
+export function stashIdempotencyKeyForFollowUpGet(
+  requestUrl: string,
+  key: string,
+): void {
+  followUpGetIdempotencyByUrl.set(requestUrl, key);
+}
+
+/**
+ * Consumes a stashed key for GET; removed after first use.
+ *
+ * @param requestUrl - Same URL key as stash.
+ */
+export function consumeIdempotencyKeyForGet(requestUrl: string): string | undefined {
+  const key = followUpGetIdempotencyByUrl.get(requestUrl);
+  if (key === undefined) {
+    return undefined;
+  }
+  followUpGetIdempotencyByUrl.delete(requestUrl);
+  return key;
+}
+
+/** Clears follow-up map (unit tests only). */
+export function resetIdempotencyFollowUpForTests(): void {
+  followUpGetIdempotencyByUrl.clear();
+}

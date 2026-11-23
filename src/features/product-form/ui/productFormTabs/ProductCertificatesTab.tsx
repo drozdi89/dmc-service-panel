@@ -8,6 +8,7 @@ import {
   dateStringPickerValueProps,
   formatDatePickerValue,
 } from '@/shared/lib/dateStringPicker';
+import { FormHiddenInput } from '@/shared/ui/form/FormHiddenInput';
 import { ButtonLoading } from '@/shared/ui/loading';
 import { DeleteOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { FormInstance } from 'antd';
@@ -47,6 +48,7 @@ export function ProductCertificatesTab({
   const items = Form.useWatch('certificates', form) || [];
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [subModalIsEdit, setSubModalIsEdit] = useState(false);
   const [subForm] = Form.useForm<ProductCertificate>();
 
   const submitItem = (values: ProductCertificate) => {
@@ -118,7 +120,8 @@ export function ProductCertificatesTab({
             icon={<EditOutlined />}
             disabled={!isEdit}
             onClick={() => {
-              setModalOpen(true)
+              setSubModalIsEdit(true);
+              setModalOpen(true);
               subForm.setFieldsValue(record);
             }}
             type="primary"
@@ -154,10 +157,10 @@ export function ProductCertificatesTab({
 
   return (
     <>
-      <Form.Item name="certificates" hidden></Form.Item>
       <Space orientation="vertical" style={{ width: '100%' }}>
         <ButtonLoading type="primary" disabled={!isEdit} onClick={() => {
-          setModalOpen(true)
+          setSubModalIsEdit(false);
+          setModalOpen(true);
           subForm.resetFields();
         }}>
           Добавить сертификат
@@ -190,7 +193,7 @@ export function ProductCertificatesTab({
 
       <Modal
         open={modalOpen}
-        title={subForm.getFieldValue('cert_id') ? "Редактировать сертификат" : "Новый сертификат"}
+        title={subModalIsEdit ? 'Редактировать сертификат' : 'Новый сертификат'}
         onCancel={() => setModalOpen(false)}
         footer={[
           <ButtonLoading key="cancel" onClick={() => {
@@ -214,7 +217,9 @@ export function ProductCertificatesTab({
         ]}
       >
         <Form form={subForm} initialValues={{ priority: 0, cert_id: undefined, cert_number: undefined, cert_date: undefined, well_number: undefined, cert_type: undefined }} layout="horizontal" labelCol={{ span: 8 }}>
-          <Form.Item name="cert_id" hidden></Form.Item>
+          <Form.Item name="cert_id" hidden>
+            <FormHiddenInput />
+          </Form.Item>
           <Form.Item
             name="cert_type"
             label="Тип"

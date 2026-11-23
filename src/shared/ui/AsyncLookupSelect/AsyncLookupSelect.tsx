@@ -39,7 +39,7 @@ export interface AsyncLookupSelectProps<T extends object>
     | 'status'
     | 'notFoundContent'
     | 'onSearch'
-    | 'onDropdownVisibleChange'
+    | 'onOpenChange'
     | 'showSearch'
     | 'filterOption'
   > {
@@ -153,7 +153,7 @@ export function AsyncLookupSelect<T extends object>({
       status={isError ? 'error' : undefined}
       notFoundContent={isError ? 'Ошибка загрузки' : undefined}
       onSearch={setSearch}
-      onDropdownVisibleChange={(open) => {
+      onOpenChange={(open) => {
         if (!open) {
           setSearch('');
         }

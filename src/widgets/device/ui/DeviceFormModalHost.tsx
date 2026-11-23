@@ -1,7 +1,7 @@
 import {
   isSameDeviceFormDialog,
   resetDeviceFormUiStore,
-  useDeviceFormSave,
+  useDeviceActions,
   useDeviceFormUiStore,
   type DeviceFormValues,
 } from '@/entities/device';
@@ -15,7 +15,7 @@ import { useCallback, useEffect, useRef } from 'react';
  * App-level host for device create/edit.
  *
  * Subscribes to {@link useDeviceFormUiStore}, renders {@link DeviceFormModal},
- * saves via {@link useDeviceFormSave} (invalidates list/lookup), writes
+ * saves via {@link useDeviceActions} (invalidates list/lookup), writes
  * `lastSaved` when `consumerId` is set, then closes on «Сохранить» or keeps open
  * on «Применить» (create → edit). Mount once in {@link import('@/App').AppProviders}.
  *
@@ -36,7 +36,7 @@ export function DeviceFormModalHost() {
   const showSuccessMessage =
     (dialog.kind === 'create' || dialog.kind === 'edit') &&
     dialog.consumerId == null;
-  const { saveDevice, isPending } = useDeviceFormSave({ showSuccessMessage });
+  const { saveDevice, isPending } = useDeviceActions({ showSuccessMessage });
 
 
   const open = dialog.kind !== 'none';
@@ -112,7 +112,7 @@ export function DeviceFormModalHost() {
           });
         }
       } catch {
-        // Errors are surfaced by useDeviceFormSave.onError.
+        // Errors are surfaced by useDeviceActions save handler.
       }
     },
     [close, saveDevice, setLastSaved],

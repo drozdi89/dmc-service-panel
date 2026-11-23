@@ -9,9 +9,9 @@ import {
 function counter(partial: Partial<CounterSpec> = {}): CounterSpec {
   return {
     name: '',
-    type: 'task_pack',
+    type: 'sscc_level',
     key_template: '',
-    format: '06d',
+    format: '',
     level_from: 'aggregation_level',
     initial_value: 0,
     ...partial,
@@ -103,14 +103,19 @@ describe('normalizeCounterConfig', () => {
     expect(
       normalizeCounterConfig([
         counter(),
-        counter({ name: '  serial  ', key_template: ' k ', format: '' }),
+        counter({
+          name: '  serial  ',
+          type: 'task_pack',
+          key_template: ' k ',
+          format: '',
+        }),
       ]),
     ).toEqual([
       {
         name: 'serial',
         type: 'task_pack',
         key_template: 'k',
-        format: '06d',
+        format: '',
         level_from: 'aggregation_level',
         initial_value: 0,
       },

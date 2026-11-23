@@ -95,14 +95,14 @@ export function ProductAdditionalTab({
         label="Передача данных в ЧЗ"
         style={{ marginBottom: 4 }}
       >
-        <SelectCrptOrganizations defaultValue='' />
+        <SelectCrptOrganizations />
       </Form.Item>
       <Form.Item
         name="factory_number_id"
         label="Номер завода для печати"
         style={{ marginBottom: 4 }}
       >
-        <SelectFactoryNumbers defaultValue='' />
+        <SelectFactoryNumbers />
       </Form.Item>
       {showVaribleChar && <>
        <Divider titlePlacement='left' style={{ marginBottom: 4, marginTop: 0 }}>Переменная характеристика</Divider>

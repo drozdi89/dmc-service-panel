@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { QueryClient } from '@tanstack/react-query';
+import { describe, expect, it, vi } from 'vitest';
 import { FACTORY_QUERY_SCOPES } from '@/shared/queries';
 import {
   DEVICE_QUERY_ENTRY,
@@ -6,8 +7,11 @@ import {
   DEVICE_SCALES_PREFIX,
   deviceDetailQueryKey,
   deviceQueries,
+  invalidateDeviceQueries,
   scalesLookupQueryKey,
+  writeDeviceDetailCache,
 } from './device-queries';
+import type { DeviceDetail } from '../model/deviceFormMapping';
 
 describe('deviceQueries keys', () => {
   it('uses entry devices with list / lookup scopes', () => {
@@ -55,6 +59,30 @@ describe('deviceQueries keys', () => {
       ...DEVICE_SCALES_LOOKUP_PREFIX,
       params,
     ]);
+  });
+
+  it('invalidateDeviceQueries only touches devices list/lookup prefix', async () => {
+    const client = new QueryClient();
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries');
+
+    await invalidateDeviceQueries(client);
+
+    expect(invalidateSpy).toHaveBeenCalledTimes(1);
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: deviceQueries.keys.all(),
+    });
+    expect(invalidateSpy).not.toHaveBeenCalledWith({
+      queryKey: ['device-detail'],
+    });
+  });
+
+  it('writeDeviceDetailCache stores detail under composite key', () => {
+    const client = new QueryClient();
+    const detail = { id: 35, name: 'HP' } as DeviceDetail;
+
+    writeDeviceDetailCache(client, 'printer', detail);
+
+    expect(client.getQueryData(deviceDetailQueryKey('printer', 35))).toEqual(detail);
   });
 
   it('AsyncLookupSelect prefix + lookup matches factory / scales keys', () => {

@@ -10,6 +10,7 @@ import {
   fetchCodeGeneratorTemplatesLookup,
   fetchCodeGeneratorTemplateVariables,
   previewCodeGeneratorTemplate,
+  updateCodeGeneratorTemplate,
 } from './api';
 
 describe('code-generator-template api paths', () => {
@@ -95,6 +96,50 @@ describe('code-generator-template api paths', () => {
     expect(apiRequestData).toHaveBeenCalledWith(
       CODE_GENERATOR_TEMPLATES_VARIABLES_PATH,
       expect.objectContaining({}),
+    );
+  });
+
+  it('updateCodeGeneratorTemplate maps counter_config to CounterSpecSchema', async () => {
+    const apiRequestData = vi
+      .spyOn(sharedApi, 'apiRequestData')
+      .mockResolvedValue({ id: 11, name: 'T', template: 'x' });
+
+    await updateCodeGeneratorTemplate(
+      11,
+      {
+        name: 'T',
+        counter_config: [
+          {
+            name: 'serial',
+            type: 'task_pack',
+            key_template: 'task_id',
+            format: '06d',
+            level_from: 'aggregation_level',
+            initial_value: 1,
+          },
+        ],
+      },
+      'key-1',
+    );
+
+    expect(apiRequestData).toHaveBeenCalledWith(
+      '/api/v2/code_generator_templates/11',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: {
+          name: 'T',
+          counter_config: [
+            {
+              name: 'serial',
+              width: 6,
+              key_fields: ['task_id'],
+              min: 1,
+              max: 0,
+            },
+          ],
+        },
+        idempotencyKey: 'key-1',
+      }),
     );
   });
 

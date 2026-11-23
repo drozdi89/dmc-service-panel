@@ -1,32 +1,44 @@
 import { App } from 'antd';
 import { useCallback } from 'react';
-import type { DeviceListItem } from '../model/types';
+import type { DeviceFormValues } from '../model/deviceFormMapping';
+import type { DeviceListItem, DeviceRef } from '../model/types';
 import {
   persistDeviceFormValues,
   useDeleteDeviceMutation,
   useSaveDeviceMutation,
 } from '../queries';
-import type { DeviceFormValues } from '../model/deviceFormMapping';
 
-/**
- * Device list page actions: save/delete with toasts and delete confirmation.
- */
-export function useDeviceActions({
-  callbackSave,
-  callbackDelete,
-}: {
+export interface UseDeviceActionsOptions {
+  /**
+   * Host: show «Устройство сохранено» when `dialog.consumerId` is null.
+   * Nested ResourcePicker saves stay silent.
+   */
+  showSuccessMessage?: boolean;
   callbackSave?: () => void;
   callbackDelete?: () => void;
-} = {}) {
+}
+
+/**
+ * Device save (modal / picker) and list delete with toasts and confirmation.
+ */
+export function useDeviceActions({
+  showSuccessMessage = false,
+  callbackSave,
+  callbackDelete,
+}: UseDeviceActionsOptions = {}) {
   const { message, modal } = App.useApp();
 
   const saveMutation = useSaveDeviceMutation({
     onSuccess: () => {
-      message.success('Устройство сохранено');
+      if (showSuccessMessage) {
+        message.success('Устройство сохранено');
+      }
       callbackSave?.();
     },
     onError: (error) => {
-      message.error(error.message || 'Ошибка сохранения');
+      message.error(
+        error.message || 'Не удалось сохранить устройство',
+      );
     },
   });
 
@@ -40,11 +52,12 @@ export function useDeviceActions({
     },
   });
 
-  const handleSubmit = useCallback(
-    async (values: DeviceFormValues) => {
-      await persistDeviceFormValues(
+  const saveDevice = useCallback(
+    async (values: DeviceFormValues, editId?: number): Promise<DeviceRef> => {
+      return persistDeviceFormValues(
         (variables) => saveMutation.mutateAsync(variables),
         values,
+        editId,
       );
     },
     [saveMutation],
@@ -68,9 +81,10 @@ export function useDeviceActions({
   );
 
   return {
+    saveDevice,
+    isPending: saveMutation.isPending,
     saveMutation,
     deleteMutation,
-    handleSubmit,
     handleDelete,
   };
 }

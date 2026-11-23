@@ -1,5 +1,6 @@
 import {
   DEFAULT_COUNTER_ROW,
+  mapApiCounterRowToForm,
   type CodeGeneratorTemplate,
   type CounterSpec,
 } from '@/entities/code-generator-template';
@@ -60,10 +61,12 @@ export function mapTemplateToFormValues(
     name: template.name ?? '',
     description: template.description ?? '',
     template: template.template ?? '',
-    counter_config: (template.counter_config ?? []).map((row) => ({
-      ...DEFAULT_COUNTER_ROW,
-      ...row,
-    })),
+    counter_config: (template.counter_config ?? []).map((row) =>
+      mapApiCounterRowToForm({
+        ...DEFAULT_COUNTER_ROW,
+        ...row,
+      }),
+    ),
     validation_regex: template.validation_regex ?? '',
     is_system: Boolean(template.is_system),
   };

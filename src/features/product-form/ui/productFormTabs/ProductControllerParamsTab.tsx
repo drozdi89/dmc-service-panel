@@ -5,6 +5,7 @@ import {
   type ProductControllerParam,
   type ProductFormValues,
 } from '@/entities/product';
+import { FormHiddenInput } from '@/shared/ui/form/FormHiddenInput';
 import { ButtonLoading } from '@/shared/ui/loading';
 import { DeleteOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { FormInstance, SelectProps } from 'antd';
@@ -45,6 +46,8 @@ export function ProductControllerParamsTab({
   const controllerParams = Form.useWatch('controller_params', form) || [];
 
   const [controllerParamModalOpen, setControllerParamModalOpen] = useState(false);
+  const [controllerParamModalIsEdit, setControllerParamModalIsEdit] =
+    useState(false);
   const [controllerParamForm] = Form.useForm<ProductControllerParam>();
  
   const submitControllerParam = (values: ProductControllerParam) => {
@@ -94,7 +97,8 @@ export function ProductControllerParamsTab({
             icon={<EditOutlined />}
             disabled={!isEdit || (record.node_id && aggregatesRemoved.includes(record.node_id))}
             onClick={() => {
-              setControllerParamModalOpen(true)
+              setControllerParamModalIsEdit(true);
+              setControllerParamModalOpen(true);
               controllerParamForm.setFieldsValue(record as ProductControllerParam);
             }}
             type="primary"
@@ -157,12 +161,11 @@ export function ProductControllerParamsTab({
 
   return (
     <>
-      <Form.Item name="aggregates" hidden></Form.Item>
-      <Form.Item name="controller_params" hidden></Form.Item>
       <Space orientation="vertical" style={{ width: '100%' }}>
         <ButtonLoading type="primary" disabled={!isEdit} onClick={() => {
-          setControllerParamModalOpen(true)
-          controllerParamForm.resetFields()
+          setControllerParamModalIsEdit(false);
+          setControllerParamModalOpen(true);
+          controllerParamForm.resetFields();
         }}>
           Добавить параметр
         </ButtonLoading>
@@ -193,7 +196,11 @@ export function ProductControllerParamsTab({
 
       <Modal
         open={controllerParamModalOpen}
-        title={controllerParamForm.getFieldValue('id') ? 'Редактировать параметр' : 'Добавить параметр'}
+        title={
+          controllerParamModalIsEdit
+            ? 'Редактировать параметр'
+            : 'Добавить параметр'
+        }
         onCancel={() => setControllerParamModalOpen(false)}
         footer={[
             <ButtonLoading key="cancel" onClick={() => setControllerParamModalOpen(false)}>
@@ -210,8 +217,7 @@ export function ProductControllerParamsTab({
                 controllerParamForm.resetFields();
               }}
             >
-              {controllerParamForm.getFieldValue('id')? 'Сохранить': 
-              'Добавить'}
+              {controllerParamModalIsEdit ? 'Сохранить' : 'Добавить'}
             </ButtonLoading>,
         ]}
       >
@@ -223,8 +229,12 @@ export function ProductControllerParamsTab({
           value: 0,
           description: '',
         }}>
-          <Form.Item name="id" hidden />
-          <Form.Item name="node_name" hidden />
+          <Form.Item name="id" hidden>
+            <FormHiddenInput />
+          </Form.Item>
+          <Form.Item name="node_name" hidden>
+            <FormHiddenInput />
+          </Form.Item>
           <Form.Item name="node_id" label="Фасовка" style={{ marginBottom: 4 }} rules={[
             ({ getFieldValue }) => ({
               validator(_, value) {

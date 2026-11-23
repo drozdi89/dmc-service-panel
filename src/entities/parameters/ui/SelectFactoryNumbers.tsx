@@ -16,7 +16,6 @@ export function SelectFactoryNumbers(props: SelectProps) {
       fetchFn={fetchFactoryNumbers}
       queryKey={factoryNumbersQueries.keys.all()}
       mapOption={(item) => ({ value: item.id, label: item.factory_number })}
-      defaultValue=""
       selectedOption={{ value: '', label: 'Номер по умолчанию' }}
       {...props}
     />

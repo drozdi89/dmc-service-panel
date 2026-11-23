@@ -1,5 +1,6 @@
 import { apiRequestData, fetchPaginatedList } from '@/shared/api';
 import type { ListQueryParams } from '@/shared/types/listQuery';
+import { counterConfigToApiPayload } from '../lib/counterConfigPayload';
 import type {
   CodeGeneratorTemplate,
   CodeGeneratorTemplatePreviewQuery,
@@ -8,6 +9,20 @@ import type {
   CreateCodeGeneratorTemplatePayload,
   UpdateCodeGeneratorTemplatePayload,
 } from '../model/types';
+
+function withApiCounterConfig<
+  T extends { counter_config?: CreateCodeGeneratorTemplatePayload['counter_config'] },
+>(payload: T): T {
+  if (payload.counter_config === undefined) {
+    return payload;
+  }
+  return {
+    ...payload,
+    counter_config: counterConfigToApiPayload(
+      payload.counter_config as Parameters<typeof counterConfigToApiPayload>[0],
+    ),
+  };
+}
 
 /** Collection path for code generator templates CRUD. */
 export const CODE_GENERATOR_TEMPLATES_PATH = '/api/v2/code_generator_templates/';
@@ -100,7 +115,7 @@ export async function createCodeGeneratorTemplate(
 ): Promise<CodeGeneratorTemplate> {
   return apiRequestData<CodeGeneratorTemplate>(CODE_GENERATOR_TEMPLATES_PATH, {
     method: 'POST',
-    body: payload,
+    body: withApiCounterConfig(payload),
     idempotencyKey,
   });
 }
@@ -115,7 +130,7 @@ export async function updateCodeGeneratorTemplate(
     `${CODE_GENERATOR_TEMPLATES_PATH}${id}`,
     {
       method: 'PATCH',
-      body: payload,
+      body: withApiCounterConfig(payload),
       idempotencyKey,
     },
   );

@@ -10,6 +10,7 @@ import {
   IDEMPOTENCY_KEY_HEADER,
   requiresIdempotencyKey,
   resetInstallationClientIdCacheForTests,
+  resetIdempotencyFollowUpForTests,
 } from './headers';
 
 const requestMock = vi.hoisted(() => vi.fn());
@@ -106,12 +107,14 @@ describe('apiRequest', () => {
   beforeEach(() => {
     localStorage.clear();
     resetInstallationClientIdCacheForTests();
+    resetIdempotencyFollowUpForTests();
     requestMock.mockReset();
   });
 
   afterEach(() => {
     localStorage.clear();
     resetInstallationClientIdCacheForTests();
+    resetIdempotencyFollowUpForTests();
   });
 
   it('sends WEB headers and Idempotency-Key on POST', async () => {
@@ -144,7 +147,34 @@ describe('apiRequest', () => {
     );
   });
 
-  it('does not send Idempotency-Key on GET', async () => {
+  it('reuses PATCH Idempotency-Key on the next GET to the same URL', async () => {
+    requestMock.mockResolvedValue({
+      status: 200,
+      data: JSON.stringify({ success: true, data: { id: 35 } }),
+      headers: { 'content-type': 'application/json' },
+    });
+
+    const patchKey = 'a1111111-1111-4111-8111-111111111111';
+    const { apiRequestData } = await import('./client');
+
+    await apiRequestData('/api/v2/print_templates/35', {
+      method: 'PATCH',
+      body: { name: 'L' },
+      idempotencyKey: patchKey,
+    });
+
+    await apiRequestData('/api/v2/print_templates/35', { method: 'GET' });
+
+    expect(requestMock).toHaveBeenCalledTimes(2);
+
+    const [getConfig] = requestMock.mock.calls[1] as [
+      { headers: Record<string, string>; method: string },
+    ];
+    expect(getConfig.method).toBe('GET');
+    expect(getHeaderValue(getConfig.headers, IDEMPOTENCY_KEY_HEADER)).toBe(patchKey);
+  });
+
+  it('does not send Idempotency-Key on standalone GET', async () => {
     requestMock.mockResolvedValue({
       status: 200,
       data: JSON.stringify({ success: true, data: [] }),

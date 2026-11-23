@@ -168,6 +168,7 @@ export function ProductFormModal({
   return (
     <Modal
       open={open}
+      forceRender
       destroyOnHidden={false}
       title={resolvedTitle}
       width='calc(100vw - 2rem)'
