@@ -1,5 +1,7 @@
 import { parametersMenuItems, parametersRoutes } from '@/pages/parameters';
-import { integrationsMenuItems, integrationsRoutes } from '@/pages/integrations';import { managerMenuItems, managerRoutes } from '@/pages/manager';
+import { integrationsMenuItems, integrationsRoutes } from '@/pages/integrations';
+import { mesSyncMenuItems, mesSyncRoutes } from '@/pages/mes-sync';
+import { managerMenuItems, managerRoutes } from '@/pages/manager';
 import { productsMenuItems, productsRoutes } from '@/pages/products';
 import { devicesMenuItems, devicesRoutes } from '@/pages/devices';
 import { templatesMenuItems, templatesRoutes } from '@/pages/templates';
@@ -21,6 +23,7 @@ export { ADMIN_BASE_PATH, adminPath } from '@/shared/lib/admin-routing';
 export const adminModuleRoutes: RouteObject[] = [
   ...parametersRoutes,
   ...integrationsRoutes,
+  ...mesSyncRoutes,
   ...managerRoutes,
   ...productsRoutes,
   ...devicesRoutes,
@@ -35,6 +38,7 @@ export const adminModuleRoutes: RouteObject[] = [
 export const adminMenuItems: MenuItemDefinition[] = [
   ...parametersMenuItems,
   ...integrationsMenuItems,
+  ...mesSyncMenuItems,
   ...managerMenuItems,
   ...productsMenuItems,
   ...devicesMenuItems,

@@ -41,21 +41,17 @@ export function markingFormToBatchEntries(
     { name: 'dm_is_introduced_option', value: values.dm_is_introduced_option },
     { name: 'calculate_mandate_by_days', value: values.calculate_mandate_by_days },
     { name: 'subacc_products_archived', value: values.subacc_products_archived },
-    { name: 'export_data_path', value: values.export_data_path },
-    { name: 'use_vsd_import', value: values.use_vsd_import },
-    { name: 'vsd_import_path', value: values.vsd_import_path },
-    { name: 'store_pdf_on_task_finish', value: values.store_pdf_on_task_finish },
-    // { name: 'series_lease_block_size', value: values.series_lease_block_size },
+    { name: 'series_lease_block_size', value: values.series_lease_block_size },
   ];
 
-  // if (!isSlaveMode) {
-  //   entries.push(
-  //     { name: 'export_data_path', value: values.export_data_path },
-  //     { name: 'use_vsd_import', value: values.use_vsd_import },
-  //     { name: 'vsd_import_path', value: values.vsd_import_path },
-  //     { name: 'store_pdf_on_task_finish', value: values.store_pdf_on_task_finish },
-  //   );
-  // }
+  if (!isSlaveMode) {
+    entries.push(
+      { name: 'export_data_path', value: values.export_data_path },
+      { name: 'use_vsd_import', value: values.use_vsd_import },
+      { name: 'vsd_import_path', value: values.vsd_import_path },
+      { name: 'store_pdf_on_task_finish', value: values.store_pdf_on_task_finish },
+    );
+  }
 
   return entries;
 }

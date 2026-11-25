@@ -38,6 +38,17 @@ describe('markingFormToBatchEntries', () => {
       ]),
     );
   });
+
+  it('includes series_lease_block_size', () => {
+    const withLease = {
+      ...bundle,
+      series_lease_block_size: 500,
+    } as ParametersSettingsBundle;
+    const entry = markingFormToBatchEntries(withLease, false).find(
+      (item) => item.name === 'series_lease_block_size',
+    );
+    expect(entry).toEqual({ name: 'series_lease_block_size', value: 500 });
+  });
 });
 
 describe('statisticsFormToBatchEntries', () => {

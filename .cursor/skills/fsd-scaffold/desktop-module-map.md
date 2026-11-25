@@ -6,10 +6,10 @@
 |-----------------------------|------------|------------|
 | `modules/CodeGenerators/template_editor.py` | Редактор шаблона, счётчики CounterSpec, preview | `features/code-generator-template-form`, `entities/code-generator-template`, `widgets/code-generator-template` |
 | `modules/CodeGenerators/template_list.py` | Список шаблонов | `pages/code-generator-templates` |
-| `modules/CodeGenerators/counter_status_display.py` | Текущие series по счётчикам (read-only) | Пока нет UI; поле `counters` в detail |
+| `modules/CodeGenerators/counter_status_display.py` | Текущие series по счётчикам (read-only) | `features/code-generator-template-form/ui/CounterStatusTable` (в модалке шаблона) |
 | `modules/CodeGenerators/variables` (API) | Справочник плейсхолдеров | `features/code-generator-template-form/ui/VariablesCatalogModal` |
 | `apps/service_panel/mark_settings.py` | Параметры маркировки | `features/parameters-marking-options` |
-| `apps/service_panel/mes_sync_settings.py` | MES sync (новое в ветке) | *Нет экрана SP* — при появлении API: `entities/parameters` / `features/parameters-*` |
+| `apps/service_panel/mes_sync_settings.py` | MES Sync: server_node_id, bindings, Service token для DataManager | `pages/mes-sync`, `features/mes-sync-settings`, `entities/mes-sync` |
 | `apps/service_panel/crpt_options.py` | Интеграция ЧЗ | `features/integration-*`, `entities/integration` |
 | `apps/service_panel/service_panel.py` | Оболочка Service Panel Qt | `layouts/admin-layout`, `app/AdminShell` |
 | Qt `tab_licences` (см. комментарии SP) | Лицензии MACT | `pages/licences` |
@@ -21,6 +21,14 @@
 | Line aggregation UI | Уровни агрегации | `features/line-editor`, `services/line-service`, `entities/line` |
 | Devices / printers UI | Справочник устройств | `entities/device`, `features/device-form`, `widgets/device` |
 | Print stations | Станции печати | `entities/print-station`, `features/print-station-form` |
+
+## Вне scope веб-админки
+
+| Qt / продукт | Почему не в SP |
+|--------------|----------------|
+| `apps/data_manager/**` (edge tray UI) | Локальный API DataManager (`settings/`, sync agent). В SP — только **центральная** выдача токенов (`mes_sync`). |
+| Ротация `notify_token` | Пишет в `srv_cfg.ini`; REST только GET `notify_credentials/`. |
+| DB backup/restore | Нет REST (stub `features/parameters-backup`). |
 
 ## libs (логика без UI)
 

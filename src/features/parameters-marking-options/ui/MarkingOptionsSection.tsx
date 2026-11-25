@@ -104,6 +104,20 @@ function MarkingOptionsFields({ isSlaveMode, isSaving }: MarkingOptionsFieldsPro
           </Space.Compact>
         </Form.Item>
 
+        <Form.Item
+          label="Размер блока series lease"
+          tooltip="Сколько номеров выделять DataManager при claim series lease (0 — значение по умолчанию на сервере)."
+        >
+          <Space.Compact block>
+            <Form.Item name="series_lease_block_size" noStyle>
+              <InputNumber min={0} max={9_999_999} style={{ width: '100%' }} />
+            </Form.Item>
+            <Space.Addon style={{ backgroundColor: 'transparent' }}>
+              номеров
+            </Space.Addon>
+          </Space.Compact>
+        </Form.Item>
+
         <Space orientation="vertical" size="small" style={{ width: '100%' }}>
           <Form.Item name="use_special_numbers" valuePropName="checked" noStyle>
             <Checkbox>Использовать номера партии и варки в заданиях</Checkbox>
