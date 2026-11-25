@@ -1,39 +1,26 @@
-import type { CounterSpec, CounterSpecType } from './types';
+import type { CounterSpecSchema } from './types';
 
-/** Ordered counter type values for Select options (Desktop `_COUNTER_TYPES`). */
-export const COUNTER_SPEC_TYPES: readonly CounterSpecType[] = [
-  'sscc_level',
-  'gln_sscc',
-  'date_serial',
-  'task_pack',
-  'none',
+/** Frequent series key fields (Qt `template_editor._FREQUENT_KEY_FIELDS`). */
+export const FREQUENT_COUNTER_KEY_FIELDS: readonly { name: string; label: string }[] = [
+  { name: 'gtin', label: 'GTIN' },
+  { name: 'pack_gtin', label: 'GTIN упаковки' },
+  { name: 'mandate_11', label: 'Дата пр-ва' },
+  { name: 'stock_number', label: 'Партия' },
+  { name: 'taskid', label: 'Задание' },
+  { name: 'aggregation_level', label: 'Уровень' },
+  { name: 'org_gln', label: 'GLN орг.' },
+  { name: 'task_expdate_17', label: 'Срок годн.' },
 ] as const;
 
-/**
- * Display labels for counter types.
- * Desktop uses raw type strings in the combo; labels match those values.
- */
-export const COUNTER_TYPE_LABELS: Record<CounterSpecType, string> = {
-  sscc_level: 'sscc_level',
-  gln_sscc: 'gln_sscc',
-  date_serial: 'date_serial',
-  task_pack: 'task_pack',
-  none: 'none',
-};
-
-export const COUNTER_TYPE_OPTIONS = COUNTER_SPEC_TYPES.map((value) => ({
-  value,
-  label: COUNTER_TYPE_LABELS[value],
-}));
-
-/**
- * Default counter row values (Desktop `_counter_row_values(None)`).
- */
-export const DEFAULT_COUNTER_ROW: CounterSpec = {
+/** Default empty counter card (Qt `CounterCardWidget` spinbox defaults). */
+export const DEFAULT_COUNTER_ROW: CounterSpecSchema = {
   name: '',
-  type: 'sscc_level',
-  key_template: '',
-  format: '',
-  level_from: 'aggregation_level',
-  initial_value: 0,
+  width: 6,
+  key_fields: [],
+  min: 1,
+  max: 0,
 };
+
+/** Min/max width per OpenAPI / Qt spinbox. */
+export const COUNTER_WIDTH_MIN = 1;
+export const COUNTER_WIDTH_MAX = 18;

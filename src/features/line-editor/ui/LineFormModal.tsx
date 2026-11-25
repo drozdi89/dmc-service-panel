@@ -23,8 +23,14 @@ function LineModalTitleName({
   form: FormInstance<LineEditorFormState>;
   fallback: string;
 }) {
-  const name = Form.useWatch('name', form);
+  const name = Form.useWatch('linename', form);
   return <>Линия: {name?.trim() ? name : fallback}</>;
+}
+
+/** Dialog state submitted alongside the form object. */
+export interface LineFormSubmitContext {
+  /** Persisted aggregation levels removed in the editor. */
+  deletedAggregationLevelIds: number[];
 }
 
 /**
@@ -46,6 +52,7 @@ export interface LineFormModalProps {
   onSubmit: (
     values: LineEditorFormState,
     options: ResourceFormSubmitOptions,
+    context: LineFormSubmitContext,
   ) => void;
 }
 
@@ -71,6 +78,7 @@ export function LineFormModal({
   const [editorForm, setEditorForm] = useState<FormInstance<LineEditorFormState> | null>(
     null,
   );
+  const [deletedLevelIds, setDeletedLevelIds] = useState<number[]>([]);
   /**
    * Hydrated defaults for the current `lineKey` only.
    * Intentionally not recomputed on React Query refetch (avoids wiping dirty fields).
@@ -146,6 +154,7 @@ export function LineFormModal({
       return;
     }
     setEditorForm(null);
+    setDeletedLevelIds([]);
   }, [lineKey, open]);
 
   const handleFormReady = useCallback(
@@ -167,10 +176,10 @@ export function LineFormModal({
         ? (
             <LineModalTitleName
               form={editorForm}
-              fallback={initialValues?.name?.trim() || '…'}
+              fallback={initialValues?.linename?.trim() || '…'}
             />
           )
-        : `Линия: ${initialValues?.name?.trim() || '…'}`
+        : `Линия: ${initialValues?.linename?.trim() || '…'}`
       : 'Новая линия');
 
   const canSave =
@@ -205,7 +214,7 @@ export function LineFormModal({
             return;
           }
           const values = editorForm.getFieldsValue(true) as LineEditorFormState;
-          onSubmit(values, options);
+          onSubmit(values, options, { deletedAggregationLevelIds: deletedLevelIds });
         },
       })}
     >
@@ -232,6 +241,8 @@ export function LineFormModal({
               isNew={!isExisting}
               initialValues={initialValues}
               initialResourceLabels={initialResourceLabels}
+              deletedLevelIds={deletedLevelIds}
+              onDeletedLevelIdsChange={setDeletedLevelIds}
               onFormReady={handleFormReady}
             />
           </>

@@ -3,17 +3,16 @@ import {
   daysUntil,
   decodePcData,
   fetchClients,
+  filterUnboundLicences,
   formatDate,
   formatDateTime,
   formatSubscriptionText,
-  useDeleteClientMutation,
-  useRefetchClientsMutation,
-  useRefreshMactMutation,
-  useRegisterClientLicenceMutation,
+  useLicenceActions,
+  useMactLicencesQuery,
+  useMactPersonalAccountQuery,
+  useMactSubscriptionQuery,
   useRegisteredClientsQuery,
-  useUnregisterClientLicenceMutation,
   type DmcClient,
-  type MactLicenceList,
 } from '@/entities/licence';
 import { HardwareInfoModal } from '@/features/licence-hardware-info';
 import { LicenceMactSummaryCard } from '@/features/licence-mact-summary';
@@ -26,16 +25,10 @@ import {
   DatabaseOutlined,
   DeleteOutlined,
   InfoCircleOutlined,
-  KeyOutlined,
+  MinusCircleOutlined,
+  PlusCircleOutlined,
 } from '@ant-design/icons';
-import {
-  Alert,
-  Popconfirm,
-  Space,
-  Tag,
-  Typography,
-  message
-} from 'antd';
+import { Alert, Popconfirm, Space, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useCallback, useMemo, useState } from 'react';
 
@@ -45,12 +38,6 @@ const { Text } = Typography;
  * Licences administration: DMC clients list and MACT licence refresh (Qt `tab_licences` parity).
  */
 export default function LicencesPage() {
-  const [mactSnapshot, setMactSnapshot] = useState<MactLicenceList | null>(null);
-  const [subscriptionText, setSubscriptionText] = useState<string>(
-    'Данные о подписке недоступны..',
-  );
-  const [personalAccountUrl, setPersonalAccountUrl] = useState<string | null>(null);
-
   const [hwModalOpen, setHwModalOpen] = useState(false);
   const [hwModalText, setHwModalText] = useState('');
 
@@ -72,68 +59,45 @@ export default function LicencesPage() {
     return map;
   }, [registeredQuery.data]);
 
+  // MACT snapshot loads on page open (Qt `refresh_licences` on tab switch).
+  const licencesQuery = useMactLicencesQuery();
+  const subscriptionQuery = useMactSubscriptionQuery();
+  const accountQuery = useMactPersonalAccountQuery();
+
+  const mactSnapshot = licencesQuery.data ?? null;
+  // Licences already bound to a client are hidden (client-side filter).
   const availableLicences = useMemo(
-    () => mactSnapshot?.available ?? [],
-    [mactSnapshot],
+    () => filterUnboundLicences(mactSnapshot?.available ?? [], registeredQuery.data ?? []),
+    [mactSnapshot, registeredQuery.data],
   );
+  const subscriptionText = subscriptionQuery.data
+    ? formatSubscriptionText(subscriptionQuery.data)
+    : 'Данные о подписке недоступны..';
+  const personalAccountUrl = accountQuery.data?.url || null;
+  const mactLoadError =
+    licencesQuery.error ?? subscriptionQuery.error ?? accountQuery.error ?? null;
+  const mactLoading =
+    licencesQuery.isFetching || subscriptionQuery.isFetching || accountQuery.isFetching;
 
-  const mactRefreshMutation = useRefreshMactMutation({
-    onSuccess: ({ licences, subscription, account }) => {
-      setMactSnapshot(licences);
-      setSubscriptionText(formatSubscriptionText(subscription));
-      setPersonalAccountUrl(account.url || null);
-      message.success('Данные лицензирования обновлены');
-    },
-    onError: (error: Error) => {
-      setMactSnapshot(null);
-      setSubscriptionText('Данные о подписке недоступны..');
-      setPersonalAccountUrl(null);
-      message.error(error.message || 'Ошибка обновления лицензий MACT');
-    },
-  });
+  const closeRegisterModal = useCallback(() => {
+    setRegisterModalOpen(false);
+    setRegisterClientId(null);
+    setSelectedLicencePin(null);
+  }, []);
 
-  const refetchClientsMutation = useRefetchClientsMutation({
-    onSuccess: () => {
-      message.success('Список клиентов обновлён');
-    },
-    onError: (error) => {
-      message.error(error.message || 'Ошибка обновления списка клиентов');
-    },
-  });
-
-  const registerMutation = useRegisterClientLicenceMutation({
-    onSuccess: () => {
-      setRegisterModalOpen(false);
-      setRegisterClientId(null);
-      setSelectedLicencePin(null);
-      message.success('Лицензия привязана');
-      mactRefreshMutation.mutate();
-    },
-    onError: (error) => {
-      message.error(error.message || 'Ошибка привязки лицензии');
-    },
-  });
-
-  const unregisterMutation = useUnregisterClientLicenceMutation({
-    onSuccess: () => {
-      message.success('Лицензия отвязана');
-      mactRefreshMutation.mutate();
-    },
-    onError: (error) => {
-      message.error(error.message || 'Ошибка отвязки лицензии');
-    },
-  });
-  const unregisteringId = unregisterMutation.isPending ? unregisterMutation.variables : null;
-
-  const deleteClientMutation = useDeleteClientMutation({
-    onSuccess: () => {
-      message.success('Клиент удалён');
-    },
-    onError: (error) => {
-      message.error(error.message || 'Ошибка удаления клиента');
-    },
-  });
-  const deletingId = deleteClientMutation.isPending ? deleteClientMutation.variables : null;
+  const {
+    refreshMact,
+    isRefreshingMact,
+    refetchClients,
+    isRefetchingClients,
+    register,
+    isRegistering,
+    unregister,
+    unregisteringId,
+    deleteClient,
+    deletingId,
+    notifyNoAvailableLicences,
+  } = useLicenceActions({ onRegistered: closeRegisterModal });
 
   const openHwInfo = useCallback((client: DmcClient) => {
     setHwModalText(decodePcData(client.pc_data));
@@ -143,47 +107,25 @@ export default function LicencesPage() {
   const openRegisterModal = useCallback(
     (clientId: string) => {
       if (availableLicences.length === 0) {
-        message.warning(
-          'Нет доступных лицензий. Нажмите «Обновить лицензии» для загрузки с MACT.',
-        );
+        notifyNoAvailableLicences({ loading: mactLoading, error: mactLoadError });
         return;
       }
       setRegisterClientId(clientId);
       setSelectedLicencePin(availableLicences[0]?.pin ?? null);
       setRegisterModalOpen(true);
     },
-    [availableLicences],
+    [availableLicences, mactLoadError, mactLoading, notifyNoAvailableLicences],
   );
 
   const handleRegister = useCallback(() => {
     if (!registerClientId || !selectedLicencePin) {
       return;
     }
-    const licence = availableLicences.find((item) => item.pin === selectedLicencePin);
-    if (!licence) {
-      message.error('Выберите лицензию');
-      return;
-    }
-    registerMutation.mutate({
-      client_id: registerClientId,
-      licence_key: licence.pin,
-      valid_until: licence.valid_until,
-    });
-  }, [registerClientId, selectedLicencePin, availableLicences, registerMutation]);
-
-  const handleUnregister = useCallback(
-    (clientId: string) => {
-      unregisterMutation.mutate(clientId);
-    },
-    [unregisterMutation],
-  );
-
-  const handleDeleteClient = useCallback(
-    (clientId: string) => {
-      deleteClientMutation.mutate(clientId);
-    },
-    [deleteClientMutation],
-  );
+    register(
+      registerClientId,
+      availableLicences.find((item) => item.pin === selectedLicencePin),
+    );
+  }, [registerClientId, selectedLicencePin, availableLicences, register]);
 
   const columns = useMemo<ColumnsType<DmcClient>>(
     () => [
@@ -264,14 +206,14 @@ export default function LicencesPage() {
                   title={`Отвязать лицензию от клиента ${record.id}?`}
                   okText="Отвязать"
                   cancelText="Отмена"
-                  onConfirm={() => handleUnregister(record.id)}
+                  onConfirm={() => unregister(record.id)}
                 >
                   <ButtonLoading
                     type="text"
                     size="small"
                     danger
                     loading={isUnregistering}
-                    icon={<KeyOutlined />}
+                    icon={<MinusCircleOutlined />}
                     aria-label="Отвязать лицензию"
                   />
                 </Popconfirm>
@@ -279,7 +221,7 @@ export default function LicencesPage() {
                 <ButtonLoading
                   type="text"
                   size="small"
-                  icon={<KeyOutlined />}
+                  icon={<PlusCircleOutlined />}
                   aria-label="Привязать лицензию"
                   onClick={() => openRegisterModal(record.id)}
                 />
@@ -289,7 +231,7 @@ export default function LicencesPage() {
                 okText="Удалить"
                 cancelText="Отмена"
                 okButtonProps={{ danger: true }}
-                onConfirm={() => handleDeleteClient(record.id)}
+                onConfirm={() => deleteClient(record.id)}
               >
                 <ButtonLoading
                   type="text"
@@ -312,13 +254,13 @@ export default function LicencesPage() {
       deletingId,
       openHwInfo,
       openRegisterModal,
-      handleUnregister,
-      handleDeleteClient,
+      unregister,
+      deleteClient,
     ],
   );
 
   const licenceSummary = mactSnapshot
-    ? `Всего: ${mactSnapshot.used.length + mactSnapshot.available.length} | Доступно: ${mactSnapshot.available.length}`
+    ? `Всего: ${mactSnapshot.used.length + mactSnapshot.available.length} | Доступно: ${availableLicences.length}`
     : '—';
 
   return (
@@ -338,6 +280,15 @@ export default function LicencesPage() {
         />
       ) : null}
 
+      {mactLoadError ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="Не удалось загрузить данные лицензирования MACT"
+          description={mactLoadError.message}
+        />
+      ) : null}
+
       <LicenceMactSummaryCard
         licenceSummary={licenceSummary}
         subscriptionText={subscriptionText}
@@ -350,21 +301,20 @@ export default function LicencesPage() {
         columns={columns}
         rowKey="id"
         searchPlaceholder="Поиск по ID или имени…"
-        scroll={{ x: 1100 }}
         toolbarExtra={
           <Space wrap>
             <ButtonLoading
               icon={<DatabaseOutlined />}
-              loading={refetchClientsMutation.isPending}
-              onClick={() => refetchClientsMutation.mutate()}
+              loading={isRefetchingClients}
+              onClick={refetchClients}
             >
               Обновить клиентов
             </ButtonLoading>
             <ButtonLoading
               type="primary"
               icon={<CloudSyncOutlined />}
-              loading={mactRefreshMutation.isPending}
-              onClick={() => mactRefreshMutation.mutate()}
+              loading={isRefreshingMact || mactLoading}
+              onClick={refreshMact}
             >
               Обновить лицензии
             </ButtonLoading>
@@ -383,13 +333,9 @@ export default function LicencesPage() {
         clientId={registerClientId}
         availableLicences={availableLicences}
         selectedLicencePin={selectedLicencePin}
-        confirmLoading={registerMutation.isPending}
+        confirmLoading={isRegistering}
         onSelectedLicencePinChange={setSelectedLicencePin}
-        onCancel={() => {
-          setRegisterModalOpen(false);
-          setRegisterClientId(null);
-          setSelectedLicencePin(null);
-        }}
+        onCancel={closeRegisterModal}
         onRegister={handleRegister}
       />
     </Space>

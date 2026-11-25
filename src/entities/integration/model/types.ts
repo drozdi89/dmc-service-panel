@@ -31,7 +31,7 @@ export type AutoorderProductRow = components['schemas']['ProdOrderDataSchema'];
  * OpenAPI is incomplete: the autosend endpoint also returns and accepts `auto_send_aggregate`.
  */
 export type AutosendProductSettings = components['schemas']['AutosendProductSettings'] & {
-  auto_send_aggregate?: boolean;
+  auto_aggregate?: boolean;
 };
 
 /** Autosend CRPT transfer mode. */

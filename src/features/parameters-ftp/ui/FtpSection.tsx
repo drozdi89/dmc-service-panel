@@ -1,59 +1,34 @@
-import { Checkbox, Col, Form, Input, InputNumber, Row } from 'antd';
-import type { FormInstance } from 'antd';
-import { useEffect } from 'react';
-import type { FtpConfiguration } from '@/entities/parameters';
-import { ButtonLoading } from '@/shared/ui/loading';
+import { App, Button, Checkbox, Col, Form, Input, InputNumber, Row } from 'antd';
+import { useCallback, useEffect } from 'react';
+import {
+  normalizeFtpConfig,
+  useFtpSettings,
+  type FtpConfiguration,
+} from '@/entities/parameters';
+import { ButtonLoading, QueryStateBoundary } from '@/shared/ui/loading';
 
-/** Props for FTP configuration section. */
-export interface FtpSectionProps {
-  form: FormInstance<FtpConfiguration>;
-  initialConfig: FtpConfiguration | undefined;
-  saving: boolean;
-  onSave: (values: FtpConfiguration) => void;
-}
-
-const DEFAULT_CONNECTION = {
-  host: '',
-  port: 21,
-  username: '',
-  password: '',
-  home_dir: '',
-  import_dir: '',
-  export_dir: '',
-};
-
-/**
- * Normalizes FTP API payload for form fields.
- *
- * @param config - FTP configuration from API.
- */
-export function normalizeFtpConfig(config: FtpConfiguration): FtpConfiguration {
-  return {
-    enabled: config.enabled,
-    processed_file: config.processed_file || 'processed.txt',
-    connection: { ...DEFAULT_CONNECTION, ...config.connection },
-  };
-}
-
-/**
- * FTP exchange settings — parity with Qt `gbFtpExchange` + `FtpIntegrationUI`.
- */
-export function FtpSection({ form, initialConfig, saving, onSave }: FtpSectionProps) {
-  useEffect(() => {
-    if (initialConfig) {
-      form.setFieldsValue(normalizeFtpConfig(initialConfig));
-    }
-  }, [form, initialConfig]);
-
+function FtpFields({ isSaving }: { isSaving: boolean }) {
+  const { modal } = App.useApp();
+  const form = Form.useFormInstance<FtpConfiguration>();
   const enabled = Form.useWatch('enabled', form);
+  const host = Form.useWatch(['connection', 'host'], form);
+  const port = Form.useWatch(['connection', 'port'], form);
+
+  const handleCheckConnection = useCallback(() => {
+    modal.info({
+      title: 'Host',
+      content: (
+        <>
+          Пока над этим думаем (думает бекенд)
+          <br />
+          {host}: {port}
+        </>
+      ),
+    });
+  }, [host, modal, port]);
 
   return (
-    <Form
-      form={form}
-      layout="vertical"
-      onFinish={onSave}
-      initialValues={initialConfig ? normalizeFtpConfig(initialConfig) : undefined}
-    >
+    <>
       <Form.Item name="enabled" valuePropName="checked">
         <Checkbox>Включить FTP-обмен</Checkbox>
       </Form.Item>
@@ -88,6 +63,12 @@ export function FtpSection({ form, initialConfig, saving, onSave }: FtpSectionPr
         </Col>
       </Row>
 
+      <Form.Item>
+        <Button block disabled={!enabled} onClick={handleCheckConnection}>
+          Проверить подключение
+        </Button>
+      </Form.Item>
+
       <Form.Item name={['connection', 'home_dir']} label="Домашний каталог">
         <Input disabled={!enabled} />
       </Form.Item>
@@ -105,10 +86,37 @@ export function FtpSection({ form, initialConfig, saving, onSave }: FtpSectionPr
       </Row>
 
       <Form.Item>
-        <ButtonLoading type="primary" htmlType="submit" loading={saving}>
+        <ButtonLoading type="primary" htmlType="submit" loading={isSaving}>
           Сохранить настройки FTP
         </ButtonLoading>
       </Form.Item>
-    </Form>
+    </>
+  );
+}
+
+/**
+ * FTP exchange settings — parity with Qt `gbFtpExchange` + `FtpIntegrationUI`.
+ * Loads and saves its own data; toasts come from the entity hook.
+ */
+export function FtpSection() {
+  const [form] = Form.useForm<FtpConfiguration>();
+  const { config, isLoading, error, save, isSaving } = useFtpSettings();
+
+  useEffect(() => {
+    if (!isLoading && config) {
+      form.setFieldsValue(normalizeFtpConfig(config));
+    }
+  }, [form, isLoading, config]);
+
+  return (
+    <QueryStateBoundary
+      loading={isLoading}
+      error={error}
+      errorTitle="Не удалось загрузить настройки FTP"
+    >
+      <Form form={form} layout="vertical" onFinish={save}>
+        <FtpFields isSaving={isSaving} />
+      </Form>
+    </QueryStateBoundary>
   );
 }

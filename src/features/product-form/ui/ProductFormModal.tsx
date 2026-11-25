@@ -163,8 +163,6 @@ export function ProductFormModal({
     submitting ||
     (canLoad && (productLoading || isLoadError || !product));
 
-
-
   return (
     <Modal
       open={open}

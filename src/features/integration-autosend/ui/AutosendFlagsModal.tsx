@@ -1,12 +1,13 @@
-import { Button, Checkbox, Form, Modal, Space } from 'antd';
+import { Button, Checkbox, Form, Modal, Space, type CheckboxChangeEvent } from 'antd';
 import { useEffect, useState } from 'react';
 
 /** Autosend product flag values editable in the details modal. */
 export interface AutosendFlagsFormValues {
   auto_apply: boolean;
   auto_introduce: boolean;
-  auto_send_aggregate: boolean;
+  auto_aggregate: boolean;
   skip_serialization: boolean;
+  auto_export_to_1c: boolean;
 }
 
 /** Props for bulk autosend flags modal. */
@@ -35,6 +36,14 @@ export function AutosendFlagsModal({
     setValues(initialValues);
   }, [initialValues, open]);
 
+
+  const handleChange = ({ target }: CheckboxChangeEvent) => {
+    setValues((prev) => ({ 
+      ...prev, 
+      [target.name as keyof AutosendFlagsFormValues]: target.checked
+    }));
+  };
+
   return (
     <Modal
       title="Задать параметры автоотправки"
@@ -54,46 +63,45 @@ export function AutosendFlagsModal({
       <Form layout="vertical">
         <Form.Item>
           <Checkbox
+            name="auto_apply"
             checked={values.auto_apply}
-            onChange={(event) =>
-              setValues((prev) => ({ ...prev, auto_apply: event.target.checked }))
-            }
+            onChange={handleChange}
           >
             Нанесение
           </Checkbox>
         </Form.Item>
         <Form.Item>
           <Checkbox
+            name='auto_introduce'
             checked={values.auto_introduce}
-            onChange={(event) =>
-              setValues((prev) => ({ ...prev, auto_introduce: event.target.checked }))
-            }
+            onChange={handleChange}
           >
             Ввод в оборот
           </Checkbox>
         </Form.Item>
         <Form.Item>
           <Checkbox
-            checked={values.auto_send_aggregate}
-            onChange={(event) =>
-              setValues((prev) => ({
-                ...prev,
-                auto_send_aggregate: event.target.checked,
-              }))
-            }
+            name='auto_aggregate'
+            checked={values.auto_aggregate}
+            onChange={handleChange}
           >
             Агрегация
           </Checkbox>
         </Form.Item>
         <Form.Item>
           <Checkbox
+            name='auto_export_to_1c'
+            checked={values.auto_export_to_1c}
+            onChange={handleChange}
+          >
+            Передавать в 1С
+          </Checkbox>
+        </Form.Item>
+        <Form.Item>
+          <Checkbox
+            name='skip_serialization'
             checked={values.skip_serialization}
-            onChange={(event) =>
-              setValues((prev) => ({
-                ...prev,
-                skip_serialization: event.target.checked,
-              }))
-            }
+            onChange={handleChange}
           >
             Пропуск сериализации
           </Checkbox>

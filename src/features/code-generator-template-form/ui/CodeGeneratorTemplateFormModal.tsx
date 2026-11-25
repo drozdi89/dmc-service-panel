@@ -1,5 +1,6 @@
 import {
   codeGeneratorTemplateQueries,
+  useCodeGeneratorTemplatePreview,
   type CodeGeneratorTemplate,
 } from '@/entities/code-generator-template';
 import type { ResourceFormSubmitOptions } from '@/shared/model/resourceFormUiBridge';
@@ -15,7 +16,6 @@ import {
   Input,
   InputNumber,
   Modal,
-  Typography,
 } from 'antd';
 import type { TextAreaRef } from 'antd/es/input/TextArea';
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
@@ -33,7 +33,8 @@ import {
   normalizeCounterConfig,
   validateCodeGeneratorTemplateForm,
 } from '../model/validation';
-import { CounterConfigTable } from './CounterConfigTable';
+import { CounterConfigList } from './CounterConfigList';
+import { CounterStatusTable } from './CounterStatusTable';
 import { VariablesCatalogModal } from './VariablesCatalogModal';
 
 /**
@@ -64,11 +65,7 @@ function insertPlaceholderAtCursor(
   return next;
 }
 
-/**
- * Detects aborted/cancelled HTTP requests (AbortSignal / axios CanceledError).
- *
- * @param error - Caught rejection value.
- */
+/** Lifts the persisted template `id` from the form to the modal state. */
 function TemplateIdWatch({
   onTemplateIdChange,
 }: {
@@ -85,16 +82,11 @@ function TemplateIdWatch({
   return null;
 }
 
-function isAbortError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') {
-    return false;
-  }
-  const candidate = error as { name?: string; code?: string };
-  return (
-    candidate.name === 'AbortError' ||
-    candidate.name === 'CanceledError' ||
-    candidate.code === 'ERR_CANCELED'
-  );
+function CounterStatusSection() {
+  const form = Form.useFormInstance<CodeGeneratorTemplate>();
+  const counterConfig = Form.useWatch('counter_config', form);
+  const counters = Form.useWatch('counters', form);
+  return <CounterStatusTable counterConfig={counterConfig} counters={counters} />;
 }
 
 /**
@@ -119,19 +111,16 @@ export function CodeGeneratorTemplateFormModal({
   onCancel,
   onSubmit,
 }: CodeGeneratorTemplateFormModalProps) {
-  const { modal, message } = App.useApp();
+  const { modal } = App.useApp();
   const [form] = Form.useForm<CodeGeneratorTemplate>();
   const [previewForm] = Form.useForm<CodeGeneratorTemplatePreviewFormValues>();
   const templateRef = useRef<TextAreaRef>(null);
-  const previewAbortRef = useRef<AbortController | null>(null);
-  /** Tracks modal open state for async preview (stale after Cancel / X). */
-  const openRef = useRef(open);
   const [variablesOpen, setVariablesOpen] = useState(false);
-  const [previewing, setPreviewing] = useState(false);
-
-  useEffect(() => {
-    openRef.current = open;
-  }, [open]);
+  const {
+    preview,
+    cancel: cancelPreview,
+    isPreviewing: previewing,
+  } = useCodeGeneratorTemplatePreview();
 
   const resolvedMode: 'create' | 'edit' =
     mode ??
@@ -198,12 +187,6 @@ export function CodeGeneratorTemplateFormModal({
   const resolvedTitle =
     title ??
     (resolvedMode === 'edit' ? 'Изменение шаблона' : 'Новый шаблон');
-
-  const cancelPreview = useCallback(() => {
-    previewAbortRef.current?.abort();
-    previewAbortRef.current = null;
-    setPreviewing(false);
-  }, []);
 
   const handleCancel = useCallback(() => {
     cancelPreview();
@@ -285,75 +268,17 @@ export function CodeGeneratorTemplateFormModal({
       return;
     }
 
-    let values: CodeGeneratorTemplate & {
-      level: number;
-    };
+    let previewValues: CodeGeneratorTemplatePreviewFormValues;
 
     try {
-      values = {
-        ...(await form.validateFields()),
-        level: (await previewForm.validateFields()).aggregation_level,
-      };
+      await form.validateFields(['name', 'template', 'counter_config']);
+      previewValues = await previewForm.validateFields();
     } catch {
       return;
     }
 
-    previewAbortRef.current?.abort();
-    const abortController = new AbortController();
-    previewAbortRef.current = abortController;
-    setPreviewing(true);
-
-    try {
-      /**
-       * TODO: Implement preview code generator template
-       */
-      const result = await (async function (previewValues: unknown, _signal: AbortSignal) {
-        return JSON.stringify(previewValues);
-      })(values, abortController.signal);
-
-      if (abortController.signal.aborted || !openRef.current) {
-        return;
-      }
-
-      modal.info({
-        title: 'Результат проверки',
-        width: 560,
-        style: { top: '1rem' },
-        content: (
-          <div>
-            <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
-              Сгенерированный код (счётчики БД не изменялись):
-            </Typography.Paragraph>
-            <Typography.Paragraph
-              copyable
-              code
-              style={{ marginBottom: 0, wordBreak: 'break-all' }}
-            >
-              {result}
-            </Typography.Paragraph>
-          </div>
-        ),
-      });
-    } catch (error) {
-      if (
-        abortController.signal.aborted ||
-        !openRef.current ||
-        isAbortError(error)
-      ) {
-        return;
-      }
-      message.error(
-        error instanceof Error
-          ? error.message
-          : 'Не удалось проверить шаблон',
-      );
-    } finally {
-      if (previewAbortRef.current === abortController) {
-        previewAbortRef.current = null;
-        setPreviewing(false);
-      }
-    }
-  }, [canPreview, form, message, modal, previewForm, templateId]);
+    await preview(templateId, previewValues);
+  }, [canPreview, form, preview, previewForm, templateId]);
 
   const handleSubmit = useCallback(
     async (options: ResourceFormSubmitOptions) => {
@@ -488,8 +413,12 @@ export function CodeGeneratorTemplateFormModal({
             </Form.Item>
 
             <Form.Item style={{ marginBottom: 16 }}>
-              <CounterConfigTable disabled={formDisabled} />
+              <CounterConfigList disabled={formDisabled} catalogEnabled={open} />
             </Form.Item>
+
+            {resolvedMode === 'edit' ? (
+              <CounterStatusSection />
+            ) : null}
 
             <Form.Item
               name="validation_regex"
@@ -507,7 +436,26 @@ export function CodeGeneratorTemplateFormModal({
             initialValues={createDefaultPreviewFormValues()}
             style={{ marginTop: 8 }}
           >
-            <Flex justify="space-between" align="flex-start">
+            <Flex justify="space-between" align="flex-start" wrap gap="small">
+              <Form.Item
+                name="task_id"
+                label="ID задания"
+                rules={[
+                  {
+                    required: true,
+                    message: 'Укажите ID задания',
+                  },
+                ]}
+                style={{ marginBottom: 8, minWidth: 120 }}
+                layout="horizontal"
+              >
+                <InputNumber
+                  min={1}
+                  precision={0}
+                  style={{ width: '100%' }}
+                  disabled={!canPreview}
+                />
+              </Form.Item>
               <Form.Item
                 name="aggregation_level"
                 label="Уровень агрегации"
@@ -522,7 +470,7 @@ export function CodeGeneratorTemplateFormModal({
                 layout="horizontal"
               >
                 <InputNumber
-                  min={0}
+                  min={-1}
                   max={99}
                   precision={0}
                   style={{ width: '100%' }}

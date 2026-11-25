@@ -1,5 +1,4 @@
 import type { components } from '@/shared/api';
-import type { Dayjs } from 'dayjs';
 
 /** Product row from GET /api/v2/products/list. */
 export type Product = components['schemas']['GetProductsSchema'];
@@ -95,26 +94,22 @@ export const EMPTY_PRODUCT_FORM_REMOVED_IDS: ProductFormRemovedIds = {
 };
 
 /**
- * Nested aggregate sub-modal: API create shape without parent `gtin`
- * (supplied on persist). `id` may be a client key before save.
+ * Aggregate sub-modal = API row. Parent `gtin` is supplied on persist;
+ * a new row has no `id` until it is saved.
  */
-export type AggregateFormValues = Omit<ProductAggregateCreatePayload, 'gtin' | 'id'> & {
-  id?: ProductAggregate['id'] | string;
+export type AggregateFormValues = Omit<ProductAggregateCreatePayload, 'gtin'> & {
   gtin?: ProductAggregateCreatePayload['gtin'];
 };
 
-/** Certificate sub-modal: API row + DatePicker / Switch conveniences. */
-export type CertificateFormValues = Omit<
-  ProductCertificate,
-  'cert_date' | 'cert_id' | 'gtin' | 'priority'
-> & {
-  cert_id?: ProductCertificate['cert_id'] | string;
-  cert_date: Dayjs | string;
-  priority?: ProductCertificate['priority'] | boolean;
+/**
+ * Certificate sub-modal = API row (`cert_date` as `YYYY-MM-DD`, `priority` 0|1).
+ * DatePicker / Switch conversions live in Form.Item `getValueProps` / `normalize`.
+ */
+export type CertificateFormValues = Omit<ProductCertificate, 'gtin'> & {
+  gtin?: ProductCertificate['gtin'];
 };
 
-/** Licence sub-modal: API row + DatePicker convenience. */
-export type LicenceFormValues = Omit<ProductLicence, 'lic_date' | 'lic_id' | 'gtin'> & {
-  lic_id?: ProductLicence['lic_id'] | string;
-  lic_date: Dayjs | string;
+/** Licence sub-modal = API row (`lic_date` as `YYYY-MM-DD`). */
+export type LicenceFormValues = Omit<ProductLicence, 'gtin'> & {
+  gtin?: ProductLicence['gtin'];
 };

@@ -1,4 +1,3 @@
-import { formatDatePickerValue } from '@/shared/lib/dateStringPicker';
 import type {
   AggregateFormValues,
   CertificateFormValues,
@@ -521,7 +520,7 @@ export function mapCertificatesToPayload(
 }
 
 /**
- * Normalizes one certificate row (date `YYYY-MM-DD`, priority 0|1).
+ * Normalizes one certificate row (priority 0|1).
  *
  * @param certificate - Form certificate values.
  */
@@ -533,7 +532,7 @@ function mapCertificateRow(
     ...(certId !== undefined ? { cert_id: certId } : {}),
     cert_type: certificate.cert_type,
     cert_number: certificate.cert_number,
-    cert_date: formatDatePickerValue(certificate.cert_date) ?? '',
+    cert_date: certificate.cert_date,
     well_number: certificate.well_number ?? null,
     priority: mapPriorityFlag(certificate.priority),
   };
@@ -573,7 +572,7 @@ export function mapLicencesToPayload(values: ProductFormSubmitValues): LicenceSa
 }
 
 /**
- * Normalizes one licence row (`lic_date` as `YYYY-MM-DD`).
+ * Picks licence fields and keeps `lic_id` only when it is persisted.
  *
  * @param licence - Form licence values.
  */
@@ -582,7 +581,7 @@ function mapLicenceRow(licence: LicenceFormValues): LicencePayloadCandidate {
   return {
     ...(licId !== undefined ? { lic_id: licId } : {}),
     lic_number: licence.lic_number,
-    lic_date: formatDatePickerValue(licence.lic_date) ?? '',
+    lic_date: licence.lic_date,
   };
 }
 

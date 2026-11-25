@@ -18,6 +18,9 @@ export const ALL_DEVICE_TYPES: DeviceType[] = [
   'divider',
 ];
 
+/** Device type of a create dialog opened without an explicit type. */
+export const DEFAULT_DEVICE_TYPE: DeviceType = 'camera';
+
 /** TypeFilterChips options for the devices list toolbar. */
 export const DEVICE_TYPE_CHIP_OPTIONS = ALL_DEVICE_TYPES.map((key) => ({
   key,

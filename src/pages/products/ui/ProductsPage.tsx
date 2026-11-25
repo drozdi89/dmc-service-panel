@@ -13,7 +13,7 @@ import { DebouncedTableFilterDropdown } from '@/shared/ui/DebouncedTableFilterDr
 import { ServerDataTable } from '@/shared/ui/ServerDataTable';
 import { ButtonLoading } from '@/shared/ui/loading';
 import { EditOutlined, InboxOutlined, RollbackOutlined } from '@ant-design/icons';
-import { Button, Modal, Space, Switch, Tag, Tooltip, Typography } from 'antd';
+import { Button, Space, Switch, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { FilterDropdownProps, FilterValue } from 'antd/es/table/interface';
 import { useCallback, useMemo, useState } from 'react';
@@ -64,7 +64,8 @@ export default function ProductsPage() {
 
   const { data: productGroups = [] } = useProductGroupsQuery();
 
-  const archiveMutation = useSetProductArchivedActions();
+  const { confirmToggleArchived, isPending: isArchivePending } =
+    useSetProductArchivedActions();
 
   const extraParams = useMemo(
     () => ({
@@ -105,39 +106,6 @@ export default function ProductsPage() {
       }
     },
     [productGroups],
-  );
-
-  const handleArchive = useCallback(
-    (product: Product) => {
-      const nextArchived = !product.archived;
-      const actionLabel = nextArchived ? 'архивировать' : 'восстановить';
-
-      Modal.confirm({
-        title: nextArchived ? 'Архивировать продукцию?' : 'Восстановить продукцию?',
-        content: (
-          <>
-            {actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1)} карточку{' '}
-            <Typography.Text strong>
-              [{product.gtin}] {product.name}
-            </Typography.Text>
-            ?
-          </>
-        ),
-        okText: nextArchived ? 'Архивировать' : 'Восстановить',
-        cancelText: 'Отмена',
-        onOk: async () => {
-          try {
-            await archiveMutation.mutateAsync({
-              gtin: product.gtin,
-              archived: nextArchived,
-            });
-          } catch {
-            // Error feedback via archiveMutation.onError.
-          }
-        },
-      });
-    },
-    [archiveMutation],
   );
 
   const columns = useMemo<ColumnsType<Product>>(
@@ -215,8 +183,8 @@ export default function ProductsPage() {
                   type="text"
                   icon={record.archived ? <RollbackOutlined /> : <InboxOutlined />}
                   aria-label={archiveAriaLabel}
-                  loading={archiveMutation.isPending}
-                  onClick={() => handleArchive(record)}
+                  loading={isArchivePending}
+                  onClick={() => confirmToggleArchived(record)}
                 />
               </Tooltip>
             </Space>
@@ -225,8 +193,8 @@ export default function ProductsPage() {
       },
     ],
     [
-      archiveMutation.isPending,
-      handleArchive,
+      isArchivePending,
+      confirmToggleArchived,
       openEdit,
       productGroups,
       selectedGroups,

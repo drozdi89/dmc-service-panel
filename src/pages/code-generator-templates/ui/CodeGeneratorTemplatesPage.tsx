@@ -1,14 +1,14 @@
 import {
-  useCodeGeneratorTemplateActions,
   codeGeneratorTemplateQueries,
   fetchCodeGeneratorTemplates,
+  useCodeGeneratorTemplateActions,
   useCodeGeneratorTemplateFormUiStore,
   type CodeGeneratorTemplate,
 } from '@/entities/code-generator-template';
 import { Template } from '@/shared/model/template';
 import { ServerDataTable } from '@/shared/ui/ServerDataTable';
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
-import { App, Button, Space, Tooltip, Typography } from 'antd';
+import { Button, Space, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useCallback, useMemo } from 'react';
 
@@ -34,32 +34,15 @@ function previewTemplate(text: string | null | undefined): string {
  * System templates keep edit/delete disabled (readonly).
  */
 export default function CodeGeneratorTemplatesPage() {
-  const { message } = App.useApp();
   const openCreate = useCodeGeneratorTemplateFormUiStore((s) => s.openCreate);
   const openEdit = useCodeGeneratorTemplateFormUiStore((s) => s.openEdit);
 
-  const { deleteMutation, handleDelete } = useCodeGeneratorTemplateActions();
+  const { deleteMutation, handleEdit, handleDelete: onDelete } =
+    useCodeGeneratorTemplateActions();
 
   const onEdit = useCallback(
-    (record: CodeGeneratorTemplate) => {
-      if (record.is_system) {
-        message.warning('Системный шаблон нельзя изменить');
-        return;
-      }
-      openEdit(record.id);
-    },
-    [message, openEdit],
-  );
-
-  const onDelete = useCallback(
-    (record: CodeGeneratorTemplate) => {
-      if (record.is_system) {
-        message.warning('Системный шаблон нельзя удалить');
-        return;
-      }
-      handleDelete(record);
-    },
-    [handleDelete, message],
+    (record: CodeGeneratorTemplate) => handleEdit(record, openEdit),
+    [handleEdit, openEdit],
   );
 
   const columns = useMemo<ColumnsType<CodeGeneratorTemplate>>(

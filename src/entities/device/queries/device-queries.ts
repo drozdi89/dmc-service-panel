@@ -204,30 +204,32 @@ export function writeDeviceDetailCache(
   queryClient.setQueryData(deviceDetailQueryKey(deviceType, id), detail);
 }
 
+/** Variables for {@link useSaveDeviceMutation}: target endpoint type + form record. */
+export type SaveDeviceVariables = {
+  deviceType: DeviceType;
+  values: DeviceFormValues;
+  editId?: number;
+};
+
 /** Saves device form values (create or update). */
 export function useSaveDeviceMutation(
-  options?: EntityMutationOptions<
-    DeviceDetail,
-    { values: DeviceFormValues; editId?: number }
-  >,
+  options?: EntityMutationOptions<DeviceDetail, SaveDeviceVariables>,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
     ...options,
-    mutationFn: ({ values, editId }) => {
-      const type = values.device_type;
-      const payload = mapFormValuesToPayload(values);
+    mutationFn: ({ deviceType, values, editId }) => {
+      const payload = mapFormValuesToPayload(deviceType, values);
       const resolvedEditId = editId ?? values.id;
       const key = createIdempotencyKey();
       if (resolvedEditId !== undefined) {
-        return updateDevice(type, resolvedEditId, payload, key);
+        return updateDevice(deviceType, resolvedEditId, payload, key);
       }
-      return createDevice(type, payload, key);
+      return createDevice(deviceType, payload, key);
     },
     onSuccess: (result, variables, onMutateResult, context) => {
-      const type = variables.values.device_type;
-      writeDeviceDetailCache(queryClient, type, result);
+      writeDeviceDetailCache(queryClient, variables.deviceType, result);
       void queryClient.invalidateQueries({ queryKey: deviceQueries.keys.all() });
       return options?.onSuccess?.(result, variables, onMutateResult, context);
     },
@@ -258,12 +260,10 @@ export function useDeleteDeviceMutation(
  * POST/PATCH device form values and map the response to {@link DeviceRef}.
  */
 export async function persistDeviceFormValues(
-  save: (variables: { values: DeviceFormValues; editId?: number }) => Promise<DeviceDetail>,
-  values: DeviceFormValues,
-  editId?: number,
+  save: (variables: SaveDeviceVariables) => Promise<DeviceDetail>,
+  variables: SaveDeviceVariables,
 ): Promise<DeviceRef> {
-  const detail = await save({ values, editId });
-  const type = values.device_type;
-  const ref = mapDeviceDetailToRef(type, detail);
-  return { device_type: type, id: ref.id, name: ref.name };
+  const detail = await save(variables);
+  const ref = mapDeviceDetailToRef(variables.deviceType, detail);
+  return { device_type: variables.deviceType, id: ref.id, name: ref.name };
 }

@@ -1,8 +1,7 @@
 import {
   DEFAULT_COUNTER_ROW,
-  mapApiCounterRowToForm,
   type CodeGeneratorTemplate,
-  type CounterSpec,
+  type CounterSpecSchema,
 } from '@/entities/code-generator-template';
 import type { CodeGeneratorTemplatePreviewFormValues } from './types';
 
@@ -24,14 +23,12 @@ export function createDefaultFormValues(): CodeGeneratorTemplate {
 }
 
 /**
- * Preview query defaults aligned with API (`aggregation_level` required; rest optional).
- *
- * Unit level is `-1` per OpenAPI; numeric/string optionals match service Query defaults.
+ * Preview query defaults (`aggregation_level` −1 = unit per OpenAPI).
  */
 export function createDefaultPreviewFormValues(): CodeGeneratorTemplatePreviewFormValues {
   return {
     task_id: undefined,
-    aggregation_level: 0,
+    aggregation_level: -1,
     weight: 0,
     package_size: 0,
     aggregate_number: 0,
@@ -40,15 +37,13 @@ export function createDefaultPreviewFormValues(): CodeGeneratorTemplatePreviewFo
   };
 }
 
-/**
- * New counter row defaults (entity {@link DEFAULT_COUNTER_ROW}).
- */
-export function createDefaultCounterRow(): CounterSpec {
+/** New counter row defaults (entity {@link DEFAULT_COUNTER_ROW}). */
+export function createDefaultCounterRow(): CounterSpecSchema {
   return { ...DEFAULT_COUNTER_ROW };
 }
 
 /**
- * Puts API/list detail into the form (same fields; empty counters get row defaults).
+ * Puts API/list detail into the form.
  *
  * @param template - Partial template from list or `fetchById`.
  */
@@ -61,12 +56,13 @@ export function mapTemplateToFormValues(
     name: template.name ?? '',
     description: template.description ?? '',
     template: template.template ?? '',
-    counter_config: (template.counter_config ?? []).map((row) =>
-      mapApiCounterRowToForm({
-        ...DEFAULT_COUNTER_ROW,
-        ...row,
-      }),
-    ),
+    counter_config: (template.counter_config ?? []).map((row) => ({
+      ...createDefaultCounterRow(),
+      ...row,
+      name: row.name ?? '',
+      key_fields: row.key_fields ?? [],
+    })),
+    counters: template.counters ?? [],
     validation_regex: template.validation_regex ?? '',
     is_system: Boolean(template.is_system),
   };

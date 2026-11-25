@@ -26,7 +26,9 @@ src/
 Публичный API слайса — только через `index.ts` (ESLint `boundaries/entry-point`).
 UI-kit: `@/shared/ui/<segment>`. Слой `modules/` **удалён** (FSD #17); импорты `@/modules/**` запрещены.
 
-**Состояние:** серверный кэш — только «идея запроса» в `entities/*/queries` (ключи, options, `factoryQuery` / мутации, инвалидация); тосты, confirm и сценарии вроде `use*FormSave` — в `entities/*/hooks` (hooks вызывают queries). Оркестрация без UI — `services/*/model/queries.ts`. UI-intent домена (dialog, `lastSaved`) — zustand в **`entities/<domain>/model`**. Form Host — `widgets/*`, один mount в `AppProviders`; разметка формы — `features/*-form`. Мутации без `id` — `useInvalidatingMutation` из `@/shared/queries`.
+**Состояние:** серверный кэш — только «идея запроса» в `entities/*/queries` (ключи, options, `factoryQuery` / мутации, инвалидация); тосты, confirm и сценарии вроде `use*FormSave` — в `entities/*/hooks` (hooks вызывают queries). Оркестрация без UI — `services/*/model/queries.ts` (вызовы entity-api, без HTTP/URL). UI-intent домена (dialog, `lastSaved`) — zustand в **`entities/<domain>/model`**. Form Host — `widgets/*`, один mount в `AppProviders`; разметка формы — `features/*-form`. Мутации без `id` — `useInvalidatingMutation` из `@/shared/queries`.
+
+**HTTP:** пути `/api/...` и `apiRequest` / `apiRequestData` / `fetchPaginatedList` — только в `entities/*/api` (транспорт — `shared/api`).
 
 **Форма:** в неё передаётся объект, полученный из API (тип из `src/shared/api/schema.d.ts`). Дополнительных переменных в объект формы нет (`*_removed`, `*Label`, `clientKey`, commissioning UI — в state рядом с формой). `src/openapi.json` описывает API частично; `schema.d.ts` вручную не править.
 

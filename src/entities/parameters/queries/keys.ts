@@ -22,6 +22,9 @@ export const FTP_QUERY_KEY = [...PARAMETERS_QUERY_ROOT, 'ftp'] as const;
 /** Watchdog service configuration. */
 export const WATCHDOG_QUERY_KEY = [...PARAMETERS_QUERY_ROOT, 'watchdog'] as const;
 
+/** Scheduled code cleanup settings (four `code_cleanup_*` marking options). */
+export const CODE_CLEANUP_QUERY_KEY = [...PARAMETERS_QUERY_ROOT, 'code-cleanup'] as const;
+
 /**
  * Factory numbers entry (list / lookup / detail scopes appended by factoryQuery).
  * AsyncLookupSelect / tables use this as `queryKey` prefix.

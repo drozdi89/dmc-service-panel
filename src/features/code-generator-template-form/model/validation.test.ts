@@ -1,19 +1,18 @@
+import type { CounterSpecSchema } from '@/entities/code-generator-template';
 import { describe, expect, it } from 'vitest';
-import type { CounterSpec } from '@/entities/code-generator-template';
 import {
   isCounterRowFilledWithoutName,
   normalizeCounterConfig,
   validateCodeGeneratorTemplateForm,
 } from './validation';
 
-function counter(partial: Partial<CounterSpec> = {}): CounterSpec {
+function counter(partial: Partial<CounterSpecSchema> = {}): CounterSpecSchema {
   return {
     name: '',
-    type: 'sscc_level',
-    key_template: '',
-    format: '',
-    level_from: 'aggregation_level',
-    initial_value: 0,
+    width: 6,
+    key_fields: [],
+    min: 1,
+    max: 0,
     ...partial,
   };
 }
@@ -38,17 +37,27 @@ describe('validateCodeGeneratorTemplateForm', () => {
     const errors = validateCodeGeneratorTemplateForm({
       name: 'SSCC',
       template: '00{serial}',
-      counter_config: [counter({ name: 'serial', type: 'sscc_level' })],
+      counter_config: [counter({ name: 'serial', width: 6 })],
     });
 
     expect(errors).toEqual([]);
+  });
+
+  it('rejects digit-only counter name', () => {
+    const errors = validateCodeGeneratorTemplateForm({
+      name: 'T',
+      template: '{a}',
+      counter_config: [counter({ name: '12345' })],
+    });
+
+    expect(errors.length).toBe(1);
   });
 
   it('rejects filled counter row without name', () => {
     const errors = validateCodeGeneratorTemplateForm({
       name: 'T',
       template: '{a}',
-      counter_config: [counter({ type: 'none', format: '08d' })],
+      counter_config: [counter({ width: 8 })],
     });
 
     expect(errors).toEqual([
@@ -63,10 +72,7 @@ describe('validateCodeGeneratorTemplateForm', () => {
     const errors = validateCodeGeneratorTemplateForm({
       name: 'T',
       template: '{a}',
-      counter_config: [
-        counter({ name: 'serial' }),
-        counter({ name: 'serial', type: 'none' }),
-      ],
+      counter_config: [counter({ name: 'serial' }), counter({ name: 'serial' })],
     });
 
     expect(errors).toEqual([
@@ -93,8 +99,8 @@ describe('isCounterRowFilledWithoutName', () => {
     expect(isCounterRowFilledWithoutName(counter())).toBe(false);
   });
 
-  it('is true when type differs from default', () => {
-    expect(isCounterRowFilledWithoutName(counter({ type: 'none' }))).toBe(true);
+  it('is true when width differs from default', () => {
+    expect(isCounterRowFilledWithoutName(counter({ width: 8 }))).toBe(true);
   });
 });
 
@@ -103,21 +109,15 @@ describe('normalizeCounterConfig', () => {
     expect(
       normalizeCounterConfig([
         counter(),
-        counter({
-          name: '  serial  ',
-          type: 'task_pack',
-          key_template: ' k ',
-          format: '',
-        }),
+        counter({ name: '  serial  ', key_fields: ['taskid'], width: 8 }),
       ]),
     ).toEqual([
       {
         name: 'serial',
-        type: 'task_pack',
-        key_template: 'k',
-        format: '',
-        level_from: 'aggregation_level',
-        initial_value: 0,
+        width: 8,
+        key_fields: ['taskid'],
+        min: 1,
+        max: 0,
       },
     ]);
   });

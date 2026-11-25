@@ -1,5 +1,1 @@
-export {
-  MarkingOptionsSection,
-  bundleToMarkingFormValues,
-  type MarkingOptionsSectionProps,
-} from './ui/MarkingOptionsSection';
+export { MarkingOptionsSection } from './ui/MarkingOptionsSection';

@@ -252,3 +252,36 @@ describe('useDeviceFormUiStore', () => {
     });
   });
 });
+
+describe('setCreateDeviceType', () => {
+  beforeEach(() => {
+    resetDeviceFormUiStore();
+  });
+
+  it('changes device type of an unlocked create dialog', () => {
+    useDeviceFormUiStore.getState().openCreate({ consumerId: 'a' });
+    useDeviceFormUiStore.getState().setCreateDeviceType('printer');
+    expect(useDeviceFormUiStore.getState().dialog).toEqual({
+      kind: 'create',
+      consumerId: 'a',
+      deviceType: 'printer',
+    });
+  });
+
+  it('ignores type-locked create and edit dialogs', () => {
+    useDeviceFormUiStore
+      .getState()
+      .openCreate({ deviceType: 'scale', lockDeviceType: true });
+    useDeviceFormUiStore.getState().setCreateDeviceType('printer');
+    expect(useDeviceFormUiStore.getState().dialog).toMatchObject({
+      deviceType: 'scale',
+    });
+
+    useDeviceFormUiStore.getState().openEdit(1, { deviceType: 'camera' });
+    useDeviceFormUiStore.getState().setCreateDeviceType('printer');
+    expect(useDeviceFormUiStore.getState().dialog).toMatchObject({
+      kind: 'edit',
+      deviceType: 'camera',
+    });
+  });
+});

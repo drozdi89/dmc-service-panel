@@ -1,50 +1,43 @@
 import { Checkbox, Form, Space } from 'antd';
-import type { FormInstance } from 'antd';
-import { useEffect, useRef } from 'react';
-import type { ParametersSettingsBundle } from '@/entities/parameters';
-import { ButtonLoading } from '@/shared/ui/loading';
-
-/** Props for statistics section at the bottom of Parameters page. */
-export interface StatisticsSectionProps {
-  form: FormInstance<ParametersSettingsBundle>;
-  initialValues: ParametersSettingsBundle | undefined;
-  saving: boolean;
-  onSave: (values: ParametersSettingsBundle) => void;
-}
+import { useEffect } from 'react';
+import { useStatisticsSettings, type StatisticsSettings } from '@/entities/parameters';
+import { ButtonLoading, QueryStateBoundary } from '@/shared/ui/loading';
 
 /**
  * Statistics collection toggles — parity with Qt `tab_service` checkboxes.
+ * Loads and saves its own data; toasts come from the entity hook.
  */
-export function StatisticsSection({
-  form,
-  initialValues,
-  saving,
-  onSave,
-}: StatisticsSectionProps) {
-  const initializedRef = useRef(false);
+export function StatisticsSection() {
+  const [form] = Form.useForm<StatisticsSettings>();
+  const { values, isLoading, error, save, isSaving } = useStatisticsSettings();
 
   useEffect(() => {
-    if (initialValues && !initializedRef.current) {
-      form.setFieldsValue(initialValues);
-      initializedRef.current = true;
+    if (!isLoading && values) {
+      form.setFieldsValue(values);
     }
-  }, [form, initialValues]);
+  }, [form, isLoading, values]);
 
   return (
-    <Form form={form} layout="vertical" onFinish={onSave}>
-      <Space orientation="vertical" size="small">
-        <Form.Item name="disable_statistics" valuePropName="checked" noStyle>
-          <Checkbox>Отключить сбор статистики</Checkbox>
+    <QueryStateBoundary
+      loading={isLoading}
+      error={error}
+      errorTitle="Не удалось загрузить настройки статистики"
+    >
+      <Form form={form} layout="vertical" onFinish={save}>
+        <Space orientation="vertical" size="small">
+          <Form.Item name="disable_statistics" valuePropName="checked" noStyle>
+            <Checkbox>Отключить сбор статистики</Checkbox>
+          </Form.Item>
+          <Form.Item name="disable_statistics_export" valuePropName="checked" noStyle>
+            <Checkbox>Отключить выгрузку статистики</Checkbox>
+          </Form.Item>
+        </Space>
+        <Form.Item style={{ marginTop: 16 }}>
+          <ButtonLoading type="primary" htmlType="submit" loading={isSaving}>
+            Сохранить настройки статистики
+          </ButtonLoading>
         </Form.Item>
-        <Form.Item name="disable_statistics_export" valuePropName="checked" noStyle>
-          <Checkbox>Отключить выгрузку статистики</Checkbox>
-        </Form.Item>
-      </Space>
-      <Form.Item style={{ marginTop: 16 }}>
-        <ButtonLoading type="primary" htmlType="submit" loading={saving}>
-          Сохранить настройки статистики
-        </ButtonLoading>
-      </Form.Item>
-    </Form>
+      </Form>
+    </QueryStateBoundary>
   );
 }

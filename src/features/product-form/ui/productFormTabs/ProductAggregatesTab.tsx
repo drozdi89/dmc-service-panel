@@ -37,18 +37,18 @@ export interface ProductAggregatesTabProps {
   onItemsRemovedChange: (next: Array<ProductAggregate['id']>) => void;
 }
 
-let ii = 0;
-const keyPrefix = 'pa';
+const NEW_ROW_BACKGROUND = 'rgba(0, 255, 0, 0.1)';
 
 /**
  * Aggregates (packaging levels) table with nested create/delete for a product.
+ * Unsaved rows have no `id`; the edited row is tracked by index.
  */
 export function ProductAggregatesTab({
   form,
   isEdit,
-  gtin,
+  gtin: _gtin,
   loading,
-  visibility,
+  visibility: _visibility,
   itemsRemoved,
   onItemsRemovedChange,
 }: ProductAggregatesTabProps) {
@@ -56,7 +56,8 @@ export function ProductAggregatesTab({
 
   const [subForm] = Form.useForm<AggregateFormValues>();
   const [modalOpen, setModalOpen] = useState(false);
-  const [subModalIsEdit, setSubModalIsEdit] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const subModalIsEdit = editingIndex !== null;
 
 
   const minLevel = useMemo(() => {
@@ -67,15 +68,22 @@ export function ProductAggregatesTab({
   }, [items]);
 
   const submitItem = (values: AggregateFormValues) => {
-    if (values?.id) {
-      form.setFieldValue('aggregates', items.map((item) => item.id === values.id ? values : item));
+    if (editingIndex !== null) {
+      form.setFieldValue(
+        'aggregates',
+        items.map((item, index) => (index === editingIndex ? values : item)),
+      );
     } else {
-      form.setFieldValue('aggregates', [...(items ?? []), {...values, id: `${keyPrefix}${ii++}`}]);
+      form.setFieldValue('aggregates', [...items, values]);
     }
   };
 
-  const removedItem = (record: ProductAggregate) => {
-    if (!record.id) {
+  const removedItem = (record: ProductAggregate, rowIndex: number) => {
+    if (record.id == null) {
+      form.setFieldValue(
+        'aggregates',
+        items.filter((_, index) => index !== rowIndex),
+      );
       return;
     }
     onItemsRemovedChange([...(itemsRemoved ?? []), record.id]);
@@ -93,15 +101,16 @@ export function ProductAggregatesTab({
     {
       title: 'Действия',
       key: 'actions',
-      render: (_, record) => (
+      render: (_, record, rowIndex) => (
         <>
           <ButtonLoading
             tooltip='Редактировать агрегат'
             icon={<EditOutlined />}
             disabled={!isEdit}
             onClick={() => {
-              setSubModalIsEdit(true);
+              setEditingIndex(rowIndex);
               setModalOpen(true);
+              subForm.resetFields();
               subForm.setFieldsValue(record);
             }}
             type="primary"
@@ -123,9 +132,9 @@ export function ProductAggregatesTab({
               danger
               loading={loading}
               icon={<DeleteOutlined />}
-              disabled={!isEdit ||!record.id}
+              disabled={!isEdit}
               onClick={() => {
-                removedItem(record);
+                removedItem(record, rowIndex);
               }}
             />
             
@@ -142,7 +151,7 @@ export function ProductAggregatesTab({
           type="primary"
           disabled={!isEdit}
           onClick={() => {
-            setSubModalIsEdit(false);
+            setEditingIndex(null);
             setModalOpen(true);
             subForm.resetFields();
           }}
@@ -150,22 +159,14 @@ export function ProductAggregatesTab({
           Добавить агрегат
         </ButtonLoading>
         <Table<ProductAggregate>
-          rowKey={(row) => String(row.id ?? `${row.level}-${row.name}`)}
-          onRow={(record) => {
-            if (record.id && itemsRemoved.includes(record.id)) {
-              return {
-                style: {
-                  backgroundColor: String(record.id).startsWith(keyPrefix) ? 'rgba(0, 255, 0, 0.1)' : '',
-                  textDecoration: 'line-through',
-                }
-              }
-            }
-            return {
-              style: {
-                backgroundColor: String(record.id).startsWith(keyPrefix) ? 'rgba(0, 255, 0, 0.1)' : '',
-              }
-            }
-          }}
+          rowKey={(row) => (row.id != null ? String(row.id) : `new-${items.indexOf(row)}`)}
+          onRow={(record) => ({
+            style: {
+              backgroundColor: record.id == null ? NEW_ROW_BACKGROUND : '',
+              textDecoration:
+                record.id != null && itemsRemoved.includes(record.id) ? 'line-through' : undefined,
+            },
+          })}
           columns={itemColumns}
           dataSource={items}
           loading={loading}

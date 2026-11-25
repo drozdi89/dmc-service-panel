@@ -1,6 +1,6 @@
 import {
   useAutoorderOptionsQuery,
-  useSaveAutoorderOptionsMutation,
+  useAutoorderSettingsActions,
   type AutoorderOptions,
   type AutoorderProductRow,
 } from '@/entities/integration';
@@ -13,7 +13,6 @@ import {
 import { PageSpinner } from '@/shared/ui/loading';
 import {
   Alert,
-  App,
   Button,
   Checkbox,
   Divider,
@@ -39,12 +38,23 @@ export interface AutoorderSettingsDrawerProps {
   onClose: () => void;
 }
 
+function AutoorderEnabledWatch({ onChange }: { onChange: (enabled: boolean) => void }) {
+  const mode = Form.useWatch('mode', Form.useFormInstance<AutoorderOptions>());
+  const enabled = (mode ?? 0) !== 0;
+
+  useEffect(() => {
+    onChange(enabled);
+  }, [enabled, onChange]);
+
+  return null;
+}
+
 /**
  * Drawer for autoorder code parameters (Qt AutoorderSettings parity).
  */
 export function AutoorderSettingsDrawer({ open, onClose }: AutoorderSettingsDrawerProps) {
-  const { message } = App.useApp();
   const [form] = Form.useForm<AutoorderOptions>();
+  const [enabled, setEnabled] = useState(false);
   const [rows, setRows] = useState<AutoorderProductRow[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [page, setPage] = useState(1);
@@ -66,15 +76,7 @@ export function AutoorderSettingsDrawer({ open, onClose }: AutoorderSettingsDraw
     setCustomAmount(1);
   }, [form, open, optionsQuery.data, optionsQuery.isSuccess]);
 
-  const saveMutation = useSaveAutoorderOptionsMutation({
-    onSuccess: () => {
-      message.success('Параметры автозаказа сохранены');
-      onClose();
-    },
-    onError: (error: Error) => {
-      message.error(error.message);
-    },
-  });
+  const { save, isSaving } = useAutoorderSettingsActions({ onDone: onClose });
 
   const applyAmountToSelected = useCallback(
     (amount: number) => {
@@ -93,10 +95,8 @@ export function AutoorderSettingsDrawer({ open, onClose }: AutoorderSettingsDraw
       acc[row.gtin] = row;
       return acc;
     }, {});
-    saveMutation.mutate({ ...values, products });
-  }, [form, rows, saveMutation]);
-
-  const enabled = (Form.useWatch('mode', form) ?? 0) !== 0;
+    save({ ...values, products });
+  }, [form, rows, save]);
 
   useEffect(() => {
     if (!enabled) {
@@ -161,14 +161,14 @@ export function AutoorderSettingsDrawer({ open, onClose }: AutoorderSettingsDraw
       open={open}
       onClose={onClose}
       size={768}
-      destroyOnHidden
+      forceRender
       styles={DRAWER_FILLED_STYLES}
       extra={
         <Space>
           <Button onClick={onClose}>Отмена</Button>
           <Button
             type="primary"
-            loading={saveMutation.isPending}
+            loading={isSaving}
             disabled={saveDisabled}
             onClick={() => void handleSave()}
           >
@@ -191,10 +191,11 @@ export function AutoorderSettingsDrawer({ open, onClose }: AutoorderSettingsDraw
           <Form
             form={form}
             layout="horizontal"
-            disabled={saveMutation.isPending}
+            disabled={isSaving}
             labelCol={{ span: 8 }}
             style={{ flexShrink: 0 }}
           >
+            <AutoorderEnabledWatch onChange={setEnabled} />
             <Form.Item
               name="percent"
               label="Резервировать дополнительно"

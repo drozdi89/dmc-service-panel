@@ -1,0 +1,57 @@
+---
+name: desktop-parity
+description: Паритет Service Panel (Vite/React) с DataMatrixControl Qt/Python. OpenAPI sync, сверка сценариев, HTTP boundary. Дополняет frontend-architecture.mdc.
+globs: src/**/*.{ts,tsx},src/openapi.json
+alwaysApply: false
+---
+
+# Паритет с DataMatrixControl (Desktop / Qt)
+
+Эталон поведения и контракта: **DataMatrixControl**, ветка **`1.0.4.7_rel_cursor`** (локальный клон: `../DataMatrixControl` от корня `dmc-service-panel`, при необходимости `C:\OSPanel\home\DataMatrixControl`).
+
+Правило **дополняет** [frontend-architecture.mdc](./frontend-architecture.mdc) (FSD, React Query, форма = API). Не дублирует иерархию слоёв.
+
+Карта модулей: [desktop-module-map.md](../skills/fsd-scaffold/desktop-module-map.md).  
+Снимок OpenAPI/коммитов: [dmc-openapi-audit.md](../skills/fsd-scaffold/dmc-openapi-audit.md).
+
+## 1. Референс Qt
+
+- Перед новым экраном или сменой save/validate: найти Qt-модуль в DMC и указать путь в **одном** комментарии в `features/*` или `entities/*` (пример: `modules/CodeGenerators/template_editor.py`, `apps/service_panel/mark_settings.py`).
+- Копировать **сценарий**: поля, порядок, валидации, enable/disable — не виджеты Qt, не потоки Qt.
+- UI только **antd** + FSD; зависимости ради паритета не добавлять.
+
+## 2. Контракт API (OpenAPI)
+
+1. Источник в DMC: `docs/API/openapi.json`.
+2. Копия в SP: `src/openapi.json` — **merge**, не слепая перезапись (в SP есть дополнительные paths/schemas; см. audit).
+3. Регенерация: `npm run generate:api-types` → `src/shared/api/schema.d.ts` **не править вручную**.
+4. Поле есть в ответе API, нет в OpenAPI: узкое расширение типа в `entities/<domain>/model`, не отдельный `*FormValues` (см. architecture §6).
+
+## 3. Форма и HTTP
+
+- Форма по умолчанию: объект GET/detail; PATCH/POST — схемы create/update из OpenAPI.
+- В теле **не слать** read-only detail: `id`, `is_system`, `counters`, `legacy_type`, и т.п., если их нет в write-схеме.
+- **Мост UI ↔ API:** только `entities/<domain>/lib/*` + тесты, вызов из `entities/<domain>/api` на границе HTTP. Пример: `entities/code-generator-template/lib/counterConfigPayload.ts` (legacy counter UI → `CounterSpecSchema`).
+- Legacy-ключи в JSON write не отправлять, если схема их не описывает (даже если бэкенд «игнорирует» лишнее на другом слое).
+
+## 4. Процесс задачи (чеклист агента)
+
+1. Diff OpenAPI (DMC vs SP) для затронутых paths/schemas — [dmc-openapi-audit.md](../skills/fsd-scaffold/dmc-openapi-audit.md).
+2. Прочитать Qt: save, validate, preview (и подтверждения).
+3. SP: `entities/*/api`, `queries`, `hooks` (тосты/confirm); `features/*` — разметка; `widgets/*` — Host.
+4. Тесты: `entities/*/api/*.test.ts` на shape тела; при lib-маппинге — `lib/*.test.ts`.
+5. После CRUD: `factoryMutation` — `setQueryData(detail)`, invalidate list/lookup, не лишний refetch detail (reference.md).
+
+## 5. Известные расхождения (ревью)
+
+| Область | DMC (1.0.4.7) | SP |
+|--------|----------------|-----|
+| Counter editor | `CounterSpec`: width, key_fields, min/max (`template_editor.py`) | `CounterConfigList.tsx` + `counterValidation.ts`; PATCH — `CounterSpecSchema` |
+| Template preview | API `POST …/preview` | `CodeGeneratorTemplateFormModal` → `previewCodeGeneratorTemplate` (не `/generate`) |
+| OpenAPI | База в DMC | SP шире; merge осознанно |
+
+## 6. Запрещено
+
+- Мутации и широкая `invalidateQueries` в `features/` / `pages/` (только `entities/*/queries` + `hooks`).
+- Коммит секретов, токенов GitHub, `.env` с доступом к DMC.
+- Слой `modules/` в SP (FSD запрет).

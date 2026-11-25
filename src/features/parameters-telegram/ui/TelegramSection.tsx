@@ -1,59 +1,63 @@
 import { Checkbox, Form, Input, Space } from 'antd';
-import type { FormInstance } from 'antd';
 import { useEffect } from 'react';
-import type { TeleBotSettingRow } from '@/entities/parameters';
-import { ButtonLoading } from '@/shared/ui/loading';
+import { useTelegramSettings, type TeleBotSettingRow } from '@/entities/parameters';
+import { ButtonLoading, QueryStateBoundary } from '@/shared/ui/loading';
 
-/** Props for Telegram bot settings section. */
-export interface TelegramSectionProps {
-  form: FormInstance<TeleBotSettingRow>;
-  initialSetting: TeleBotSettingRow | null | undefined;
-  saving: boolean;
-  onSave: (values: TeleBotSettingRow) => void;
+function TelegramFields({ isSaving }: { isSaving: boolean }) {
+  const form = Form.useFormInstance<TeleBotSettingRow>();
+  const isActive = Form.useWatch('is_activ', form);
+
+  return (
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+      <Form.Item name="is_activ" valuePropName="checked" noStyle>
+        <Checkbox>Включить Telegram-уведомления</Checkbox>
+      </Form.Item>
+      <Form.Item
+        name="api_token"
+        label="Токен бота"
+        rules={
+          isActive
+            ? [{ required: true, message: 'Заполните токен бота' }]
+            : undefined
+        }
+      >
+        <Input.Password autoComplete="off" disabled={!isActive} />
+      </Form.Item>
+      <Form.Item>
+        <ButtonLoading type="primary" htmlType="submit" loading={isSaving}>
+          Сохранить настройки Telegram
+        </ButtonLoading>
+      </Form.Item>
+    </Space>
+  );
 }
 
 /**
  * Telegram bot notification settings — parity with Qt Service Panel.
+ * Loads and saves its own data; toasts come from the entity hook.
  */
-export function TelegramSection({
-  form,
-  initialSetting,
-  saving,
-  onSave,
-}: TelegramSectionProps) {
-  useEffect(() => {
-    form.setFieldsValue({
-      ...initialSetting,
-      is_activ: initialSetting?.is_activ ?? false,
-      api_token: initialSetting?.api_token ?? '',
-    });
-  }, [form, initialSetting]);
+export function TelegramSection() {
+  const [form] = Form.useForm<TeleBotSettingRow>();
+  const { setting, isLoading, error, save, isSaving } = useTelegramSettings();
 
-  const isActive = Form.useWatch('is_activ', form);
+  useEffect(() => {
+    if (isLoading) return;
+    form.setFieldsValue({
+      ...setting,
+      is_activ: setting?.is_activ ?? false,
+      api_token: setting?.api_token ?? '',
+    });
+  }, [form, isLoading, setting]);
 
   return (
-    <Form form={form} layout="vertical" onFinish={onSave}>
-      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-        <Form.Item name="is_activ" valuePropName="checked" noStyle>
-          <Checkbox>Включить Telegram-уведомления</Checkbox>
-        </Form.Item>
-        <Form.Item
-          name="api_token"
-          label="Токен бота"
-          rules={
-            isActive
-              ? [{ required: true, message: 'Заполните токен бота' }]
-              : undefined
-          }
-        >
-          <Input.Password autoComplete="off" disabled={!isActive} />
-        </Form.Item>
-        <Form.Item>
-          <ButtonLoading type="primary" htmlType="submit" loading={saving}>
-            Сохранить настройки Telegram
-          </ButtonLoading>
-        </Form.Item>
-      </Space>
-    </Form>
+    <QueryStateBoundary
+      loading={isLoading}
+      error={error}
+      errorTitle="Не удалось загрузить настройки Telegram"
+    >
+      <Form form={form} layout="vertical" onFinish={save}>
+        <TelegramFields isSaving={isSaving} />
+      </Form>
+    </QueryStateBoundary>
   );
 }

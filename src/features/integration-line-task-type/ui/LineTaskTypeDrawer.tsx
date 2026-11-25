@@ -1,7 +1,7 @@
 import {
   formatLineTaskType,
   useLineTaskTypesQuery,
-  useSaveLineTaskTypesMutation,
+  useLineTaskTypesSaveActions,
   type LineTaskTypeRow,
 } from '@/entities/integration';
 import {
@@ -11,7 +11,7 @@ import {
   useTableBodyScrollY,
 } from '@/shared/ui/drawerFilledTable';
 import { PageSpinner } from '@/shared/ui/loading';
-import { App, Button, Drawer, Flex, Pagination, Space, Table } from 'antd';
+import { Button, Drawer, Flex, Pagination, Space, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -27,7 +27,6 @@ const PAGE_SIZE = 20;
  * Drawer for per-line KM task type configuration (Qt LineTaskTypeSettingsUi parity).
  */
 export function LineTaskTypeDrawer({ open, onClose }: LineTaskTypeDrawerProps) {
-  const { message } = App.useApp();
   const [rows, setRows] = useState<LineTaskTypeRow[]>([]);
   const [initialRows, setInitialRows] = useState<LineTaskTypeRow[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<number[]>([]);
@@ -45,23 +44,15 @@ export function LineTaskTypeDrawer({ open, onClose }: LineTaskTypeDrawerProps) {
     setPage(1);
   }, [linesQuery.data, linesQuery.isSuccess, open]);
 
-  const saveMutation = useSaveLineTaskTypesMutation({
-    onSuccess: (count) => {
-      message.success(`Типы заданий сохранены (${count} линий)`);
-      onClose();
-    },
-    onError: (error: Error) => {
-      message.error(error.message);
-    },
-  });
+  const { save, isSaving } = useLineTaskTypesSaveActions({ onDone: onClose });
 
   const handleSave = useCallback(() => {
     const changed = rows.filter((row) => {
       const initial = initialRows.find((item) => item.lineid === row.lineid);
       return initial?.reserve_disabled !== row.reserve_disabled;
     });
-    saveMutation.mutate(changed);
-  }, [initialRows, rows, saveMutation]);
+    save(changed);
+  }, [initialRows, rows, save]);
 
   const applyTaskType = useCallback(
     (reserveDisabled: boolean) => {
@@ -122,7 +113,7 @@ export function LineTaskTypeDrawer({ open, onClose }: LineTaskTypeDrawerProps) {
           <Button onClick={onClose}>Отмена</Button>
           <Button
             type="primary"
-            loading={saveMutation.isPending}
+            loading={isSaving}
             onClick={handleSave}
           >
             Сохранить

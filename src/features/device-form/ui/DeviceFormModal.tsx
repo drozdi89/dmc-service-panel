@@ -1,6 +1,8 @@
 import {
   createDefaultFormValues,
+  DEFAULT_DEVICE_TYPE,
   mapDeviceDetailToFormValues,
+  SelectDeviceType,
   useDeviceDetailQuery,
   type DeviceFormValues,
   type DeviceType,
@@ -24,6 +26,8 @@ export interface DeviceFormModalProps {
   /** Pre-selects scale model when creating a scale from a filtered picker. */
   defaultScaleType?: number;
   submitting?: boolean;
+  /** Device type picked in the select (kept outside the form record). */
+  onDeviceTypeChange?: (deviceType: DeviceType) => void;
   onCancel: () => void;
   onSubmit: (
     values: DeviceFormValues,
@@ -36,6 +40,8 @@ export interface DeviceFormModalProps {
  *
  * Public API of `device-form`: one modal for all device types. Create from a
  * line/picker field should pass `lockDeviceType` and optional `defaultScaleType`.
+ * The device type select is not bound to the form: it selects the endpoint and
+ * resets the form to that type's defaults.
  */
 export function DeviceFormModal({
   open,
@@ -46,10 +52,12 @@ export function DeviceFormModal({
   lockDeviceType = mode === 'edit',
   defaultScaleType,
   submitting = false,
+  onDeviceTypeChange,
   onCancel,
   onSubmit,
 }: DeviceFormModalProps) {
   const [form] = Form.useForm<DeviceFormValues>();
+  const activeType = deviceType ?? DEFAULT_DEVICE_TYPE;
 
   const resolvedTitle =
     title ?? (mode === 'edit' ? 'Редактирование устройства' : 'Новое устройство');
@@ -69,10 +77,10 @@ export function DeviceFormModal({
 
   const initialCreateValues = useMemo(
     () =>
-      createDefaultFormValues(deviceType ?? 'camera', {
-        scaleType: defaultScaleType,
+      createDefaultFormValues(activeType, {
+        scaleType: activeType === 'scale' ? defaultScaleType : undefined,
       }),
-    [deviceType, defaultScaleType],
+    [activeType, defaultScaleType],
   );
 
   useEffect(() => {
@@ -81,11 +89,13 @@ export function DeviceFormModal({
     }
 
     if (mode === 'create') {
+      form.resetFields();
       form.setFieldsValue(initialCreateValues);
       return;
     }
 
     if (loadedDevice && deviceType) {
+      form.resetFields();
       form.setFieldsValue(mapDeviceDetailToFormValues(deviceType, loadedDevice));
     }
   }, [open, mode, form, initialCreateValues, loadedDevice, deviceType]);
@@ -138,11 +148,14 @@ export function DeviceFormModal({
           disabled={isLoadError && canLoad}
           layout="horizontal"
         >
-          <DeviceFormFields
-            deviceType={deviceType}
-            lockDeviceType={lockDeviceType}
-            defaultScaleType={defaultScaleType}
-          />
+          <Form.Item label="Тип устройства" required>
+            <SelectDeviceType
+              value={activeType}
+              disabled={lockDeviceType}
+              onChange={(nextType: DeviceType) => onDeviceTypeChange?.(nextType)}
+            />
+          </Form.Item>
+          <DeviceFormFields deviceType={activeType} />
         </Form>
       </LoadingOverlay>
     </Modal>

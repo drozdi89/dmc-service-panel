@@ -64,6 +64,8 @@ export type DeviceFormUiState = {
 export type DeviceFormUiActions = {
   openCreate: (options?: DeviceFormOpenCreateOptions) => void;
   openEdit: (deviceId: number, options: DeviceFormOpenEditOptions) => void;
+  /** Changes the device type of an open create dialog (ignored when type-locked). */
+  setCreateDeviceType: (deviceType: DeviceType) => void;
   close: () => void;
   setLastSaved: (payload: ResourceFormLastSaved) => void;
   /**
@@ -156,6 +158,14 @@ export const useDeviceFormUiStore = create<DeviceFormUiStore>((set, get) => ({
       dialog.lockDeviceType = options.lockDeviceType;
     }
     set({ dialog });
+  },
+
+  setCreateDeviceType: (deviceType) => {
+    const { dialog } = get();
+    if (dialog.kind !== 'create' || dialog.lockDeviceType) {
+      return;
+    }
+    set({ dialog: { ...dialog, deviceType } });
   },
 
   close: () => {

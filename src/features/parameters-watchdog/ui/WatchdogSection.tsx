@@ -1,41 +1,14 @@
 import { Checkbox, Form, InputNumber } from 'antd';
-import type { FormInstance } from 'antd';
 import { useEffect } from 'react';
-import type { WatchdogConfiguration } from '@/entities/parameters';
-import { ButtonLoading } from '@/shared/ui/loading';
+import { useWatchdogSettings, type WatchdogConfiguration } from '@/entities/parameters';
+import { ButtonLoading, QueryStateBoundary } from '@/shared/ui/loading';
 
-/** Props for watchdog configuration section. */
-export interface WatchdogSectionProps {
-  form: FormInstance<WatchdogConfiguration>;
-  initialConfig: WatchdogConfiguration | undefined;
-  saving: boolean;
-  onSave: (values: WatchdogConfiguration) => void;
-}
-
-/**
- * Watchdog service settings from srv_cfg.ini [WATCHDOG] section.
- */
-export function WatchdogSection({
-  form,
-  initialConfig,
-  saving,
-  onSave,
-}: WatchdogSectionProps) {
-  useEffect(() => {
-    if (initialConfig) {
-      form.setFieldsValue(initialConfig);
-    }
-  }, [form, initialConfig]);
-
+function WatchdogFields({ isSaving }: { isSaving: boolean }) {
+  const form = Form.useFormInstance<WatchdogConfiguration>();
   const enabled = Form.useWatch('enabled', form);
 
   return (
-    <Form
-      form={form}
-      layout="vertical"
-      onFinish={onSave}
-      initialValues={initialConfig}
-    >
+    <>
       <Form.Item name="enabled" valuePropName="checked">
         <Checkbox>Включить Watchdog</Checkbox>
       </Form.Item>
@@ -48,10 +21,37 @@ export function WatchdogSection({
         />
       </Form.Item>
       <Form.Item>
-        <ButtonLoading type="primary" htmlType="submit" loading={saving}>
+        <ButtonLoading type="primary" htmlType="submit" loading={isSaving}>
           Сохранить настройки Watchdog
         </ButtonLoading>
       </Form.Item>
-    </Form>
+    </>
+  );
+}
+
+/**
+ * Watchdog service settings from srv_cfg.ini [WATCHDOG] section.
+ * Loads and saves its own data; toasts come from the entity hook.
+ */
+export function WatchdogSection() {
+  const [form] = Form.useForm<WatchdogConfiguration>();
+  const { config, isLoading, error, save, isSaving } = useWatchdogSettings();
+
+  useEffect(() => {
+    if (!isLoading && config) {
+      form.setFieldsValue(config);
+    }
+  }, [form, isLoading, config]);
+
+  return (
+    <QueryStateBoundary
+      loading={isLoading}
+      error={error}
+      errorTitle="Не удалось загрузить настройки Watchdog"
+    >
+      <Form form={form} layout="vertical" onFinish={save}>
+        <WatchdogFields isSaving={isSaving} />
+      </Form>
+    </QueryStateBoundary>
   );
 }

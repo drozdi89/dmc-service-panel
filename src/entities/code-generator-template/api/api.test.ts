@@ -111,11 +111,10 @@ describe('code-generator-template api paths', () => {
         counter_config: [
           {
             name: 'serial',
-            type: 'task_pack',
-            key_template: 'task_id',
-            format: '06d',
-            level_from: 'aggregation_level',
-            initial_value: 1,
+            width: 6,
+            key_fields: ['taskid'],
+            min: 1,
+            max: 0,
           },
         ],
       },
@@ -132,7 +131,7 @@ describe('code-generator-template api paths', () => {
             {
               name: 'serial',
               width: 6,
-              key_fields: ['task_id'],
+              key_fields: ['taskid'],
               min: 1,
               max: 0,
             },

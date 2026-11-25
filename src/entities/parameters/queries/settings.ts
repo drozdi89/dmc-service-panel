@@ -4,6 +4,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import {
+  fetchCodeCleanupSettings,
   fetchFtpConfiguration,
   fetchSettingsBundle,
   fetchSlaveConfiguration,
@@ -11,6 +12,7 @@ import {
   fetchWatchdogConfiguration,
 } from '../api/api';
 import type {
+  CodeCleanupSettings,
   FtpConfiguration,
   ParametersSettingsBundle,
   SlaveConfiguration,
@@ -18,6 +20,7 @@ import type {
   WatchdogConfiguration,
 } from '../model/types';
 import {
+  CODE_CLEANUP_QUERY_KEY,
   FTP_QUERY_KEY,
   SETTINGS_BUNDLE_QUERY_KEY,
   SLAVE_QUERY_KEY,
@@ -57,6 +60,37 @@ export function useSettingsBundleQuery(
 ): UseQueryResult<ParametersSettingsBundle, Error> {
   return useQuery({
     ...settingsBundleQueryOptions(),
+    ...options,
+  });
+}
+
+/** Query options for scheduled code cleanup settings. */
+export function codeCleanupQueryOptions(): {
+  queryKey: typeof CODE_CLEANUP_QUERY_KEY;
+  queryFn: ({ signal }: { signal: AbortSignal }) => Promise<CodeCleanupSettings>;
+} {
+  return {
+    queryKey: CODE_CLEANUP_QUERY_KEY,
+    queryFn: ({ signal }) => fetchCodeCleanupSettings(signal),
+  };
+}
+
+/** Options for {@link useCodeCleanupSettingsQuery}. */
+export type CodeCleanupQueryOptions = QueryOpts<
+  CodeCleanupSettings,
+  typeof CODE_CLEANUP_QUERY_KEY
+>;
+
+/**
+ * Loads scheduled code cleanup settings (four marking options).
+ *
+ * @param options - TanStack options (`enabled`, `select`, …).
+ */
+export function useCodeCleanupSettingsQuery(
+  options?: CodeCleanupQueryOptions,
+): UseQueryResult<CodeCleanupSettings, Error> {
+  return useQuery({
+    ...codeCleanupQueryOptions(),
     ...options,
   });
 }

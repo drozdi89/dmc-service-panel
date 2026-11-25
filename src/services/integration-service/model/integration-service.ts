@@ -1,5 +1,4 @@
-import { fetchProductsList, type Product, type ProductUpdatePayload } from '@/entities/product';
-import { apiRequestData } from '@/shared/api';
+import { fetchProductsList, updateProduct, type Product } from '@/entities/product';
 
 /**
  * Fetches all non-archived products for integration drawers (templates, autosend names).
@@ -44,10 +43,5 @@ export async function updateProductCrptTemplate(
   crptTemplateIdx: number,
   idempotencyKey: string,
 ): Promise<Product> {
-  const payload: Partial<ProductUpdatePayload> = { crpt_template_idx: crptTemplateIdx };
-  return apiRequestData<Product>(`/api/v2/products/${encodeURIComponent(gtin)}`, {
-    method: 'PATCH',
-    body: payload,
-    idempotencyKey,
-  });
+  return updateProduct(gtin, { crpt_template_idx: crptTemplateIdx }, idempotencyKey);
 }

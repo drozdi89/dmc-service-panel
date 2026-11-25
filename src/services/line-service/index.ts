@@ -1,11 +1,10 @@
 export {
-  createLineSaveMutator,
   saveLineConfiguration,
   saveLineWithIdempotency,
   extractLineId,
   extractAggregationLevelId,
-  type LineSaveMutator,
   type LineSaveResult,
+  type LineSaveContext,
 } from './model/lineSaveOrchestration';
 export {
   useSaveLineConfigurationMutation,

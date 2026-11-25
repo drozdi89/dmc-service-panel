@@ -2,12 +2,10 @@ import type { ProductFormValues } from '@/entities/product';
 import {
   CERT_TYPE_OPTIONS,
   visibilityFormControl,
+  type CertificateFormValues,
   type ProductCertificate
 } from '@/entities/product';
-import {
-  dateStringPickerValueProps,
-  formatDatePickerValue,
-} from '@/shared/lib/dateStringPicker';
+import { dateStringPickerValueProps } from '@/shared/lib/dateStringPicker';
 import { FormHiddenInput } from '@/shared/ui/form/FormHiddenInput';
 import { ButtonLoading } from '@/shared/ui/loading';
 import { DeleteOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -28,15 +26,22 @@ export interface ProductCertificatesTabProps {
   onItemsRemovedChange: (next: Array<ProductCertificate['cert_id']>) => void;
 }
 
-let ii = 0;
-const keyPrefix = 'pc';
+const NEW_ROW_BACKGROUND = 'rgba(0, 255, 0, 0.1)';
+
+/** Switch ↔ API `priority` flag (0 | 1). */
+const priorityFlagProps = {
+  valuePropName: 'checked',
+  getValueProps: (value: number | null | undefined) => ({ checked: value === 1 }),
+  normalize: (checked: boolean): number => (checked ? 1 : 0),
+} as const;
 
 /**
  * Certificates table with nested create/delete dialogs for a product.
+ * Unsaved rows have no `cert_id`; the edited row is tracked by index.
  */
 export function ProductCertificatesTab({
   form,
-  gtin,
+  gtin: _gtin,
   isEdit,
   loading,
   visibility,
@@ -48,31 +53,31 @@ export function ProductCertificatesTab({
   const items = Form.useWatch('certificates', form) || [];
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [subModalIsEdit, setSubModalIsEdit] = useState(false);
-  const [subForm] = Form.useForm<ProductCertificate>();
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const subModalIsEdit = editingIndex !== null;
+  const [subForm] = Form.useForm<CertificateFormValues>();
 
-  const submitItem = (values: ProductCertificate) => {
-    const next: ProductCertificate = {
-      ...values,
-      cert_date: formatDatePickerValue(values.cert_date) ?? '',
-    };
-    if (next.cert_id) {
-      form.setFieldValue(
-        'certificates',
-        items.map((item) =>
-          item.cert_id === next.cert_id ? next : item,
-        ),
-      );
+  const replaceItemAt = (rowIndex: number, values: CertificateFormValues) => {
+    form.setFieldValue(
+      'certificates',
+      items.map((item, index) => (index === rowIndex ? values : item)),
+    );
+  };
+
+  const submitItem = (values: CertificateFormValues) => {
+    if (editingIndex !== null) {
+      replaceItemAt(editingIndex, values);
     } else {
-      form.setFieldValue('certificates', [
-        ...(items ?? []),
-        { ...next, cert_id: `${keyPrefix}c${ii++}` },
-      ]);
+      form.setFieldValue('certificates', [...items, values]);
     }
   };
 
-  const removedItem = (record: ProductCertificate) => {
-    if (!record.cert_id) {
+  const removedItem = (record: ProductCertificate, rowIndex: number) => {
+    if (record.cert_id == null) {
+      form.setFieldValue(
+        'certificates',
+        items.filter((_, index) => index !== rowIndex),
+      );
       return;
     }
     onItemsRemovedChange([...(itemsRemoved ?? []), record.cert_id]);
@@ -89,17 +94,17 @@ export function ProductCertificatesTab({
     {
       title: 'РД Активна для отправки',
       dataIndex: 'priority',
-      render: (value: boolean, record) => {
-        return <Checkbox
-          checked={value}
-          onChange={async (e) => {
-            submitItem({
+      render: (value: ProductCertificate['priority'], record, rowIndex) => (
+        <Checkbox
+          checked={value === 1}
+          onChange={(e) => {
+            replaceItemAt(rowIndex, {
               ...record,
               priority: e.target.checked ? 1 : 0,
-            } as ProductCertificate);
+            });
           }}
         />
-      },
+      ),
     },
     {
       title: 'Тип',
@@ -113,15 +118,16 @@ export function ProductCertificatesTab({
       title: '',
       key: 'actions',
       width: 100,
-      render: (_, record) => (
+      render: (_, record, rowIndex) => (
         <>
           <ButtonLoading
             tooltip='Редактировать сертификат'
             icon={<EditOutlined />}
             disabled={!isEdit}
             onClick={() => {
-              setSubModalIsEdit(true);
+              setEditingIndex(rowIndex);
               setModalOpen(true);
+              subForm.resetFields();
               subForm.setFieldsValue(record);
             }}
             type="primary"
@@ -143,9 +149,9 @@ export function ProductCertificatesTab({
               danger
               loading={loading}
               icon={<DeleteOutlined />}
-              disabled={!isEdit ||!record.cert_id}
+              disabled={!isEdit}
               onClick={() => {
-                removedItem(record);
+                removedItem(record, rowIndex);
               }}
             />
             
@@ -159,29 +165,23 @@ export function ProductCertificatesTab({
     <>
       <Space orientation="vertical" style={{ width: '100%' }}>
         <ButtonLoading type="primary" disabled={!isEdit} onClick={() => {
-          setSubModalIsEdit(false);
+          setEditingIndex(null);
           setModalOpen(true);
           subForm.resetFields();
         }}>
           Добавить сертификат
         </ButtonLoading>
         <Table<ProductCertificate>
-          rowKey={(row) => String(row.cert_id ?? row.cert_number)}
-          onRow={(record) => {
-            if (record.cert_id && itemsRemoved.includes(record.cert_id)) {
-              return {
-                style: {
-                  backgroundColor: String(record.cert_id).startsWith(keyPrefix) ? 'rgba(0, 255, 0, 0.1)' : '',
-                  textDecoration: 'line-through',
-                }
-              }
-            }
-            return {
-              style: {
-                backgroundColor: String(record.cert_id).startsWith(keyPrefix) ? 'rgba(0, 255, 0, 0.1)' : '',
-              }
-            }
-          }}
+          rowKey={(row) => (row.cert_id != null ? String(row.cert_id) : `new-${items.indexOf(row)}`)}
+          onRow={(record) => ({
+            style: {
+              backgroundColor: record.cert_id == null ? NEW_ROW_BACKGROUND : '',
+              textDecoration:
+                record.cert_id != null && itemsRemoved.includes(record.cert_id)
+                  ? 'line-through'
+                  : undefined,
+            },
+          })}
           columns={itemColumns}
           dataSource={items}
           loading={loading}
@@ -248,7 +248,7 @@ export function ProductCertificatesTab({
           {showedWellNumber && (<Form.Item name="well_number" label="Номер скважины" style={{ marginBottom: 4 }}>
             <Input />
           </Form.Item>)}
-          <Form.Item name="priority" label="РД Активна для отправки" valuePropName="checked" style={{ marginBottom: 4 }}>
+          <Form.Item name="priority" label="РД Активна для отправки" {...priorityFlagProps} style={{ marginBottom: 4 }}>
             <Switch />
           </Form.Item>
         </Form>

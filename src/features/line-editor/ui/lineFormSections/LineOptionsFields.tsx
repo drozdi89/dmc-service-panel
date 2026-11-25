@@ -1,5 +1,7 @@
 import {
+  isPrintOnlyNoVerify,
   LINE_OPTIONS_FIELDS,
+  resolveOutputMode,
   type LineEditorFormState,
   type LineEditorVisibility,
 } from '@/entities/line';
@@ -17,16 +19,18 @@ export interface LineOptionsFieldsProps {
  */
 export function LineOptionsFields({ visibility }: LineOptionsFieldsProps) {
   const form = Form.useFormInstance<LineEditorFormState>();
-  const lineKind = Form.useWatch('lineKind', form);
-  const outputMode = Form.useWatch('outputMode', form);
-  const printOnlyNoVerify = Form.useWatch('print_only_no_verify', form);
+  const isManualField = Form.useWatch('is_manual', form);
+  const lineType = Form.useWatch('line_type', form);
+  const output = Form.useWatch('output', form);
+  const isScaleField = Form.useWatch('is_scale', form);
 
   if (!visibility.showLineOptions) {
     return null;
   }
 
-  const isManual = lineKind === 'manual' || Boolean(printOnlyNoVerify);
-  const isScale = outputMode === 'scale';
+  const isManual = Boolean(isManualField) || isPrintOnlyNoVerify(lineType);
+  const isScale =
+    resolveOutputMode({ output: output ?? 0, is_scale: Boolean(isScaleField) }) === 'scale';
 
   return (
     <>

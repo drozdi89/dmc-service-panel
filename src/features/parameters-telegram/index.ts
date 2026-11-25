@@ -1,4 +1,1 @@
-export {
-  TelegramSection,
-  type TelegramSectionProps,
-} from './ui/TelegramSection';
+export { TelegramSection } from './ui/TelegramSection';

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import dayjs from 'dayjs';
 import {
   DEFAULT_PRODUCT_FORM_VALUES,
   isPersistedNumericId,
@@ -388,7 +387,7 @@ describe('mapControllerParamsToPayload', () => {
 });
 
 describe('mapCertificatesToPayload', () => {
-  it('splits create/update, filters removed, normalizes date and priority', () => {
+  it('splits create/update by cert_id, filters removed', () => {
     const existing: ProductCertificate = {
       gtin: '04601234567890',
       cert_id: 3,
@@ -403,14 +402,14 @@ describe('mapCertificatesToPayload', () => {
         existing,
         {
           ...existing,
-          cert_id: 'pcc0' as unknown as number,
+          cert_id: undefined,
           cert_number: 'C-new',
-          cert_date: dayjs('2026-03-04') as unknown as string,
-          priority: true as unknown as number,
+          cert_date: '2026-03-04',
+          priority: 1,
         },
         { ...existing, cert_id: 4, cert_number: 'C-del' },
       ],
-      certificates_removed: [4, 'pcc9' as unknown as number],
+      certificates_removed: [4],
     });
 
     expect(mapped.removedIds).toEqual([4]);
@@ -434,7 +433,7 @@ describe('mapCertificatesToPayload', () => {
 });
 
 describe('mapLicencesToPayload', () => {
-  it('splits create/update by lic_id and strips temp keys', () => {
+  it('splits create/update by lic_id (new rows have no lic_id)', () => {
     const existing: ProductLicence = {
       gtin: '04601234567890',
       lic_id: 8,
@@ -447,9 +446,9 @@ describe('mapLicencesToPayload', () => {
         existing,
         {
           ...existing,
-          lic_id: 'pl0' as unknown as number,
+          lic_id: undefined,
           lic_number: 'L-new',
-          lic_date: dayjs('2026-08-17') as unknown as string,
+          lic_date: '2026-08-17',
         },
         { ...existing, lic_id: 9, lic_number: 'L-del' },
       ],

@@ -1,4 +1,8 @@
-import { CRPT_TEMPLATES_QUERY_KEY, formatCrptTemplateIdx } from '@/entities/integration';
+import {
+  CRPT_TEMPLATES_QUERY_KEY,
+  formatCrptTemplateIdx,
+  useCrptTemplatesSaveFeedback,
+} from '@/entities/integration';
 import type { Product } from '@/entities/product';
 import {
   useIntegrationProductsQuery,
@@ -11,7 +15,7 @@ import {
   useTableBodyScrollY,
 } from '@/shared/ui/drawerFilledTable';
 import { PageSpinner } from '@/shared/ui/loading';
-import { App, Button, Drawer, Flex, Pagination, Space, Table } from 'antd';
+import { Button, Drawer, Flex, Pagination, Space, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -30,7 +34,6 @@ const PAGE_SIZE = 20;
  * Drawer for per-product CRPT KM template index configuration.
  */
 export function CrptTemplatesDrawer({ open, onClose }: CrptTemplatesDrawerProps) {
-  const { message } = App.useApp();
   const [rows, setRows] = useState<CrptTemplateRow[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [initialRows, setInitialRows] = useState<CrptTemplateRow[]>([]);
@@ -53,15 +56,8 @@ export function CrptTemplatesDrawer({ open, onClose }: CrptTemplatesDrawerProps)
     setPage(1);
   }, [open, productsQuery.data, productsQuery.isSuccess]);
 
-  const saveMutation = useSaveProductCrptTemplatesMutation({
-    onSuccess: (count) => {
-      message.success(`Шаблоны КМ сохранены (${count} продуктов)`);
-      onClose();
-    },
-    onError: (error: Error) => {
-      message.error(error.message);
-    },
-  });
+  const saveFeedback = useCrptTemplatesSaveFeedback({ onDone: onClose });
+  const saveMutation = useSaveProductCrptTemplatesMutation(saveFeedback);
 
   const handleSave = useCallback(() => {
     const changed = rows.filter((row) => {

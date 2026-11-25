@@ -27,6 +27,9 @@ export interface LineAggregationTabProps {
   visibility: LineEditorVisibility;
   resourceLabels: LineEditorResourceLabels;
   onResourceLabelsChange: (next: LineEditorResourceLabels) => void;
+  /** Persisted levels removed in this dialog (sent as a separate DELETE on save). */
+  deletedLevelIds: number[];
+  onDeletedLevelIdsChange: (next: number[]) => void;
 }
 
 type LevelModalState =
@@ -42,16 +45,17 @@ function syncLevelLabels(
 
 /**
  * Aggregation tab with level list and modals.
- * Reads/writes `aggregation_levels` and `deleted_aggregation_level_ids` via Form.
+ * Reads/writes `aggregation_levels` via Form; removed persisted ids go to dialog state.
  */
 export function LineAggregationTab({
   visibility,
   resourceLabels,
   onResourceLabelsChange,
+  deletedLevelIds,
+  onDeletedLevelIdsChange,
 }: LineAggregationTabProps) {
   const form = Form.useFormInstance<LineEditorFormState>();
   const levels = Form.useWatch('aggregation_levels', form) ?? [];
-  const deletedIds = Form.useWatch('deleted_aggregation_level_ids', form) ?? [];
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [modalState, setModalState] = useState<LevelModalState>({ open: false });
@@ -91,14 +95,6 @@ export function LineAggregationTab({
     [atMax, canAddAuto],
   );
 
-  const updateLevels = (nextLevels: AggregationLevelFormState[]) => {
-    form.setFieldValue('aggregation_levels', reindexAggregationLevels(nextLevels));
-    onResourceLabelsChange({
-      ...resourceLabels,
-      aggregation_levels: syncLevelLabels(resourceLabels.aggregation_levels, nextLevels),
-    });
-  };
-
   const openEditModal = (index: number) => {
     const level = levels[index];
     setSelectedIndex(index);
@@ -126,15 +122,14 @@ export function LineAggregationTab({
       return;
     }
     const level = levels[selectedIndex];
-    const nextDeleted = level.id ? [...deletedIds, level.id] : deletedIds;
+    if (level.id) {
+      onDeletedLevelIdsChange([...deletedLevelIds, level.id]);
+    }
     const nextLevels = levels.filter((_, index) => index !== selectedIndex);
     const nextAggregationLabels = resourceLabels.aggregation_levels.filter(
       (_, index) => index !== selectedIndex,
     );
-    form.setFieldsValue({
-      aggregation_levels: reindexAggregationLevels(nextLevels),
-      deleted_aggregation_level_ids: nextDeleted,
-    });
+    form.setFieldValue('aggregation_levels', reindexAggregationLevels(nextLevels));
     onResourceLabelsChange({
       ...resourceLabels,
       aggregation_levels: syncLevelLabels(nextAggregationLabels, nextLevels),

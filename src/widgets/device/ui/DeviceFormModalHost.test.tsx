@@ -11,8 +11,10 @@ const { saveDevice } = vi.hoisted(() => ({ saveDevice: vi.fn() }));
 
 vi.mock('@/entities/device', async () => {
   const store = await import('@/entities/device/model/deviceFormUiStore');
+  const constants = await import('@/entities/device/model/constants');
   return {
     ...store,
+    ...constants,
     useDeviceActions: () => ({
       saveDevice,
       isPending: false,
@@ -28,10 +30,7 @@ vi.mock('@/features/device-form', () => ({
           type="button"
           onClick={() =>
             onSubmit(
-              {
-                device_type: 'camera',
-                name: 'Saved',
-              } as DeviceFormValues,
+              { name: 'Saved' } as DeviceFormValues,
               { close: true },
             )
           }
@@ -71,6 +70,11 @@ describe('DeviceFormModalHost', () => {
     screen.getByRole('button', { name: 'submit' }).click();
 
     await waitFor(() => {
+      expect(saveDevice).toHaveBeenCalledWith({
+        deviceType: 'camera',
+        values: { name: 'Saved' },
+        editId: undefined,
+      });
       const state = useDeviceFormUiStore.getState();
       expect(state.dialog).toEqual({ kind: 'none' });
       expect(state.lastSaved).toEqual({

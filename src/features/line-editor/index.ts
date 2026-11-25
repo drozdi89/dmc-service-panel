@@ -16,6 +16,7 @@ export {
 export {
   LineFormModal,
   type LineFormModalProps,
+  type LineFormSubmitContext,
 } from './ui/LineFormModal';
 export { LineMainTab, type LineMainTabProps } from './ui/LineMainTab';
 export {

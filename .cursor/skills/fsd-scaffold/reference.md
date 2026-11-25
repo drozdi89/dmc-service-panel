@@ -74,3 +74,24 @@ export const exampleQueries = { ...queryApi, ...mutationApi };
 
 Один файл в `entities/<name>/queries/` (или доменный файл + `keys.ts` для integration/parameters).
 Тосты — в `hooks/use*Actions.ts`; `useInvalidatingMutation` — рядом с queries той же сущности (device, integration).
+
+## Сверка с Desktop (DataMatrixControl)
+
+Правило: [`.cursor/rules/desktop-parity.mdc`](../../rules/desktop-parity.mdc).
+
+| Ресурс | Путь |
+|--------|------|
+| Клон DMC (ветка `1.0.4.7_rel_cursor`) | `C:\OSPanel\home\DataMatrixControl` (или `../DataMatrixControl` от репозитория SP) |
+| OpenAPI в DMC | `docs/API/openapi.json` |
+| OpenAPI в SP | `src/openapi.json` |
+| Снимок diff / коммиты | [dmc-openapi-audit.md](./dmc-openapi-audit.md) |
+| Qt → FSD карта | [desktop-module-map.md](./desktop-module-map.md) |
+
+**Синхронизация контракта (merge, не затирать SP-only paths):**
+
+```bash
+# после ручного merge openapi.json в src/
+npm run generate:api-types
+```
+
+После CRUD по-прежнему: `factoryMutation` пишет detail-кэш, invalidate только list/lookup (см. таблицу эталонов выше).

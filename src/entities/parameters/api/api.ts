@@ -1,10 +1,14 @@
 import {
+  ApiError,
   apiRequestData,
   fetchPaginatedList,
   type ApiRequestOptions,
 } from '@/shared/api';
 import type { ListQueryParams, PaginatedResponse } from '@/shared/types/listQuery';
+import { parseCodeCleanupSettings } from '../lib/codeCleanup';
+import { CODE_CLEANUP_KEYS } from '../model/constants';
 import type {
+  CodeCleanupSettings,
   FactoryNumberRow,
   FtpConfiguration,
   MarkingOptionEntry,
@@ -62,6 +66,32 @@ export async function fetchMarkingOptionValue(
     `${MARKING_VALUE_PATH}/${encodeURIComponent(optionsName)}`,
     { signal },
   );
+}
+
+/**
+ * Loads the four `code_cleanup_*` marking options in parallel and parses them
+ * (defaults and clamp like Qt). A missing key (404) is treated as an empty value.
+ *
+ * @param signal - Optional abort signal.
+ */
+export async function fetchCodeCleanupSettings(
+  signal?: AbortSignal,
+): Promise<CodeCleanupSettings> {
+  const keys = Object.values(CODE_CLEANUP_KEYS);
+  const values = await Promise.all(
+    keys.map(async (key) => {
+      try {
+        const result = await fetchMarkingOptionValue(key, signal);
+        return result.options_value;
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+          return '';
+        }
+        throw error;
+      }
+    }),
+  );
+  return parseCodeCleanupSettings(Object.fromEntries(keys.map((key, i) => [key, values[i]])));
 }
 
 /**

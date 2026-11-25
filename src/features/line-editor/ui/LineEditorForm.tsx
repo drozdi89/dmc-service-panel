@@ -28,6 +28,8 @@ function LineEditorFormBody({
   isNew,
   initialValues,
   initialResourceLabels,
+  deletedLevelIds,
+  onDeletedLevelIdsChange,
 }: LineEditorFormBodyProps) {
   const form = Form.useFormInstance<LineEditorFormState>();
   const [activeTab, setActiveTab] = useState('main');
@@ -38,6 +40,7 @@ function LineEditorFormBody({
     setResourceLabels(initialResourceLabels);
   }, [initialResourceLabels]);
 
+  const loadedIsManual = !isNew && initialValues.is_manual;
   const watchedValues = Form.useWatch([], form) as LineEditorFormState | undefined;
   const visibility = useMemo(
     () =>
@@ -47,8 +50,9 @@ function LineEditorFormBody({
           ...(watchedValues ?? {}),
         },
         isNew,
+        loadedIsManual,
       ),
-    [initialValues, isNew, watchedValues],
+    [initialValues, isNew, loadedIsManual, watchedValues],
   );
 
   const tabItems = useMemo((): NonNullable<TabsProps['items']> => {
@@ -73,6 +77,8 @@ function LineEditorFormBody({
             visibility={visibility}
             resourceLabels={resourceLabels}
             onResourceLabelsChange={setResourceLabels}
+            deletedLevelIds={deletedLevelIds}
+            onDeletedLevelIdsChange={onDeletedLevelIdsChange}
           />
         ),
       },
@@ -82,15 +88,18 @@ function LineEditorFormBody({
         children: <LineFavouriteProductsTab visibility={visibility} />,
       },
     ];
-  }, [isNew, resourceLabels, visibility]);
+  }, [deletedLevelIds, isNew, onDeletedLevelIdsChange, resourceLabels, visibility]);
 
   return (
     <>
       <LineIdentityFields visibility={visibility} />
-      <Form.Item name="aggregation_levels" hidden preserve noStyle>
+      <Form.Item name="output" hidden preserve noStyle>
         <FormStoreField />
       </Form.Item>
-      <Form.Item name="deleted_aggregation_level_ids" hidden preserve noStyle>
+      <Form.Item name="is_scale" hidden preserve noStyle>
+        <FormStoreField />
+      </Form.Item>
+      <Form.Item name="aggregation_levels" hidden preserve noStyle>
         <FormStoreField />
       </Form.Item>
       <Form.Item name="favourite_gtins" hidden preserve noStyle>
@@ -128,9 +137,12 @@ export interface LineEditorFormProps {
    * Resource display labels parallel to {@link initialValues} (not stored in Form).
    */
   initialResourceLabels: LineEditorResourceLabels;
+  /** Persisted aggregation levels removed in this dialog (held outside the form). */
+  deletedLevelIds: number[];
+  onDeletedLevelIdsChange: (next: number[]) => void;
   /**
    * Receives the Form instance so the page can `getFieldsValue(true)` on save
-   * and `Form.useWatch('name', form)` for the title.
+   * and `Form.useWatch('linename', form)` for the title.
    * Called with `null` on unmount so the page clears a detached handle.
    */
   onFormReady?: (form: FormInstance<LineEditorFormState> | null) => void;
@@ -148,6 +160,8 @@ export function LineEditorForm({
   disabled,
   initialValues,
   initialResourceLabels,
+  deletedLevelIds,
+  onDeletedLevelIdsChange,
   onFormReady,
 }: LineEditorFormProps) {
   const [form] = Form.useForm<LineEditorFormState>();
@@ -172,6 +186,8 @@ export function LineEditorForm({
         disabled={disabled}
         initialValues={initialValues}
         initialResourceLabels={initialResourceLabels}
+        deletedLevelIds={deletedLevelIds}
+        onDeletedLevelIdsChange={onDeletedLevelIdsChange}
       />
     </Form>
   );

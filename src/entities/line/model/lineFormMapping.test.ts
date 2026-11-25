@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
-  applyOutputModeChange,
-  applyOutputModeLabelsChange,
   buildLinePayload,
   buildLinePrintedDmSettings,
   canAddAutomatedAggregationLevel,
   canSwapAggregationLevels,
   computeLineEditorVisibility,
-  createDefaultLineEditorLabels,
   createDefaultLineFormState,
   mapLineConfigurationToForm,
   mapLineConfigurationToLabels,
+  outputModeToFields,
   reindexAggregationLevels,
+  resolveAutomatedSubtype,
+  resolveLineKind,
+  resolveOutputMode,
   validateLineForm,
   validateManualAggregationLevel,
 } from './lineFormMapping';
@@ -19,19 +20,16 @@ import { LINE_TYPE } from './constants';
 import type { AggregationLevelFormState } from './types';
 
 describe('computeLineEditorVisibility', () => {
-  it('disables products tab only when line was loaded as manual', () => {
+  it('disables products tab only when the loaded line was manual', () => {
     const base = createDefaultLineFormState();
     expect(
-      computeLineEditorVisibility({ ...base, lineKind: 'manual' }, false).disableProductsTab,
+      computeLineEditorVisibility({ ...base, is_manual: true }, false, false)
+        .disableProductsTab,
     ).toBe(false);
+    expect(computeLineEditorVisibility(base, false, true).disableProductsTab).toBe(true);
     expect(
-      computeLineEditorVisibility({ ...base, loaded_is_manual: true }, false).disableProductsTab,
-    ).toBe(true);
-    expect(
-      computeLineEditorVisibility(
-        { ...base, lineKind: 'manual', loaded_is_manual: true },
-        false,
-      ).disableProductsTab,
+      computeLineEditorVisibility({ ...base, is_manual: true }, false, true)
+        .disableProductsTab,
     ).toBe(true);
   });
 
@@ -42,7 +40,7 @@ describe('computeLineEditorVisibility', () => {
     expect(external.showLineOptions).toBe(false);
 
     const printOnly = computeLineEditorVisibility(
-      { ...base, print_only_no_verify: true },
+      { ...base, line_type: LINE_TYPE.PRINT_NO_VERIFY },
       false,
     );
     expect(printOnly.hideExtendedTabs).toBe(true);
@@ -58,7 +56,7 @@ describe('computeLineEditorVisibility', () => {
   it('shows automated serialization and printer pickers in printer mode', () => {
     const base = createDefaultLineFormState();
     const vis = computeLineEditorVisibility(
-      { ...base, lineKind: 'automated', outputMode: 'printer' },
+      { ...base, is_manual: false, output: 0, is_scale: false },
       true,
     );
     expect(vis.showAutomatedSerialization).toBe(true);
@@ -70,7 +68,7 @@ describe('computeLineEditorVisibility', () => {
   it('shows checkweir picker instead of printer serialization in checkweir mode', () => {
     const base = createDefaultLineFormState();
     const vis = computeLineEditorVisibility(
-      { ...base, lineKind: 'automated', outputMode: 'checkweir' },
+      { ...base, is_manual: false, output: 1, is_scale: false },
       true,
     );
     expect(vis.showPrinterSerialization).toBe(false);
@@ -81,22 +79,22 @@ describe('computeLineEditorVisibility', () => {
     const base = createDefaultLineFormState();
     expect(
       computeLineEditorVisibility(
-        { ...base, lineKind: 'automated', outputMode: 'scale' },
+        { ...base, is_manual: false, output: 1, is_scale: true },
         true,
       ).showScaleWorkplacesPanel,
     ).toBe(true);
     expect(
-      computeLineEditorVisibility({ ...base, lineKind: 'automated' }, true).showScaleWorkplacesPanel,
+      computeLineEditorVisibility({ ...base, is_manual: false }, true).showScaleWorkplacesPanel,
     ).toBe(false);
     expect(
       computeLineEditorVisibility(
-        { ...base, lineKind: 'automated', outputMode: 'scale', external_line: true },
+        { ...base, is_manual: false, output: 1, is_scale: true, external_line: true },
         true,
       ).hideExtendedTabs,
     ).toBe(true);
     expect(
       computeLineEditorVisibility(
-        { ...base, lineKind: 'automated', outputMode: 'printer' },
+        { ...base, is_manual: false, output: 0, is_scale: false },
         true,
       ).showScaleWorkplacesPanel,
     ).toBe(false);
@@ -104,7 +102,7 @@ describe('computeLineEditorVisibility', () => {
 
   it('shows manual notice and disables task/auto-aggr options for TSD line', () => {
     const base = createDefaultLineFormState();
-    const vis = computeLineEditorVisibility({ ...base, lineKind: 'manual' }, true);
+    const vis = computeLineEditorVisibility({ ...base, is_manual: true }, true);
     expect(vis.showManualLineNotice).toBe(true);
     expect(vis.showAutomatedSerialization).toBe(false);
     expect(vis.showLineOptions).toBe(true);
@@ -115,7 +113,7 @@ describe('computeLineEditorVisibility', () => {
   it('uses doypack camera labels and hides group_scan', () => {
     const base = createDefaultLineFormState();
     const vis = computeLineEditorVisibility(
-      { ...base, lineKind: 'automated', automatedSubtype: 'doypack' },
+      { ...base, is_manual: false, line_type: LINE_TYPE.DOYPACK },
       true,
     );
     expect(vis.useDoypackCameraLabels).toBe(true);
@@ -131,6 +129,24 @@ describe('computeLineEditorVisibility', () => {
   });
 });
 
+describe('resolve helpers', () => {
+  it('maps is_manual / line_type / output to UI radios', () => {
+    expect(resolveLineKind({ is_manual: true })).toBe('manual');
+    expect(resolveLineKind({ is_manual: false })).toBe('automated');
+    expect(resolveAutomatedSubtype(LINE_TYPE.DOYPACK)).toBe('doypack');
+    expect(resolveAutomatedSubtype(LINE_TYPE.DEFAULT)).toBe('default');
+    expect(resolveOutputMode({ output: 0, is_scale: false })).toBe('printer');
+    expect(resolveOutputMode({ output: 1, is_scale: false })).toBe('checkweir');
+    expect(resolveOutputMode({ output: 1, is_scale: true })).toBe('scale');
+  });
+
+  it('maps output mode radio back to output / is_scale', () => {
+    expect(outputModeToFields('printer')).toEqual({ output: 0, is_scale: false });
+    expect(outputModeToFields('checkweir')).toEqual({ output: 1, is_scale: false });
+    expect(outputModeToFields('scale')).toEqual({ output: 1, is_scale: true });
+  });
+});
+
 describe('validateLineForm', () => {
   it('requires line name', () => {
     const state = createDefaultLineFormState();
@@ -138,18 +154,19 @@ describe('validateLineForm', () => {
   });
 
   it('accepts valid state', () => {
-    const state = { ...createDefaultLineFormState(), name: 'Линия 1' };
+    const state = { ...createDefaultLineFormState(), linename: 'Линия 1' };
     expect(validateLineForm(state)).toBeNull();
   });
 
   it('rejects duplicate serialization printers', () => {
     const state = {
       ...createDefaultLineFormState(),
-      name: 'Auto',
-      lineKind: 'automated' as const,
-      outputMode: 'printer' as const,
+      linename: 'Auto',
+      is_manual: false,
+      output: 0,
+      is_scale: false,
       printer_id: 1,
-      printer_2_id: 1,
+      printer_id_s: 1,
     };
     expect(validateLineForm(state)).toBe(
       'Второй принтер не может совпадать с принтером сериализации',
@@ -159,7 +176,7 @@ describe('validateLineForm', () => {
   it('rejects manual aggregation level with printer/template mismatch', () => {
     const state = {
       ...createDefaultLineFormState(),
-      name: 'Line 1',
+      linename: 'Line 1',
       aggregation_levels: [
         {
           name: 'Ручной 1',
@@ -197,90 +214,44 @@ describe('mapLineConfigurationToForm', () => {
     external_line: false,
   };
 
-  it('maps scale to new_chw_scale_id in printer mode', () => {
+  it('maps GET nested devices onto LinesSchema write fields', () => {
     const form = mapLineConfigurationToForm({
       ...baseConfig,
       output: 0,
+      one_s_code: '1C-1',
+      printer: { id: 10, name: 'P1' },
+      printer_2: { id: 20, name: 'P2' },
+      printed_codes_camera: { id: 3, name: 'Cam print' },
       scale: { id: 42, name: 'New CHW' },
     });
-    expect(form.new_chw_scale_id).toBe(42);
-    expect(form.scale_id).toBeNull();
+    expect(form.linename).toBe('Line 1');
+    expect(form.one_s_line_code).toBe('1C-1');
+    expect(form.printer_id).toBe(10);
+    expect(form.printer_id_s).toBe(20);
+    expect(form.printed_camera_id).toBe(3);
+    expect(form.scale_id).toBe(42);
+    expect(form).not.toHaveProperty('lineKind');
+    expect(form).not.toHaveProperty('outputMode');
+    expect(form).not.toHaveProperty('deleted_aggregation_level_ids');
 
     const labels = mapLineConfigurationToLabels({
       ...baseConfig,
-      output: 0,
+      printed_codes_camera: { id: 3, name: 'Cam print' },
       scale: { id: 42, name: 'New CHW' },
     });
-    expect(labels.newChwScaleLabel).toBe('New CHW');
-    expect(labels.scaleLabel).toBeUndefined();
+    expect(labels.printedCameraLabel).toBe('Cam print');
+    expect(labels.scaleLabel).toBe('New CHW');
   });
 
-  it('maps scale to scale_id in checkweir mode', () => {
+  it('maps checkweir scale onto the same scale_id field', () => {
     const form = mapLineConfigurationToForm({
       ...baseConfig,
       output: 1,
       scale: { id: 7, name: 'Checkweir' },
     });
     expect(form.scale_id).toBe(7);
-    expect(form.new_chw_scale_id).toBeNull();
-
-    const labels = mapLineConfigurationToLabels({
-      ...baseConfig,
-      output: 1,
-      scale: { id: 7, name: 'Checkweir' },
-    });
-    expect(labels.scaleLabel).toBe('Checkweir');
-    expect(labels.newChwScaleLabel).toBeUndefined();
-  });
-});
-
-describe('applyOutputModeChange', () => {
-  it('migrates scale from new CHW to checkweir field', () => {
-    const state = {
-      ...createDefaultLineFormState(),
-      outputMode: 'printer' as const,
-      new_chw_scale_id: 5,
-    };
-    expect(applyOutputModeChange(state, 'checkweir')).toEqual({
-      outputMode: 'checkweir',
-      scale_id: 5,
-      new_chw_scale_id: null,
-    });
-  });
-
-  it('migrates scale from checkweir to new CHW field', () => {
-    const state = {
-      ...createDefaultLineFormState(),
-      outputMode: 'checkweir' as const,
-      scale_id: 8,
-    };
-    expect(applyOutputModeChange(state, 'printer')).toEqual({
-      outputMode: 'printer',
-      new_chw_scale_id: 8,
-      scale_id: null,
-    });
-  });
-});
-
-describe('applyOutputModeLabelsChange', () => {
-  it('migrates scale labels when switching printer ↔ checkweir', () => {
-    const labels = {
-      ...createDefaultLineEditorLabels(),
-      newChwScaleLabel: 'Scale A',
-    };
-    expect(applyOutputModeLabelsChange(labels, 'printer', 'checkweir')).toEqual({
-      scaleLabel: 'Scale A',
-      newChwScaleLabel: undefined,
-    });
-
-    const checkweirLabels = {
-      ...createDefaultLineEditorLabels(),
-      scaleLabel: 'Scale B',
-    };
-    expect(applyOutputModeLabelsChange(checkweirLabels, 'checkweir', 'printer')).toEqual({
-      newChwScaleLabel: 'Scale B',
-      scaleLabel: undefined,
-    });
+    expect(form.output).toBe(1);
+    expect(form.is_scale).toBe(false);
   });
 });
 
@@ -288,8 +259,8 @@ describe('buildLinePayload', () => {
   it('clears devices for manual line', () => {
     const state = {
       ...createDefaultLineFormState(),
-      name: 'Manual',
-      lineKind: 'manual' as const,
+      linename: 'Manual',
+      is_manual: true,
       camera_id: 5,
       printer_id: 6,
     };
@@ -302,49 +273,50 @@ describe('buildLinePayload', () => {
   it('sets PRINTNOVERIFY line type', () => {
     const state = {
       ...createDefaultLineFormState(),
-      name: 'Print only',
-      print_only_no_verify: true,
-      lineKind: 'automated' as const,
+      linename: 'Print only',
+      line_type: LINE_TYPE.PRINT_NO_VERIFY,
+      is_manual: false,
     };
     const payload = buildLinePayload(state);
     expect(payload.line_type).toBe(LINE_TYPE.PRINT_NO_VERIFY);
     expect(payload.is_manual).toBe(true);
   });
 
-  it('maps checkweir output', () => {
+  it('keeps scale_id in checkweir mode', () => {
     const state = {
       ...createDefaultLineFormState(),
-      name: 'Auto',
-      outputMode: 'checkweir' as const,
+      linename: 'Auto',
+      output: 1,
+      is_scale: false,
       scale_id: 12,
-      new_chw_scale_id: 99,
     };
     const payload = buildLinePayload(state);
     expect(payload.output).toBe(1);
     expect(payload.scale_id).toBe(12);
   });
 
-  it('maps new CHW scale in printer mode', () => {
+  it('keeps scale_id in printer mode (Новый ЧВ)', () => {
     const state = {
       ...createDefaultLineFormState(),
-      name: 'Auto',
-      outputMode: 'printer' as const,
-      scale_id: 12,
-      new_chw_scale_id: 99,
+      linename: 'Auto',
+      output: 0,
+      is_scale: false,
+      scale_id: 99,
     };
     const payload = buildLinePayload(state);
     expect(payload.output).toBe(0);
     expect(payload.scale_id).toBe(99);
   });
 
-  it('maps printer_2_id to printer_id_s in printer mode', () => {
+  it('keeps printer_id_s in printer mode', () => {
     const state = {
       ...createDefaultLineFormState(),
-      name: 'Auto',
-      lineKind: 'automated' as const,
-      outputMode: 'printer' as const,
+      linename: 'Auto',
+      is_manual: false,
+      output: 0,
+      is_scale: false,
       printer_id: 10,
-      printer_2_id: 20,
+      printer_id_s: 20,
     };
     const payload = buildLinePayload(state);
     expect(payload.printer_id).toBe(10);
@@ -354,11 +326,12 @@ describe('buildLinePayload', () => {
   it('excludes second printer in checkweir mode', () => {
     const state = {
       ...createDefaultLineFormState(),
-      name: 'Auto',
-      lineKind: 'automated' as const,
-      outputMode: 'checkweir' as const,
+      linename: 'Auto',
+      is_manual: false,
+      output: 1,
+      is_scale: false,
       printer_id: 10,
-      printer_2_id: 20,
+      printer_id_s: 20,
     };
     const payload = buildLinePayload(state);
     expect(payload.printer_id).toBeNull();
@@ -368,22 +341,23 @@ describe('buildLinePayload', () => {
   it('excludes serialization printers for manual and scale lines', () => {
     const manual = buildLinePayload({
       ...createDefaultLineFormState(),
-      name: 'Manual',
-      lineKind: 'manual',
-      outputMode: 'printer',
+      linename: 'Manual',
+      is_manual: true,
+      output: 0,
       printer_id: 1,
-      printer_2_id: 2,
+      printer_id_s: 2,
     });
     expect(manual.printer_id).toBeNull();
     expect(manual.printer_id_s).toBeNull();
 
     const scale = buildLinePayload({
       ...createDefaultLineFormState(),
-      name: 'Scale',
-      lineKind: 'automated',
-      outputMode: 'scale',
+      linename: 'Scale',
+      is_manual: false,
+      output: 1,
+      is_scale: true,
       printer_id: 3,
-      printer_2_id: 4,
+      printer_id_s: 4,
     });
     expect(scale.printer_id).toBeNull();
     expect(scale.printer_id_s).toBeNull();

@@ -57,8 +57,26 @@ export function useCodeGeneratorTemplateActions({
     [createMutation, updateMutation],
   );
 
+  const guardEditable = useCallback(
+    (record: CodeGeneratorTemplate, action: 'edit' | 'delete'): boolean => {
+      if (!record.is_system) {
+        return true;
+      }
+      message.warning(
+        action === 'edit'
+          ? 'Системный шаблон нельзя изменить'
+          : 'Системный шаблон нельзя удалить',
+      );
+      return false;
+    },
+    [message],
+  );
+
   const handleDelete = useCallback(
     (record: CodeGeneratorTemplate) => {
+      if (!guardEditable(record, 'delete')) {
+        return;
+      }
       modal.confirm({
         title: 'Удалить шаблон?',
         content: `Шаблон «${record.name}» будет удалён без возможности восстановления.`,
@@ -71,7 +89,16 @@ export function useCodeGeneratorTemplateActions({
         },
       });
     },
-    [deleteMutation, modal],
+    [deleteMutation, guardEditable, modal],
+  );
+
+  const handleEdit = useCallback(
+    (record: CodeGeneratorTemplate, openEdit: (id: CodeGeneratorTemplate['id']) => void) => {
+      if (guardEditable(record, 'edit')) {
+        openEdit(record.id);
+      }
+    },
+    [guardEditable],
   );
 
   return {
@@ -79,6 +106,7 @@ export function useCodeGeneratorTemplateActions({
     updateMutation,
     deleteMutation,
     handleSubmit,
+    handleEdit,
     handleDelete,
     isSavePending: createMutation.isPending || updateMutation.isPending,
   };

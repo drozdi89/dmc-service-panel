@@ -2,7 +2,7 @@
  * Help body for the code generator template editor.
  *
  * Content mirrors Desktop `_HELP_HTML` from
- * `modules/CodeGenerators/template_editor.py` (read-only source).
+ * `modules/CodeGenerators/template_editor.py` (CounterSpec editor).
  */
 export function CodeGeneratorTemplateHelpContent() {
   return (
@@ -14,11 +14,12 @@ export function CodeGeneratorTemplateHelpContent() {
       </p>
       <p>
         <b>2. Настроить счётчики</b> — для каждого <code>{'{serial}'}</code>{' '}
-        добавьте строку: имя, тип, ключ серии (для gln_sscc), формат, уровень.
+        добавьте карточку: имя, число цифр (width), диапазон От–До, отметьте
+        поля, при смене которых начинается новый ряд серии (key_fields).
       </p>
       <p>
-        <b>3. Проверить</b> — нажмите «Проверить»; в результате не должно
-        оставаться неразрешённых <code>{'{...}'}</code>.
+        <b>3. Проверить</b> — укажите ID задания и уровень агрегации, нажмите
+        «Проверить» (запрос preview, счётчики в БД не меняются).
       </p>
       <p>
         <b>4. Сохранить</b> — шаблон появится в списке генераторов на линии.

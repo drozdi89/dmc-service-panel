@@ -33,11 +33,9 @@ export type DeviceDetail =
  * Form record = API object for the active device type.
  *
  * Field names match the OpenAPI schemas (`type`, `port`, `delay`, …).
- * `device_type` is the UI discriminator (which endpoint / section); it is not
- * persisted in the request body.
+ * The device type (endpoint / section) lives in the dialog UI store, not here.
  */
 export type DeviceFormValues = {
-  device_type: DeviceType;
   id?: number;
   name: string;
   host?: string | null;
@@ -154,7 +152,6 @@ export function createDefaultFormValues(
 ): DeviceFormValues {
   const base: DeviceFormValues = {
     id: undefined,
-    device_type: deviceType,
     name: '',
     host: '',
     port: DEFAULT_DEVICE_PORTS[deviceType],
@@ -193,7 +190,6 @@ export function createDefaultFormValues(
 
   if (deviceType === 'controller') {
     return {
-      device_type: deviceType,
       name: '',
       type: DEFAULT_CONTROLLER_TYPE,
       port: '',
@@ -222,7 +218,6 @@ export function createDefaultFormValues(
 
   if (deviceType === 'divider') {
     return {
-      device_type: deviceType,
       name: '',
       port: `:${DEFAULT_DEVICE_PORTS.divider ?? 502}`,
       delay: 0,
@@ -253,7 +248,6 @@ export function mapDeviceDetailToFormValues(
     const camera = detail as CameraOutput;
     return {
       ...camera,
-      device_type: deviceType,
       host: camera.host ?? '',
     };
   }
@@ -262,7 +256,6 @@ export function mapDeviceDetailToFormValues(
     const printer = detail as PrinterOutput;
     return {
       ...printer,
-      device_type: deviceType,
       host: printer.host ?? '',
     };
   }
@@ -271,7 +264,6 @@ export function mapDeviceDetailToFormValues(
     const scale = detail as ScalesOutput;
     return {
       ...scale,
-      device_type: deviceType,
       host: scale.host ?? '',
       port: String(scale.port ?? ''),
       sql_host: scale.sql_host ?? '',
@@ -286,28 +278,24 @@ export function mapDeviceDetailToFormValues(
 
   if (deviceType === 'controller') {
     const controller = detail as ControllerOutput;
-    return {
-      ...controller,
-      device_type: deviceType,
-    };
+    return { ...controller };
   }
 
   const divider = detail as DividerOutput;
-  return {
-    ...divider,
-    device_type: deviceType,
-  };
+  return { ...divider };
 }
 
 /**
  * Maps form values to a POST/PATCH request body for the given device type.
  *
+ * @param deviceType - Device type (target endpoint).
  * @param values - Validated form values.
  */
 export function mapFormValuesToPayload(
+  deviceType: DeviceType,
   values: DeviceFormValues,
 ): CameraInput | PrinterInput | ScalesInput | ControllerInput | DividerInput {
-  switch (values.device_type) {
+  switch (deviceType) {
     case 'camera':
       return {
         name: values.name.trim(),
@@ -396,7 +384,7 @@ export function mapFormValuesToPayload(
         delay: values.delay ?? 0,
       };
     default: {
-      const exhaustive: never = values.device_type;
+      const exhaustive: never = deviceType;
       return exhaustive;
     }
   }

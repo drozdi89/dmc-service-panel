@@ -13931,6 +13931,11 @@ export interface components {
              * @default false
              */
             disable_statistics_export: boolean;
+            /**
+             * series_lease_block_size
+             * @default 0
+             */
+            series_lease_block_size: number;
         };
         /**
          * ParentAggregateState

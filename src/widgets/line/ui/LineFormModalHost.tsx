@@ -5,7 +5,7 @@ import {
   useLinePrintedDmRawQuery,
   type LineEditorFormState,
 } from '@/entities/line';
-import { LineFormModal } from '@/features/line-editor';
+import { LineFormModal, type LineFormSubmitContext } from '@/features/line-editor';
 import { useSaveLineConfigurationMutation } from '@/services/line-service';
 import type { ResourceFormSubmitOptions } from '@/shared/model/resourceFormUiBridge';
 import { RESOURCE_FORM_SUBMIT_SAVE } from '@/shared/model/resourceFormUiBridge';
@@ -59,6 +59,9 @@ export function LineFormModalHost() {
     async (
       values: LineEditorFormState,
       options: ResourceFormSubmitOptions = RESOURCE_FORM_SUBMIT_SAVE,
+      { deletedAggregationLevelIds }: LineFormSubmitContext = {
+        deletedAggregationLevelIds: [],
+      },
     ) => {
       const submittedGeneration = mountGenerationRef.current;
       const submitted = useLineFormUiStore.getState().dialog;
@@ -74,6 +77,7 @@ export function LineFormModalHost() {
         const result = await saveLine({
           state: values,
           lineId: editLineId,
+          deletedAggregationLevelIds,
           printedDmRaw,
         });
 
@@ -92,7 +96,7 @@ export function LineFormModalHost() {
           setLastSaved({
             consumerId: submitted.consumerId,
             id: result.lineId,
-            name: values.name,
+            name: values.linename,
           });
         } else {
           message.success('Линия сохранена');
@@ -129,8 +133,8 @@ export function LineFormModalHost() {
       lineId={lineId}
       submitting={submitting}
       onCancel={close}
-      onSubmit={(values, options) => {
-        void handleSubmit(values, options);
+      onSubmit={(values, options, context) => {
+        void handleSubmit(values, options, context);
       }}
     />
   );

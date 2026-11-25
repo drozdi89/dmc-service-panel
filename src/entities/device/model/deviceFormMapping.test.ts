@@ -94,13 +94,12 @@ describe('divider port helpers', () => {
 describe('deviceFormMapping', () => {
   it('creates camera defaults', () => {
     const values = createDefaultFormValues('camera');
-    expect(values.device_type).toBe('camera');
+    expect(values).not.toHaveProperty('device_type');
     expect(values.port).toBe(23);
   });
 
   it('maps camera form to API payload', () => {
-    const payload = mapFormValuesToPayload({
-      device_type: 'camera',
+    const payload = mapFormValuesToPayload('camera', {
       name: ' Cam-1 ',
       host: '10.0.0.1',
       port: 23,
@@ -123,7 +122,7 @@ describe('deviceFormMapping', () => {
     expect(formValues.delay).toBe(1500);
     expect(formValues.port).toBe('10.0.0.3:502');
 
-    const payload = mapFormValuesToPayload(formValues);
+    const payload = mapFormValuesToPayload('divider', formValues);
     expect(payload).toEqual({
       name: 'Div',
       port: '10.0.0.3:502',
@@ -144,8 +143,7 @@ describe('deviceFormMapping', () => {
   });
 
   it('maps scale form to API payload with string port', () => {
-    const payload = mapFormValuesToPayload({
-      device_type: 'scale',
+    const payload = mapFormValuesToPayload('scale', {
       name: ' Весы-1 ',
       host: '',
       port: 'COM3',
@@ -162,8 +160,7 @@ describe('deviceFormMapping', () => {
 
   it('normalizes legacy numeric serial port to COM{n}', () => {
     expect(normalizeScalePortForSave('3', 0, '')).toBe('COM3');
-    const payload = mapFormValuesToPayload({
-      device_type: 'scale',
+    const payload = mapFormValuesToPayload('scale', {
       name: 'Scale',
       host: '',
       port: '3',
@@ -191,8 +188,7 @@ describe('deviceFormMapping', () => {
   });
 
   it('maps MASSA_K_TERM_A serial mode (no host) with COM port', () => {
-    const payload = mapFormValuesToPayload({
-      device_type: 'scale',
+    const payload = mapFormValuesToPayload('scale', {
       name: 'Massa-K',
       host: '',
       port: 'COM5',
@@ -207,8 +203,7 @@ describe('deviceFormMapping', () => {
   });
 
   it('maps MASSA_K_TERM_A TCP mode (with host) with numeric port string', () => {
-    const payload = mapFormValuesToPayload({
-      device_type: 'scale',
+    const payload = mapFormValuesToPayload('scale', {
       name: 'Massa-K TCP',
       host: '10.0.0.8',
       port: '21053',

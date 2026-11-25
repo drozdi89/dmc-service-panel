@@ -1,11 +1,10 @@
 import {
   useDataMarkCredentialsQuery,
-  useDeleteDataMarkCredentialsMutation,
-  useSaveDataMarkCredentialsMutation,
+  useDataMarkSettingsActions,
   type DataMarkCredentials,
 } from '@/entities/integration';
 import { PageSpinner } from '@/shared/ui/loading';
-import { App, Button, Checkbox, Drawer, Form, Input, Popconfirm, Space } from 'antd';
+import { Button, Checkbox, Drawer, Form, Input, Popconfirm, Space } from 'antd';
 import { useCallback, useEffect } from 'react';
 
 const EMPTY_CREDENTIALS: DataMarkCredentials = {
@@ -26,7 +25,6 @@ export interface DataMarkSettingsDrawerProps {
  * Drawer for DataMark (Electronic Mark) integration credentials.
  */
 export function DataMarkSettingsDrawer({ open, onClose }: DataMarkSettingsDrawerProps) {
-  const { message } = App.useApp();
   const [form] = Form.useForm<DataMarkCredentials>();
 
   const settingsQuery = useDataMarkCredentialsQuery({ enabled: open });
@@ -39,27 +37,11 @@ export function DataMarkSettingsDrawer({ open, onClose }: DataMarkSettingsDrawer
     form.setFieldsValue({ ...EMPTY_CREDENTIALS, ...settingsQuery.data });
   }, [form, open, settingsQuery.data, settingsQuery.isSuccess]);
 
-  const showError = (error: Error) => message.error(error.message);
-
-  const saveMutation = useSaveDataMarkCredentialsMutation({
-    onSuccess: () => {
-      message.success('Настройки DataMark сохранены');
-      onClose();
-    },
-    onError: showError,
-  });
-
-  const deleteMutation = useDeleteDataMarkCredentialsMutation({
-    onSuccess: () => {
-      message.success('Настройки DataMark удалены');
-      onClose();
-    },
-    onError: showError,
-  });
+  const { save, remove, isSaving, isDeleting } = useDataMarkSettingsActions({ onDone: onClose });
 
   const handleSave = useCallback(async () => {
     const values = await form.validateFields();
-    saveMutation.mutate({
+    save({
       currentUnp,
       credentials: {
         ...values,
@@ -68,23 +50,23 @@ export function DataMarkSettingsDrawer({ open, onClose }: DataMarkSettingsDrawer
         username: values.username?.trim() ?? '',
       },
     });
-  }, [currentUnp, form, saveMutation]);
+  }, [currentUnp, form, save]);
 
   return (
     <Drawer
       title="Настройки интеграции DataMark (Электронный Знак)"
       open={open}
       onClose={onClose}
-      width={520}
-      destroyOnClose
+      size={520}
+      forceRender
       extra={
         <Space>
           {currentUnp ? (
             <Popconfirm
               title="Удалить настройки DataMark?"
-              onConfirm={() => deleteMutation.mutate(currentUnp)}
+              onConfirm={() => remove(currentUnp)}
             >
-              <Button danger loading={deleteMutation.isPending}>
+              <Button danger loading={isDeleting}>
                 Удалить
               </Button>
             </Popconfirm>
@@ -92,7 +74,7 @@ export function DataMarkSettingsDrawer({ open, onClose }: DataMarkSettingsDrawer
           <Button onClick={onClose}>Отмена</Button>
           <Button
             type="primary"
-            loading={saveMutation.isPending}
+            loading={isSaving}
             onClick={() => void handleSave()}
           >
             Сохранить
@@ -102,44 +84,50 @@ export function DataMarkSettingsDrawer({ open, onClose }: DataMarkSettingsDrawer
     >
       {settingsQuery.isLoading ? (
         <PageSpinner tip="Загрузка настроек DataMark…" />
-      ) : (
-        <Form form={form} layout="horizontal" labelCol={{ span: 8 }} disabled={saveMutation.isPending}>
-          <Form.Item
-            name="unp"
-            label="УНП"
-            rules={[{ required: true, message: 'Укажите УНП' }]}
-            style={{ marginBottom: 4 }}
-          >
-            <Input disabled={Boolean(currentUnp)} />
-          </Form.Item>
-          <Form.Item
-            name="name"
-            label="Наименование организации"
-            rules={[{ required: true, message: 'Укажите наименование' }]}
-            style={{ marginBottom: 4 }}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item label="Тестовый контур" name="demo" valuePropName="checked" style={{ marginBottom: 4 }}>
-            <Checkbox />
-          </Form.Item>
-          <Form.Item
-            name="username"
-            label="Логин"
-            rules={[{ required: true, message: 'Укажите логин' }]}
-            style={{ marginBottom: 4 }}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name="password"
-            label="Пароль"
-            style={{ marginBottom: 4 }}
-          >
-            <Input.Password />
-          </Form.Item>
-        </Form>
-      )}
+      ) : null}
+      {/* Keep Form mounted while open so useForm stays connected during load/setFieldsValue. */}
+      <Form
+        form={form}
+        layout="horizontal"
+        labelCol={{ span: 8 }}
+        disabled={isSaving || settingsQuery.isLoading}
+        style={settingsQuery.isLoading ? { display: 'none' } : undefined}
+      >
+        <Form.Item
+          name="unp"
+          label="УНП"
+          rules={[{ required: true, message: 'Укажите УНП' }]}
+          style={{ marginBottom: 4 }}
+        >
+          <Input disabled={Boolean(currentUnp)} />
+        </Form.Item>
+        <Form.Item
+          name="name"
+          label="Наименование организации"
+          rules={[{ required: true, message: 'Укажите наименование' }]}
+          style={{ marginBottom: 4 }}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item label="Тестовый контур" name="demo" valuePropName="checked" style={{ marginBottom: 4 }}>
+          <Checkbox />
+        </Form.Item>
+        <Form.Item
+          name="username"
+          label="Логин"
+          rules={[{ required: true, message: 'Укажите логин' }]}
+          style={{ marginBottom: 4 }}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="password"
+          label="Пароль"
+          style={{ marginBottom: 4 }}
+        >
+          <Input.Password />
+        </Form.Item>
+      </Form>
     </Drawer>
   );
 }

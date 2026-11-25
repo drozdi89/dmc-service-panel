@@ -9,13 +9,16 @@ import {
   saveTeleBotSetting,
   saveWatchdogConfiguration,
 } from '../api/api';
+import { codeCleanupToBatchEntries } from '../lib/codeCleanup';
 import type {
+  CodeCleanupSettings,
   FtpConfiguration,
   MarkingOptionEntry,
   TeleBotSettingRow,
   WatchdogConfiguration,
 } from '../model/types';
 import {
+  CODE_CLEANUP_QUERY_KEY,
   FTP_QUERY_KEY,
   SETTINGS_BUNDLE_QUERY_KEY,
   TELE_BOT_QUERY_KEY,
@@ -33,6 +36,21 @@ export function useSaveMarkingOptionsMutation(
     ...options,
     invalidate: [SETTINGS_BUNDLE_QUERY_KEY],
     mutationFn: (entries: MarkingOptionEntry[]) => saveMarkingOptionsBatch(entries),
+  });
+}
+
+/** Saves scheduled code cleanup settings (batch upsert of four marking options). */
+export function useSaveCodeCleanupMutation(
+  options?: EntityMutationOptions<
+    Awaited<ReturnType<typeof saveMarkingOptionsBatch>>,
+    CodeCleanupSettings
+  >,
+) {
+  return useInvalidatingMutation({
+    ...options,
+    invalidate: [CODE_CLEANUP_QUERY_KEY],
+    mutationFn: (settings: CodeCleanupSettings) =>
+      saveMarkingOptionsBatch(codeCleanupToBatchEntries(settings)),
   });
 }
 

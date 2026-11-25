@@ -134,55 +134,40 @@ export interface LineEditorVisibility {
   showLineOptions: boolean;
 }
 
-/** Full line editor form state. */
-export interface LineEditorFormState {
+/** POST/PATCH body for `/lines/`. */
+export type LineWritePayload = components['schemas']['LinesSchema'];
+
+/**
+ * Line editor form = `/lines/` write object plus the nested configuration
+ * slices saved by the same dialog.
+ *
+ * Line kind, output mode and automated subtype are derived from `is_manual`,
+ * `output` / `is_scale` and `line_type` (see `resolveLineKind` and friends);
+ * ids of deleted aggregation levels live in dialog state, not here.
+ */
+export type LineEditorFormState = LineWritePayload & {
   /** Line id from API (undefined for new line). */
   id?: number | null;
-  /** Slave server id when line belongs to external server. */
-  slaveid?: number | null;
-  /** Original is_manual from loaded configuration (Qt tabFavProducts lock). */
-  loaded_is_manual: boolean;
-  name: string;
-  one_s_code: string;
-  lineKind: LineKind;
-  automatedSubtype: AutomatedLineSubtype;
-  output: number;
-  outputMode: LineOutputMode;
-  external_line: boolean;
-  print_only_no_verify: boolean;
-  group_scan: boolean;
-  is_scale: boolean;
+  /** `line_printed_dm_use` flag for this line (marking options setting). */
   allow_printed_dm: boolean;
-  camera_id: number | null;
-  printed_codes_camera_id: number | null;
-  printer_id: number | null;
-  printer_2_id: number | null;
-  template_id: number | null;
-  plain_template_id: number | null;
-  scale_id: number | null;
-  new_chw_scale_id: number | null;
-  controller_id: number | null;
   options: LineOptionsFormState;
   scale_stations: {
     first: ScaleWorkplaceFormState;
     second: ScaleWorkplaceFormState;
   };
   aggregation_levels: AggregationLevelFormState[];
-  deleted_aggregation_level_ids: number[];
   favourite_gtins: string[];
-  has_lines_options: boolean;
-}
+};
 
 /** Top-level resource labels for the line editor (held outside the form object). */
 export interface LineEditorResourceLabels {
   cameraLabel?: string;
-  printedCodesCameraLabel?: string;
+  printedCameraLabel?: string;
   printerLabel?: string;
   printer2Label?: string;
   templateLabel?: string;
   plainTemplateLabel?: string;
   scaleLabel?: string;
-  newChwScaleLabel?: string;
   controllerLabel?: string;
   scale_stations: {
     first: ScaleWorkplaceLabels;

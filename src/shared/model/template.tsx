@@ -3,7 +3,7 @@ import {
 	isValidElement,
 	useId,
 	useLayoutEffect,
-	useRef,
+	useState,
 	type ReactElement,
 	type ReactNode,
 } from 'react';
@@ -110,12 +110,14 @@ function getTemplateContentKey(node: ReactNode, depth = 0): string {
 
 export function Template({ slot = 'default', children, ...props }: TemplateProps) {
 	const uniqueId = useId();
-	const childrenRef = useRef(children);
-	childrenRef.current = children;
 	const contentKey = getTemplateContentKey(children);
+	const [snapshot, setSnapshot] = useState({ children, contentKey });
+	if (snapshot.contentKey !== contentKey) {
+		setSnapshot({ children, contentKey });
+	}
 
 	useLayoutEffect(() => {
-		const currentChildren = childrenRef.current;
+		const currentChildren = snapshot.children;
 		const element = isValidElement(currentChildren)
 			? cloneElement(currentChildren, { key: uniqueId, ...props })
 			: currentChildren;
@@ -126,8 +128,8 @@ export function Template({ slot = 'default', children, ...props }: TemplateProps
 			templateStore.unregister(slot);
 		};
 		// props intentionally omitted: rest-object is new on every render
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- contentKey + slot
-	}, [slot, contentKey, uniqueId]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- contentKey + snapshot
+	}, [slot, contentKey, uniqueId, snapshot]);
 
 	return null;
 }
@@ -156,7 +158,6 @@ function TemplateSlot({
 
 	return cloneElement(resolved, { ...slotProps, key: resolved.key });
 }
-Template.Slot = TemplateSlot;
 
 function useTemplate() {
 	return {
@@ -164,24 +165,24 @@ function useTemplate() {
 		has: (slotName: string): boolean => templateStore.getSlot(slotName) != null,
 	};
 }
-Template.use = useTemplate;
 
-function TemplateHas({ name, children }: { name: string; children: React.ReactNode }) {
+function TemplateHas({ name, children, ...props }: { name: string; children: React.ReactNode, [key: string]: unknown }) {
 	const template = useTemplateSlot(name);
-	return template ? children : null;
+	return template ? (children ?? TemplateSlot({ name, ...props })) : null;
 }
+
+function templateElement(name: string) {
+	return ({children, ...props}: { children: React.ReactNode; [key: string]: unknown }) => (
+		<Template slot={name} {...props}>
+			{children}
+		</Template>
+	);
+}
+
 Template.Has = TemplateHas;
-
-function TemplateTitle(props: { children: React.ReactNode; [key: string]: unknown }) {
-	const { children } = props;
-	return <Template slot="title">{children}</Template>;
-}
-Template.Title = TemplateTitle;
-
-Template.Header = ({ children }: { children: React.ReactNode }) => (
-	<Template slot="header">{children}</Template>
-);
-
-Template.Footer = ({ children }: { children: React.ReactNode }) => (
-	<Template slot="footer">{children}</Template>
-);
+Template.Slot = TemplateSlot;
+Template.use = useTemplate;
+Template.factory = templateElement;
+Template.Title = templateElement('title');
+Template.Header = templateElement('header');
+Template.Footer = templateElement('footer');

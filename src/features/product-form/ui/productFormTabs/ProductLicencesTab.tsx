@@ -4,10 +4,7 @@ import {
   type LicenceFormValues,
   type ProductLicence
 } from '@/entities/product';
-import {
-  dateStringPickerValueProps,
-  formatDatePickerValue,
-} from '@/shared/lib/dateStringPicker';
+import { dateStringPickerValueProps } from '@/shared/lib/dateStringPicker';
 import { FormHiddenInput } from '@/shared/ui/form/FormHiddenInput';
 import { ButtonLoading } from '@/shared/ui/loading';
 import { DeleteOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -28,18 +25,18 @@ export interface ProductLicencesTabProps {
   onItemsRemovedChange: (next: Array<ProductLicence['lic_id']>) => void;
 }
 
-let ii = 0;
-const keyPrefix = 'pl';
+const NEW_ROW_BACKGROUND = 'rgba(0, 255, 0, 0.1)';
 
 /**
  * Licences table with nested create/delete dialogs for a product.
+ * Unsaved rows have no `lic_id`; the edited row is tracked by index.
  */
 export function ProductLicencesTab({
   form,
-  gtin,
+  gtin: _gtin,
   isEdit,
   loading,
-  visibility,
+  visibility: _visibility,
   itemsRemoved,
   onItemsRemovedChange,
 }: ProductLicencesTabProps) {
@@ -47,30 +44,26 @@ export function ProductLicencesTab({
   const items = Form.useWatch('licences', form) || [];
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [subForm] = Form.useForm<LicenceFormValues>();
 
   const submitItem = (values: LicenceFormValues) => {
-    const next: LicenceFormValues = {
-      ...values,
-      lic_date: formatDatePickerValue(values.lic_date) ?? '',
-    };
-    if (next.lic_id) {
+    if (editingIndex !== null) {
       form.setFieldValue(
         'licences',
-        items.map((item) =>
-          item.lic_id === next.lic_id ? next : item,
-        ),
+        items.map((item, index) => (index === editingIndex ? values : item)),
       );
     } else {
-      form.setFieldValue('licences', [
-        ...(items ?? []),
-        { ...next, lic_id: `${keyPrefix}${ii++}` },
-      ]);
+      form.setFieldValue('licences', [...items, values]);
     }
   };
 
-  const removedItem = (record: ProductLicence) => {
-    if (!record.lic_id) {
+  const removedItem = (record: ProductLicence, rowIndex: number) => {
+    if (record.lic_id == null) {
+      form.setFieldValue(
+        'licences',
+        items.filter((_, index) => index !== rowIndex),
+      );
       return;
     }
     onItemsRemovedChange([...(itemsRemoved ?? []), record.lic_id]);
@@ -90,15 +83,17 @@ export function ProductLicencesTab({
       title: '',
       key: 'actions',
       width: 100,
-      render: (_, record) => (
+      render: (_, record, rowIndex) => (
         <>
           <ButtonLoading
             tooltip='Редактировать лицензию'
             icon={<EditOutlined />}
             disabled={!isEdit}
             onClick={() => {
-              setModalOpen(true)
-              subForm.setFieldsValue(record as LicenceFormValues);
+              setEditingIndex(rowIndex);
+              setModalOpen(true);
+              subForm.resetFields();
+              subForm.setFieldsValue(record);
             }}
             type="primary"
             style={{ marginRight: 8 }}
@@ -119,9 +114,9 @@ export function ProductLicencesTab({
               danger
               loading={loading}
               icon={<DeleteOutlined />}
-              disabled={!isEdit ||!record.lic_id}
+              disabled={!isEdit}
               onClick={() => {
-                removedItem(record);
+                removedItem(record, rowIndex);
               }}
             />
             
@@ -135,29 +130,24 @@ export function ProductLicencesTab({
     <>
       <Space orientation="vertical" style={{ width: '100%' }}>
         <ButtonLoading type="primary" disabled={!isEdit} onClick={() => {
-          setModalOpen(true)
+          setEditingIndex(null);
+          setModalOpen(true);
           subForm.resetFields();
         }}>
           Добавить лицензию
         </ButtonLoading>
         <Table<ProductLicence>
-          rowKey={(row) => String(row.lic_id ?? row.lic_number)}
+          rowKey={(row) => (row.lic_id != null ? String(row.lic_id) : `new-${items.indexOf(row)}`)}
           columns={itemColumns}
-          onRow={(record) => {
-            if (record.lic_id && itemsRemoved.includes(record.lic_id)) {
-              return {
-                style: {
-                  backgroundColor: String(record.lic_id).startsWith(keyPrefix) ? 'rgba(0, 255, 0, 0.1)' : '',
-                  textDecoration: 'line-through',
-                }
-              }
-            }
-            return {
-              style: {
-                backgroundColor: String(record.lic_id).startsWith(keyPrefix) ? 'rgba(0, 255, 0, 0.1)' : '',
-              }
-            }
-          }}
+          onRow={(record) => ({
+            style: {
+              backgroundColor: record.lic_id == null ? NEW_ROW_BACKGROUND : '',
+              textDecoration:
+                record.lic_id != null && itemsRemoved.includes(record.lic_id)
+                  ? 'line-through'
+                  : undefined,
+            },
+          })}
           dataSource={items}
           loading={loading}
           pagination={false}

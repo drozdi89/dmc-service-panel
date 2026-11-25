@@ -1,4 +1,1 @@
-export {
-  StatisticsSection,
-  type StatisticsSectionProps,
-} from './ui/StatisticsSection';
+export { StatisticsSection } from './ui/StatisticsSection';

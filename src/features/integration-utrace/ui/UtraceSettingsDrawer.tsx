@@ -1,11 +1,10 @@
 import {
-  useDeleteUtraceSettingsMutation,
-  useSaveUtraceSettingsMutation,
+  useUtraceSettingsActions,
   useUtraceSettingsQuery,
   type UtraceSettings,
 } from '@/entities/integration';
 import { PageSpinner } from '@/shared/ui/loading';
-import { App, Button, Drawer, Form, Input, Popconfirm, Space } from 'antd';
+import { Button, Drawer, Form, Input, Popconfirm, Space } from 'antd';
 import { useCallback, useEffect } from 'react';
 
 const EMPTY_SETTINGS: UtraceSettings = {
@@ -26,7 +25,6 @@ export interface UtraceSettingsDrawerProps {
  * Drawer for Utrace integration credentials (Qt UtraceSettingWidget parity).
  */
 export function UtraceSettingsDrawer({ open, onClose }: UtraceSettingsDrawerProps) {
-  const { message } = App.useApp();
   const [form] = Form.useForm<UtraceSettings>();
 
   const settingsQuery = useUtraceSettingsQuery({ enabled: open });
@@ -39,27 +37,11 @@ export function UtraceSettingsDrawer({ open, onClose }: UtraceSettingsDrawerProp
     form.setFieldsValue({ ...EMPTY_SETTINGS, ...settingsQuery.data });
   }, [form, open, settingsQuery.data, settingsQuery.isSuccess]);
 
-  const showError = (error: Error) => message.error(error.message);
-
-  const saveMutation = useSaveUtraceSettingsMutation({
-    onSuccess: () => {
-      message.success('Настройки Utrace сохранены');
-      onClose();
-    },
-    onError: showError,
-  });
-
-  const deleteMutation = useDeleteUtraceSettingsMutation({
-    onSuccess: () => {
-      message.success('Настройки Utrace удалены');
-      onClose();
-    },
-    onError: showError,
-  });
+  const { save, remove, isSaving, isDeleting } = useUtraceSettingsActions({ onDone: onClose });
 
   const handleSave = useCallback(async () => {
     const values = await form.validateFields();
-    saveMutation.mutate({
+    save({
       currentInn,
       settings: {
         inn: values.inn.trim(),
@@ -69,7 +51,7 @@ export function UtraceSettingsDrawer({ open, onClose }: UtraceSettingsDrawerProp
         production_site: values.production_site.trim(),
       },
     });
-  }, [currentInn, form, saveMutation]);
+  }, [currentInn, form, save]);
 
   const isEditMode = Boolean(currentInn);
 
@@ -78,16 +60,16 @@ export function UtraceSettingsDrawer({ open, onClose }: UtraceSettingsDrawerProp
       title="Настройки интеграции UTrace"
       open={open}
       onClose={onClose}
-      width={768}
-      destroyOnClose
+      size={768}
+      forceRender
       extra={
         <Space>
           {isEditMode ? (
             <Popconfirm
               title="Удалить настройки Utrace?"
-              onConfirm={() => deleteMutation.mutate()}
+              onConfirm={remove}
             >
-              <Button danger loading={deleteMutation.isPending}>
+              <Button danger loading={isDeleting}>
                 Удалить
               </Button>
             </Popconfirm>
@@ -95,7 +77,7 @@ export function UtraceSettingsDrawer({ open, onClose }: UtraceSettingsDrawerProp
           <Button onClick={onClose}>Отмена</Button>
           <Button
             type="primary"
-            loading={saveMutation.isPending}
+            loading={isSaving}
             onClick={() => void handleSave()}
           >
             Сохранить
@@ -105,50 +87,55 @@ export function UtraceSettingsDrawer({ open, onClose }: UtraceSettingsDrawerProp
     >
       {settingsQuery.isLoading ? (
         <PageSpinner tip="Загрузка настроек Utrace…" />
-      ) : (
-        <Form form={form} layout="horizontal" labelCol={{ span: 6 }} disabled={saveMutation.isPending}>
-          <Form.Item
-            name="inn"
-            label="ИНН"
-            rules={[{ required: true, message: 'Укажите ИНН' }]}
-            style={{ marginBottom: 4 }}
-          >
-            <Input disabled={isEditMode} />
-          </Form.Item>
-          <Form.Item
-            name="production_site"
-            label="Номер площадки"
-            rules={[{ required: true, message: 'Укажите номер площадки' }]}
-            style={{ marginBottom: 4 }}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name="base_url"
-            label="Базовый URL"
-            rules={[{ required: true, message: 'Укажите базовый URL' }]}
-            style={{ marginBottom: 4 }}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name="login"
-            label="Логин"
-            rules={[{ required: true, message: 'Укажите логин' }]}
-            style={{ marginBottom: 4 }}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name="password"
-            label="Пароль"
-            rules={[{ required: true, message: 'Укажите пароль' }]}
-            style={{ marginBottom: 4 }}
-          >
-            <Input.Password />
-          </Form.Item>
-        </Form>
-      )}
+      ) : null}
+      <Form
+        form={form}
+        layout="horizontal"
+        labelCol={{ span: 6 }}
+        disabled={isSaving || settingsQuery.isLoading}
+        style={settingsQuery.isLoading ? { display: 'none' } : undefined}
+      >
+        <Form.Item
+          name="inn"
+          label="ИНН"
+          rules={[{ required: true, message: 'Укажите ИНН' }]}
+          style={{ marginBottom: 4 }}
+        >
+          <Input disabled={isEditMode} />
+        </Form.Item>
+        <Form.Item
+          name="production_site"
+          label="Номер площадки"
+          rules={[{ required: true, message: 'Укажите номер площадки' }]}
+          style={{ marginBottom: 4 }}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="base_url"
+          label="Базовый URL"
+          rules={[{ required: true, message: 'Укажите базовый URL' }]}
+          style={{ marginBottom: 4 }}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="login"
+          label="Логин"
+          rules={[{ required: true, message: 'Укажите логин' }]}
+          style={{ marginBottom: 4 }}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="password"
+          label="Пароль"
+          rules={[{ required: true, message: 'Укажите пароль' }]}
+          style={{ marginBottom: 4 }}
+        >
+          <Input.Password />
+        </Form.Item>
+      </Form>
     </Drawer>
   );
 }

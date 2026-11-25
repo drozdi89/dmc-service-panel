@@ -97,6 +97,67 @@ function FormFieldError({ fieldName }: { fieldName: 'printer_ids' | 'template_id
   );
 }
 
+interface ManualPairingFieldsProps {
+  initialLabels?: AggregationLevelLabels;
+  printerLabel?: string;
+  onPrinterLabelChange: (label: string | undefined) => void;
+  templateLabel?: string;
+  onTemplateLabelChange: (label: string | undefined) => void;
+}
+
+function ManualPairingFields({
+  initialLabels,
+  printerLabel,
+  onPrinterLabelChange,
+  templateLabel,
+  onTemplateLabelChange,
+}: ManualPairingFieldsProps) {
+  const form = Form.useFormInstance<AggregationLevelFormState>();
+  const printerIds = Form.useWatch('printer_ids', form) ?? [];
+  const templateId = Form.useWatch('template_id', form) ?? null;
+  const printerId = printerIds[0] ?? null;
+
+  return (
+    <>
+      <LineResourcePickerField
+        label="Принтер"
+        kind="device"
+        deviceType="printer"
+        value={printerId}
+        valueLabel={
+          printerLabel ?? (printerId ? initialLabels?.printerLabels?.[printerId] : undefined)
+        }
+        onChange={(id, label) => {
+          const nextPrinterIds = id ? [id] : [];
+          form.setFieldValue('printer_ids', nextPrinterIds);
+          onPrinterLabelChange(label);
+          applyManualPairingFieldErrors(form, nextPrinterIds, form.getFieldValue('template_id') ?? null);
+        }}
+      />
+      <FormFieldError fieldName="printer_ids" />
+      <Form.Item name="printer_ids" hidden>
+        <Select mode="multiple" open={false} style={{ display: 'none' }} />
+      </Form.Item>
+
+      <LineResourcePickerField
+        label="Шаблон"
+        kind="template"
+        value={templateId}
+        valueLabel={templateLabel ?? initialLabels?.templateLabel}
+        onChange={(id, label) => {
+          form.setFieldValue('template_id', id);
+          onTemplateLabelChange(label);
+          applyManualPairingFieldErrors(form, form.getFieldValue('printer_ids') ?? [], id);
+        }}
+      />
+      <FormFieldError fieldName="template_id" />
+      <Form.Item name="template_id" hidden>
+        <Select open={false} style={{ display: 'none' }} />
+      </Form.Item>
+    </>
+  );
+}
+
 /**
  * Modal editor for manual (TSD) aggregation level.
  */
@@ -118,22 +179,18 @@ export function ManualAggregationLevelModal({
   });
 
   useEffect(() => {
-    if (open) {
-      const level = initialLevel ?? DEFAULT_LEVEL;
-      form.setFieldsValue(level);
-      const printerId = level.printer_ids[0];
-      setTemplateLabel(initialLabels?.templateLabel);
-      setPrinterLabel(printerId ? initialLabels?.printerLabels?.[printerId] : undefined);
-    } else {
-      form.resetFields();
+    if (!open) {
       setTemplateLabel(undefined);
       setPrinterLabel(undefined);
+      return;
     }
+    const level = initialLevel ?? DEFAULT_LEVEL;
+    form.resetFields();
+    form.setFieldsValue(level);
+    const printerId = level.printer_ids[0];
+    setTemplateLabel(initialLabels?.templateLabel);
+    setPrinterLabel(printerId ? initialLabels?.printerLabels?.[printerId] : undefined);
   }, [form, initialLabels, initialLevel, open]);
-
-  const printerIds = Form.useWatch('printer_ids', form) ?? [];
-  const templateId = Form.useWatch('template_id', form) ?? null;
-  const printerId = printerIds[0] ?? null;
 
   const handleGeneratorChange = useCallback(
     (generatorType: number) => {
@@ -220,41 +277,13 @@ export function ManualAggregationLevelModal({
           />
         </Form.Item>
 
-        <LineResourcePickerField
-          label="Принтер"
-          kind="device"
-          deviceType="printer"
-          value={printerId}
-          valueLabel={
-            printerLabel ?? (printerId ? initialLabels?.printerLabels?.[printerId] : undefined)
-          }
-          onChange={(id, label) => {
-            const nextPrinterIds = id ? [id] : [];
-            form.setFieldValue('printer_ids', nextPrinterIds);
-            setPrinterLabel(label);
-            applyManualPairingFieldErrors(form, nextPrinterIds, form.getFieldValue('template_id') ?? null);
-          }}
+        <ManualPairingFields
+          initialLabels={initialLabels}
+          printerLabel={printerLabel}
+          onPrinterLabelChange={setPrinterLabel}
+          templateLabel={templateLabel}
+          onTemplateLabelChange={setTemplateLabel}
         />
-        <FormFieldError fieldName="printer_ids" />
-        <Form.Item name="printer_ids" hidden>
-          <Select mode="multiple" open={false} style={{ display: 'none' }} />
-        </Form.Item>
-
-        <LineResourcePickerField
-          label="Шаблон"
-          kind="template"
-          value={templateId}
-          valueLabel={templateLabel ?? initialLabels?.templateLabel}
-          onChange={(id, label) => {
-            form.setFieldValue('template_id', id);
-            setTemplateLabel(label);
-            applyManualPairingFieldErrors(form, form.getFieldValue('printer_ids') ?? [], id);
-          }}
-        />
-        <FormFieldError fieldName="template_id" />
-        <Form.Item name="template_id" hidden>
-          <Select open={false} style={{ display: 'none' }} />
-        </Form.Item>
       </Form>
     </Modal>
   );

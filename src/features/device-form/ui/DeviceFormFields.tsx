@@ -1,11 +1,9 @@
 import {
-  createDefaultFormValues,
   DEFAULT_SERIAL_SCALE_PORT,
   DEFAULT_TCP_SCALE_PORT,
   isSerialScale,
   SCALE_TYPE_CHECKWEIR,
   scalePortFormRule,
-  SelectDeviceType,
   usesConnectionFields,
   type DeviceFormValues,
   type DeviceType,
@@ -22,18 +20,8 @@ import {
 
 /** Props for type-aware device form fields (create / edit). */
 export interface DeviceFormFieldsProps {
-  /**
-   * Fallback device type while `device_type` is not yet in form state
-   * (e.g. first paint before create defaults apply).
-   */
-  deviceType?: DeviceType;
-  /** Disables the device type select (edit mode or locked picker context). */
-  lockDeviceType?: boolean;
-  /**
-   * Pre-selects scale model when creating a scale from a filtered picker
-   * (e.g. «Чеквейр» / «Новый ЧВ» on the line editor).
-   */
-  defaultScaleType?: number;
+  /** Active device type (selected outside the form record). */
+  deviceType: DeviceType;
 }
 
 /**
@@ -41,14 +29,8 @@ export interface DeviceFormFieldsProps {
  *
  * Must be rendered inside an antd {@link Form} bound to {@link DeviceFormValues}.
  */
-export function DeviceFormFields({
-  deviceType,
-  lockDeviceType = false,
-  defaultScaleType,
-}: DeviceFormFieldsProps) {
+export function DeviceFormFields({ deviceType: activeType }: DeviceFormFieldsProps) {
   const form = Form.useFormInstance<DeviceFormValues>();
-  const watchedType = Form.useWatch('device_type', form) as DeviceType | undefined;
-  const activeType = watchedType ?? deviceType ?? 'camera';
   const scaleType = Form.useWatch('type', form) as number | undefined;
   const scaleHost = Form.useWatch('host', form);
 
@@ -69,22 +51,6 @@ export function DeviceFormFields({
     <>
       <Form.Item name="id" hidden>
         <InputNumber />
-      </Form.Item>
-      <Form.Item
-        name="device_type"
-        label="Тип устройства"
-        rules={[{ required: true, message: 'Выберите тип' }]}
-      >
-        <SelectDeviceType
-          disabled={lockDeviceType}
-          onChange={(nextType: DeviceType) => {
-            form.setFieldsValue(
-              createDefaultFormValues(nextType, {
-                scaleType: nextType === 'scale' ? defaultScaleType : undefined,
-              }),
-            );
-          }}
-        />
       </Form.Item>
 
       <Form.Item

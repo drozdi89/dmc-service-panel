@@ -1,7 +1,7 @@
 import {
   AUTOSEND_PRODUCTS_QUERY_KEY,
+  useAutosendSettingsActions,
   useAutosendSettingsQuery,
-  useSaveAutosendSettingsMutation,
   type AutosendProductSettings,
   type TaskerSchedule,
 } from '@/entities/integration';
@@ -15,7 +15,6 @@ import {
 import { PageSpinner } from '@/shared/ui/loading';
 import {
   Alert,
-  App,
   Button,
   Checkbox,
   Drawer,
@@ -39,7 +38,6 @@ export interface AutosendSettingsDrawerProps {
  * Drawer for autosend document settings (Qt AutosendSettings parity).
  */
 export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawerProps) {
-  const { message } = App.useApp();
   const [includePrinted, setIncludePrinted] = useState(false);
   const [schedule, setSchedule] = useState<TaskerSchedule>({
     enabled: false,
@@ -90,7 +88,7 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
           auto_introduce: false,
           auto_export_to_1c: false,
           skip_serialization: false,
-          auto_send_aggregate: false,
+          auto_aggregate: false,
         });
       }
     }
@@ -102,15 +100,7 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
     setPage(1);
   }, [open, productsQuery.data, productsQuery.isSuccess, settingsQuery.data, settingsQuery.isSuccess]);
 
-  const saveMutation = useSaveAutosendSettingsMutation({
-    onSuccess: () => {
-      message.success('Настройки автоотправки сохранены');
-      onClose();
-    },
-    onError: (error: Error) => {
-      message.error(error.message);
-    },
-  });
+  const { save, isSaving } = useAutosendSettingsActions({ onDone: onClose });
 
   const scheduleEnabled = Boolean(schedule.enabled);
 
@@ -119,7 +109,7 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
       flags: Partial<
         Pick<
           AutosendProductSettings,
-          'auto_apply' | 'auto_introduce' | 'skip_serialization' | 'auto_send_aggregate'
+          'auto_apply' | 'auto_introduce' | 'skip_serialization' | 'auto_aggregate' | 'auto_export_to_1c'
         >
       >,
     ) => {
@@ -136,17 +126,17 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
   );
 
   const handleSave = useCallback(() => {
-    saveMutation.mutate({
+    save({
       products: rows,
       schedule,
       include_printed_codes: includePrinted,
     });
-  }, [includePrinted, rows, saveMutation, schedule]);
+  }, [includePrinted, rows, save, schedule]);
 
   const setRowFlag = useCallback(
     (
       gtin: string,
-      field: 'auto_apply' | 'auto_introduce' | 'auto_send_aggregate' | 'skip_serialization',
+      field: 'auto_apply' | 'auto_introduce' | 'auto_aggregate' | 'skip_serialization' | 'auto_export_to_1c',
       checked: boolean,
     ) => {
       if (!scheduleEnabled) {
@@ -200,8 +190,8 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
       },
       {
         title: 'Агрегация',
-        dataIndex: 'auto_send_aggregate',
-        key: 'auto_send_aggregate',
+        dataIndex: 'auto_aggregate',
+        key: 'auto_aggregate',
         width: 120,
         align: 'center',
         render: (value: boolean, record) => (
@@ -209,7 +199,7 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
             checked={value}
             disabled={!scheduleEnabled}
             onChange={(event) =>
-              setRowFlag(record.gtin, 'auto_send_aggregate', event.target.checked)
+              setRowFlag(record.gtin, 'auto_aggregate', event.target.checked)
             }
           />
         ),
@@ -230,6 +220,22 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
           />
         ),
       },
+      {
+        title: 'Передавать в 1С',
+        dataIndex: 'auto_export_to_1c',
+        key: 'auto_export_to_1c',
+        width: 120,
+        align: 'center',
+        render: (value: boolean, record) => (
+          <Checkbox
+            checked={value}
+            disabled={!scheduleEnabled}
+            onChange={(event) =>
+              setRowFlag(record.gtin, 'auto_export_to_1c', event.target.checked)
+            }
+          />
+        ),
+      }
     ],
     [nameByGtin, scheduleEnabled, setRowFlag],
   );
@@ -239,8 +245,9 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
     return {
       auto_apply: selected.some((row) => row.auto_apply),
       auto_introduce: selected.some((row) => row.auto_introduce),
-      auto_send_aggregate: selected.some((row) => row.auto_send_aggregate),
+      auto_aggregate: selected.some((row) => row.auto_aggregate),
       skip_serialization: selected.some((row) => row.skip_serialization),
+      auto_export_to_1c: selected.some((row) => row.auto_export_to_1c),
     };
   }, [rows, selectedKeys]);
 
@@ -248,7 +255,6 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
   const loadError = settingsQuery.isError || productsQuery.isError;
   const dataReady = settingsQuery.isSuccess && productsQuery.isSuccess;
   const saveDisabled = loading || loadError || !dataReady;
-  const bulkDisabled = !scheduleEnabled || selectedKeys.length === 0;
   const contentReady = open && !loading && !loadError && dataReady;
 
   const [tableHost, setTableHost] = useState<HTMLDivElement | null>(null);
@@ -283,7 +289,7 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
             <Button onClick={onClose}>Отмена</Button>
             <Button
               type="primary"
-              loading={saveMutation.isPending}
+              loading={isSaving}
               disabled={saveDisabled}
               onClick={handleSave}
             >
@@ -315,32 +321,36 @@ export function AutosendSettingsDrawer({ open, onClose }: AutosendSettingsDrawer
               <Button onClick={() => setScheduleModalOpen(true)}>Расписание…</Button>
               <Space>
                 <Button
-                  disabled={bulkDisabled}
+                  disabled={!scheduleEnabled}
                   onClick={() =>
                     applyFlags({
                       auto_apply: true,
                       auto_introduce: true,
                       skip_serialization: true,
-                      auto_send_aggregate: true,
+                      auto_aggregate: true,
+                      auto_export_to_1c: true,
                     })
                   }
                 >
                   Включить всё
                 </Button>
                 <Button
-                  disabled={bulkDisabled}
+                  disabled={!scheduleEnabled}
                   onClick={() =>
                     applyFlags({
                       auto_apply: false,
                       auto_introduce: false,
                       skip_serialization: false,
-                      auto_send_aggregate: false,
+                      auto_aggregate: false,
+                      auto_export_to_1c: false,
                     })
                   }
                 >
                   Отключить всё
                 </Button>
-                <Button disabled={bulkDisabled} onClick={() => setFlagsModalOpen(true)}>
+                <Button 
+                  disabled={!scheduleEnabled}
+                  onClick={() => setFlagsModalOpen(true)}>
                   Задать…
                 </Button>
               </Space>

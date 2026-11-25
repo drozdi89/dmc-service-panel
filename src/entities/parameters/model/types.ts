@@ -14,6 +14,22 @@ export type FtpConnectionSettings = components['schemas']['FtpConnectionSettings
 export type WatchdogConfiguration = components['schemas']['WatchdogConfiguration'];
 export type SlaveConfiguration = components['schemas']['SlaveConfiguration'];
 
+/**
+ * Scheduled code cleanup settings.
+ *
+ * Not an OpenAPI schema: the spec has no dedicated endpoint, values live in four
+ * `marking_options` keys (see `CODE_CLEANUP_KEYS`) and are mapped on the entity boundary.
+ */
+export interface CodeCleanupSettings {
+  enabled: boolean;
+  /** Retention in days, 1…3650. */
+  days: number;
+  /** Daily start time, `HH:MM`. */
+  start_time: string;
+  /** Minimal interval between runs, 1…168 hours. */
+  interval_hours: number;
+}
+
 /** Factory number row from list API. */
 export type FactoryNumberRow = components['schemas']['GetFactoryNumbersSchema'];
 

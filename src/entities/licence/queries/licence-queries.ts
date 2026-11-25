@@ -96,6 +96,15 @@ export function useRegisteredClientsQuery(
   });
 }
 
+/**
+ * MACT proxy is an external service: no automatic retries or focus refetches,
+ * they only slow the page down when the service is unavailable.
+ */
+const MACT_PROXY_QUERY_DEFAULTS = {
+  retry: false,
+  refetchOnWindowFocus: false,
+} as const;
+
 /** Default page size for MACT licences refresh (matches LicencesPage). */
 export const DEFAULT_MACT_LICENCES_PAGE_SIZE = 50;
 
@@ -109,10 +118,13 @@ export function mactLicencesQueryOptions(
 ): {
   queryKey: readonly [...typeof MACT_LICENCES_QUERY_KEY, number];
   queryFn: () => Promise<MactLicenceList>;
+  retry: false;
+  refetchOnWindowFocus: false;
 } {
   return {
     queryKey: [...MACT_LICENCES_QUERY_KEY, pageSize],
     queryFn: () => refreshMactLicences(pageSize),
+    ...MACT_PROXY_QUERY_DEFAULTS,
   };
 }
 
@@ -147,10 +159,13 @@ export function useMactLicencesQuery(
 export function mactSubscriptionQueryOptions(): {
   queryKey: typeof MACT_SUBSCRIPTION_QUERY_KEY;
   queryFn: typeof refreshMactSubscription;
+  retry: false;
+  refetchOnWindowFocus: false;
 } {
   return {
     queryKey: MACT_SUBSCRIPTION_QUERY_KEY,
     queryFn: refreshMactSubscription,
+    ...MACT_PROXY_QUERY_DEFAULTS,
   };
 }
 
@@ -183,10 +198,13 @@ export function useMactSubscriptionQuery(
 export function mactPersonalAccountQueryOptions(): {
   queryKey: typeof MACT_PERSONAL_ACCOUNT_QUERY_KEY;
   queryFn: typeof fetchMactPersonalAccount;
+  retry: false;
+  refetchOnWindowFocus: false;
 } {
   return {
     queryKey: MACT_PERSONAL_ACCOUNT_QUERY_KEY,
     queryFn: fetchMactPersonalAccount,
+    ...MACT_PROXY_QUERY_DEFAULTS,
   };
 }
 
@@ -227,18 +245,24 @@ export interface MactRefreshResult {
   account: MactPersonalAccount;
 }
 
-/** Reloads MACT licences, subscription and personal account in one go. */
+/**
+ * Reloads MACT licences, subscription and personal account in one go.
+ *
+ * Results go into the cache of the same queries the page reads
+ * ({@link useMactLicencesQuery} and friends); a failure is thrown for the caller toast.
+ */
 export function useRefreshMactMutation(
   options?: EntityMutationOptions<MactRefreshResult, void>,
 ) {
+  const queryClient = useQueryClient();
   return useInvalidatingMutation({
     ...options,
     invalidate: [REGISTERED_CLIENTS_QUERY_KEY],
     mutationFn: async () => {
       const [licences, subscription, account] = await Promise.all([
-        refreshMactLicences(50),
-        refreshMactSubscription(),
-        fetchMactPersonalAccount(),
+        queryClient.fetchQuery({ ...mactLicencesQueryOptions(), staleTime: 0 }),
+        queryClient.fetchQuery({ ...mactSubscriptionQueryOptions(), staleTime: 0 }),
+        queryClient.fetchQuery({ ...mactPersonalAccountQueryOptions(), staleTime: 0 }),
       ]);
       return { licences, subscription, account };
     },

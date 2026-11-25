@@ -75,6 +75,12 @@ function Harness({
   return (
     <App>
       <Form form={form} initialValues={values} component={false}>
+        <Form.Item name="output" hidden preserve noStyle>
+          <input />
+        </Form.Item>
+        <Form.Item name="is_scale" hidden preserve noStyle>
+          <input />
+        </Form.Item>
         <LineIdentityFields visibility={visibility} />
         <LineMainTab
           isNew={isNew}
@@ -122,40 +128,36 @@ function renderMainTab(
 }
 
 describe('LineMainTab Form sections', () => {
-  it('writes name via Form.Item without controlled patch props', () => {
+  it('writes linename via Form.Item without controlled patch props', () => {
     const { readValues } = renderMainTab();
 
     fireEvent.change(screen.getByPlaceholderText('Название производственной линии'), {
       target: { value: 'Линия А' },
     });
 
-    expect(readValues().name).toBe('Линия А');
+    expect(readValues().linename).toBe('Линия А');
   });
 
-  it('migrates scale ids when switching printer → checkweir', async () => {
+  it('writes output / is_scale when switching printer → checkweir and keeps scale_id', async () => {
     const { readValues, readLabels } = renderMainTab(
       {
-        outputMode: 'printer',
-        new_chw_scale_id: 42,
-        scale_id: null,
+        output: 0,
+        is_scale: false,
+        scale_id: 42,
       },
-      { newChwScaleLabel: 'ЧВ-42' },
+      { scaleLabel: 'ЧВ-42' },
     );
 
     fireEvent.click(screen.getByRole('radio', { name: 'Чеквейр' }));
 
     await waitFor(() => {
       const dump = readValues();
-      expect(dump.outputMode).toBe('checkweir');
+      expect(dump.output).toBe(1);
+      expect(dump.is_scale).toBe(false);
       expect(dump.scale_id).toBe(42);
-      expect(dump.new_chw_scale_id).toBeNull();
     });
 
-    await waitFor(() => {
-      const labels = readLabels();
-      expect(labels.scaleLabel).toBe('ЧВ-42');
-      expect(labels.newChwScaleLabel).toBeUndefined();
-    });
+    expect(readLabels().scaleLabel).toBe('ЧВ-42');
   });
 
   it('writes options.* checkboxes via nested Form.Item names', () => {

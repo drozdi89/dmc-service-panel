@@ -1,11 +1,11 @@
 import { App } from 'antd';
 import { useCallback } from 'react';
-import type { DeviceFormValues } from '../model/deviceFormMapping';
 import type { DeviceListItem, DeviceRef } from '../model/types';
 import {
   persistDeviceFormValues,
   useDeleteDeviceMutation,
   useSaveDeviceMutation,
+  type SaveDeviceVariables,
 } from '../queries';
 
 export interface UseDeviceActionsOptions {
@@ -53,13 +53,11 @@ export function useDeviceActions({
   });
 
   const saveDevice = useCallback(
-    async (values: DeviceFormValues, editId?: number): Promise<DeviceRef> => {
-      return persistDeviceFormValues(
-        (variables) => saveMutation.mutateAsync(variables),
-        values,
-        editId,
-      );
-    },
+    (variables: SaveDeviceVariables): Promise<DeviceRef> =>
+      persistDeviceFormValues(
+        (next) => saveMutation.mutateAsync(next),
+        variables,
+      ),
     [saveMutation],
   );
 

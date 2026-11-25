@@ -1,5 +1,4 @@
 import { apiRequest, apiRequestData, getApiBaseUrl } from '@/shared/api';
-import { formatDatePickerValue } from '@/shared/lib/dateStringPicker';
 import type { ListQueryParams, PaginatedResponse } from '@/shared/types/listQuery';
 import type {
   AggregateFormValues,
@@ -19,32 +18,7 @@ import type {
 } from '../model/types';
 
 /**
- * Maps form/UI priority (boolean Switch or 0|1) to API integer flag.
- *
- * @param priority - Form priority value.
- */
-function toCertificatePriority(priority: number | boolean | undefined): number {
-  if (typeof priority === 'boolean') {
-    return priority ? 1 : 0;
-  }
-  if (typeof priority === 'number') {
-    return priority;
-  }
-  return 0;
-}
-
-/**
- * Formats a form date (Dayjs or string) to API `YYYY-MM-DD`.
- *
- * @param value - DatePicker / form date value.
- */
-function toApiDateString(value: CertificateFormValues['cert_date'] | LicenceFormValues['lic_date']): string {
-  const formatted = formatDatePickerValue(value);
-  return formatted ?? String(value);
-}
-
-/**
- * Builds certificate create/update body without client temp `cert_id`.
+ * Builds certificate create/update body without `cert_id` / `gtin`.
  *
  * @param values - Certificate form values.
  */
@@ -52,15 +26,15 @@ function toCertificateApiBody(values: CertificateFormValues): {
   cert_type: CertificateFormValues['cert_type'];
   cert_number: string;
   cert_date: string;
-  well_number?: string;
+  well_number?: string | null;
   priority: number;
 } {
   return {
     cert_type: values.cert_type,
     cert_number: values.cert_number,
-    cert_date: toApiDateString(values.cert_date),
+    cert_date: values.cert_date,
     ...(values.well_number !== undefined ? { well_number: values.well_number } : {}),
-    priority: toCertificatePriority(values.priority),
+    priority: values.priority ?? 0,
   };
 }
 
@@ -209,7 +183,7 @@ export async function createProduct(
  */
 export async function updateProduct(
   gtin: string,
-  payload: ProductUpdatePayload,
+  payload: Partial<ProductUpdatePayload>,
   idempotencyKey: string,
 ): Promise<Product> {
   return apiRequestData<Product>(`/api/v2/products/${encodeURIComponent(gtin)}`, {
@@ -406,7 +380,7 @@ export async function createProductLicence(
     body: {
       gtin,
       lic_number: values.lic_number,
-      lic_date: toApiDateString(values.lic_date),
+      lic_date: values.lic_date,
     },
   });
 }
@@ -428,7 +402,7 @@ export async function updateProductLicence(
     body: {
       ...(gtin !== undefined ? { gtin } : {}),
       number: values.lic_number,
-      date: toApiDateString(values.lic_date),
+      date: values.lic_date,
     },
   });
 }

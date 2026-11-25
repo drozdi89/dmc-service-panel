@@ -14,7 +14,7 @@ import lineImage from '@/shared/assets/line.png';
 import { StepperNumberInput } from '@/shared/ui/StepperNumberInput';
 import { NumberInput } from '@/shared/ui/input';
 import { App, Checkbox, Divider, Flex, Form, Image, Input, Modal, Typography } from 'antd';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { LineResourcePickerField } from '../LineResourcePickerField';
 
 /** Props for automated aggregation level modal. */
@@ -51,6 +51,261 @@ const EMPTY_LABELS: AggregationLevelLabels = {
   printerLabels: {},
 };
 
+function toLogicInput(values: Partial<AggregationLevelFormState>): AggregationLogicInput {
+  return {
+    name: values.name ?? '',
+    level: values.level ?? 0,
+    use_count_method: values.use_count_method ?? false,
+    two_cam_mode: values.two_cam_mode ?? false,
+    aggr_timeout_ms: values.aggr_timeout_ms ?? 0,
+    camera_id: values.camera_id ?? null,
+    print_camera_id: values.print_camera_id ?? null,
+    unit_camera_ids: values.unit_camera_ids ?? [],
+  };
+}
+
+interface AutomatedAggregationLevelFieldsProps {
+  initialLevel?: AggregationLevelFormState;
+  resourceLabels: AggregationLevelLabels;
+  setResourceLabels: Dispatch<SetStateAction<AggregationLevelLabels>>;
+  isSettingsLoading: boolean;
+  onGeneratorChange: (generatorType: number) => void;
+}
+
+function AutomatedAggregationLevelFields({
+  initialLevel,
+  resourceLabels,
+  setResourceLabels,
+  isSettingsLoading,
+  onGeneratorChange,
+}: AutomatedAggregationLevelFieldsProps) {
+  const form = Form.useFormInstance<AggregationLevelFormState>();
+  const watched = Form.useWatch([], form) as AggregationLevelFormState | undefined;
+
+  const logicInput = useMemo(
+    () => toLogicInput(watched ?? initialLevel ?? DEFAULT_LEVEL),
+    [initialLevel, watched],
+  );
+
+  const modeLabel = useMemo(() => formatAggregationModeLabel(logicInput), [logicInput]);
+
+  const showPrintCamera = useMemo(() => {
+    try {
+      return getAggrLogicType(logicInput).value === AGGREGATION_LOGIC_TYPE.CAM_FULL_SCAN.value;
+    } catch {
+      return false;
+    }
+  }, [logicInput]);
+
+  useEffect(() => {
+    if (showPrintCamera) {
+      return;
+    }
+    if ((watched?.print_camera_id ?? null) !== null) {
+      form.setFieldValue('print_camera_id', null);
+    }
+    setResourceLabels((prev) =>
+      prev.printCameraLabel !== undefined ? { ...prev, printCameraLabel: undefined } : prev,
+    );
+  }, [form, setResourceLabels, showPrintCamera, watched?.print_camera_id]);
+
+  return (
+    <>
+      <Flex align="start" orientation='horizontal' justify='space-between' gap='1rem'>
+        <Form.Item
+          name="name"
+          label="Наименование"
+          layout='horizontal'
+          rules={[{ required: true, message: 'Укажите название' }]}
+          style={{ flex: 1, marginBottom: 4 }}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item name="level" label="Уровень" layout='horizontal' rules={[{ required: true }]} style={{ marginBottom: 4 }}>
+          <StepperNumberInput min={0} max={9} step={1} />
+        </Form.Item>
+      </Flex>
+
+      <Form.Item name="generator_type" label="Тип генератора" layout='horizontal' style={{ marginBottom: 4 }}>
+        <SelectCodeGenerator
+          showSearch
+          loading={isSettingsLoading}
+          disabled={isSettingsLoading}
+          onChange={onGeneratorChange}
+        />
+      </Form.Item>
+      <Flex justify='space-between' align='flex-start' gap='1rem'>
+          <div style={{ maxWidth: '50%', flex: 1 }}>
+            <Image
+              alt="line image"
+              src={lineImage}
+              width='100%'
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <Divider style={{ margin: '0' }} titlePlacement='start'>
+              <Form.Item name="two_cam_mode" valuePropName="checked" noStyle>
+                <Checkbox>Две камеры</Checkbox>
+              </Form.Item>
+            </Divider>
+            <Form.Item label="Таймаут агрегации, сек" layout='horizontal' name="aggr_timeout_ms" style={{ marginBottom: 4 }}>
+              <NumberInput
+                min={0}
+                max={60}
+                step={250}
+                round={1000}
+              />
+            </Form.Item>
+            <Form.Item name="aggr_timeout_ms" hidden>
+              <Input />
+            </Form.Item>
+            <Divider style={{ margin: '0' }} titlePlacement='start'>
+              <Form.Item name="use_count_method" valuePropName="checked" noStyle>
+                <Checkbox>Метод подсчёта</Checkbox>
+              </Form.Item>
+            </Divider>
+            <Form.Item label="Камеры единиц">
+              <DeviceResourceListEditor
+                deviceType="camera"
+                ids={watched?.unit_camera_ids ?? []}
+                labels={resourceLabels.unitCameraLabels ?? {}}
+                onChange={(ids) => {
+                  form.setFieldValue('unit_camera_ids', ids);
+                  setResourceLabels((prev) => {
+                    const idSet = new Set(ids);
+                    const unitCameraLabels = Object.fromEntries(
+                      Object.entries(prev.unitCameraLabels ?? {}).filter(([key]) =>
+                        idSet.has(Number(key)),
+                      ),
+                    );
+                    return { ...prev, unitCameraLabels };
+                  });
+                }}
+                onLabelChange={(id, label) => {
+                  setResourceLabels((prev) => ({
+                    ...prev,
+                    unitCameraLabels: { ...prev.unitCameraLabels, [id]: label },
+                  }));
+                }}
+              />
+            </Form.Item>
+            <Form.Item name="unit_camera_ids" hidden>
+              <Input />
+            </Form.Item>
+            <Form.Item label="Принтеры">
+              <DeviceResourceListEditor
+                deviceType="printer"
+                enableReorder
+                ids={watched?.printer_ids ?? []}
+                labels={resourceLabels.printerLabels ?? {}}
+                onChange={(ids) => {
+                  form.setFieldValue('printer_ids', ids);
+                  setResourceLabels((prev) => {
+                    const idSet = new Set(ids);
+                    const printerLabels = Object.fromEntries(
+                      Object.entries(prev.printerLabels ?? {}).filter(([key]) =>
+                        idSet.has(Number(key)),
+                      ),
+                    );
+                    return { ...prev, printerLabels };
+                  });
+                }}
+                onLabelChange={(id, label) => {
+                  setResourceLabels((prev) => ({
+                    ...prev,
+                    printerLabels: { ...prev.printerLabels, [id]: label },
+                  }));
+                }}
+              />
+            </Form.Item>
+            <Form.Item name="printer_ids" hidden>
+              <Input />
+            </Form.Item>
+            <Divider style={{ margin: '0' }} titlePlacement='start'>
+              <Form.Item name="print_on_error" valuePropName="checked" noStyle>
+                <Checkbox>Печать пустой этикетки при ошибке</Checkbox>
+              </Form.Item>
+            </Divider>
+
+            <LineResourcePickerField
+              name="template_id"
+              label="Шаблон"
+              kind="template"
+              valueLabel={resourceLabels.templateLabel}
+              onChange={(_id, nextLabel) => {
+                setResourceLabels((prev) => ({ ...prev, templateLabel: nextLabel }));
+              }}
+            />
+
+            {showPrintCamera ? (
+              <LineResourcePickerField
+                name="print_camera_id"
+                label="Камера печати кода агрегата"
+                kind="device"
+                deviceType="camera"
+                valueLabel={resourceLabels.printCameraLabel}
+                onChange={(_id, nextLabel) => {
+                  setResourceLabels((prev) => ({
+                    ...prev,
+                    printCameraLabel: nextLabel,
+                  }));
+                }}
+              />
+            ) : null}
+
+            <LineResourcePickerField
+              name="camera_id"
+              label="Камера агрегации"
+              kind="device"
+              deviceType="camera"
+              valueLabel={resourceLabels.cameraLabel}
+              onChange={(_id, nextLabel) => {
+                setResourceLabels((prev) => ({ ...prev, cameraLabel: nextLabel }));
+              }}
+            />
+        </div>
+      </Flex>
+
+      <LineResourcePickerField
+        name="controller_id"
+        layout="horizontal"
+        label="Контроллер"
+        kind="device"
+        deviceType="controller"
+        valueLabel={resourceLabels.controllerLabel}
+        onChange={(_id, nextLabel) => {
+          setResourceLabels((prev) => ({ ...prev, controllerLabel: nextLabel }));
+        }}
+      />
+      <LineResourcePickerField
+        name="divider_id"
+        layout="horizontal"
+        label="Делитель"
+        kind="device"
+        deviceType="divider"
+        valueLabel={resourceLabels.dividerLabel}
+        onChange={(_id, nextLabel) => {
+          setResourceLabels((prev) => ({ ...prev, dividerLabel: nextLabel }));
+        }}
+      />
+      <Typography.Text
+        style={{
+          display: 'block',
+          border: '1px solid var(--ant-color-border, #d9d9d9)',
+          borderRadius: 6,
+          padding: '6px 12px',
+          margin: 0,
+          textAlign: 'center',
+          whiteSpace: 'pre-wrap',
+          color: modeLabel.isValid ? '#008800' : '#880000',
+        }}
+      >
+        {modeLabel.text || '\u00a0'}
+      </Typography.Text>
+    </>
+  );
+}
+
 /**
  * Modal editor for automated aggregation level (Qt AggregationLevel parity).
  */
@@ -75,62 +330,23 @@ export function AutomatedAggregationLevelModal({
   });
 
   useEffect(() => {
-    if (open) {
-      const level = initialLevel ?? DEFAULT_LEVEL;
-      form.setFieldsValue(level);
-      setResourceLabels({
-        templateLabel: initialLabels?.templateLabel,
-        plainTemplateLabel: initialLabels?.plainTemplateLabel,
-        cameraLabel: initialLabels?.cameraLabel,
-        printCameraLabel: initialLabels?.printCameraLabel,
-        controllerLabel: initialLabels?.controllerLabel,
-        dividerLabel: initialLabels?.dividerLabel,
-        unitCameraLabels: { ...initialLabels?.unitCameraLabels },
-        printerLabels: { ...initialLabels?.printerLabels },
-      });
-    } else {
-      form.resetFields();
+    if (!open) {
       setResourceLabels(EMPTY_LABELS);
-    }
-  }, [form, initialLabels, initialLevel, open]);
-
-  const watched = Form.useWatch([], form) as AggregationLevelFormState | undefined;
-
-  const logicInput = useMemo((): AggregationLogicInput => {
-    const values = watched ?? initialLevel ?? DEFAULT_LEVEL;
-    return {
-      name: values.name ?? '',
-      level: values.level ?? 0,
-      use_count_method: values.use_count_method ?? false,
-      two_cam_mode: values.two_cam_mode ?? false,
-      aggr_timeout_ms: values.aggr_timeout_ms ?? 0,
-      camera_id: values.camera_id ?? null,
-      print_camera_id: values.print_camera_id ?? null,
-      unit_camera_ids: values.unit_camera_ids ?? [],
-    };
-  }, [initialLevel, watched]);
-
-  const modeLabel = useMemo(() => formatAggregationModeLabel(logicInput), [logicInput]);
-
-  const showPrintCamera = useMemo(() => {
-    try {
-      return getAggrLogicType(logicInput).value === AGGREGATION_LOGIC_TYPE.CAM_FULL_SCAN.value;
-    } catch {
-      return false;
-    }
-  }, [logicInput]);
-
-  useEffect(() => {
-    if (showPrintCamera) {
       return;
     }
-    if ((watched?.print_camera_id ?? null) !== null) {
-      form.setFieldValue('print_camera_id', null);
-    }
-    setResourceLabels((prev) =>
-      prev.printCameraLabel !== undefined ? { ...prev, printCameraLabel: undefined } : prev,
-    );
-  }, [form, showPrintCamera, watched?.print_camera_id]);
+    form.resetFields();
+    form.setFieldsValue(initialLevel ?? DEFAULT_LEVEL);
+    setResourceLabels({
+      templateLabel: initialLabels?.templateLabel,
+      plainTemplateLabel: initialLabels?.plainTemplateLabel,
+      cameraLabel: initialLabels?.cameraLabel,
+      printCameraLabel: initialLabels?.printCameraLabel,
+      controllerLabel: initialLabels?.controllerLabel,
+      dividerLabel: initialLabels?.dividerLabel,
+      unitCameraLabels: { ...initialLabels?.unitCameraLabels },
+      printerLabels: { ...initialLabels?.printerLabels },
+    });
+  }, [form, initialLabels, initialLevel, open]);
 
   const handleGeneratorChange = useCallback(
     (generatorType: number) => {
@@ -164,6 +380,9 @@ export function AutomatedAggregationLevelModal({
   );
 
   const handleSubmit = async () => {
+    const modeLabel = formatAggregationModeLabel(
+      toLogicInput(form.getFieldsValue(true) as AggregationLevelFormState),
+    );
     if (!modeLabel.isValid) {
       void modal.warning({
         title: 'Некорректные настройки',
@@ -205,197 +424,13 @@ export function AutomatedAggregationLevelModal({
       }}
     >
       <Form form={form} layout="vertical" initialValues={DEFAULT_LEVEL}>
-        <Flex align="start" orientation='horizontal' justify='space-between' gap='1rem'>
-          <Form.Item
-            name="name"
-            label="Наименование"
-            layout='horizontal'
-            rules={[{ required: true, message: 'Укажите название' }]}
-            style={{ flex: 1, marginBottom: 4 }}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item name="level" label="Уровень" layout='horizontal' rules={[{ required: true }]} style={{ marginBottom: 4 }}>
-            <StepperNumberInput min={0} max={9} step={1} />
-          </Form.Item>
-        </Flex>
-
-        <Form.Item name="generator_type" label="Тип генератора" layout='horizontal' style={{ marginBottom: 4 }}>
-          <SelectCodeGenerator
-            showSearch
-            loading={isSettingsLoading}
-            disabled={isSettingsLoading}
-            onChange={handleGeneratorChange}
-          />
-        </Form.Item>
-        <Flex justify='space-between' align='flex-start' gap='1rem'>
-            <div style={{ maxWidth: '50%', flex: 1 }}>
-              <Image
-                alt="line image"
-                src={lineImage}
-                width='100%'
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <Divider style={{ margin: '0' }} titlePlacement='start'>
-                <Form.Item name="two_cam_mode" valuePropName="checked" noStyle>
-                  <Checkbox>Две камеры</Checkbox>
-                </Form.Item>
-              </Divider>
-              <Form.Item label="Таймаут агрегации, сек" layout='horizontal' name="aggr_timeout_ms" style={{ marginBottom: 4 }}>
-                <NumberInput
-                  min={0}
-                  max={60}
-                  step={250}
-                  round={1000}
-                />
-              </Form.Item>
-              <Form.Item name="aggr_timeout_ms" hidden>
-                <Input />
-              </Form.Item>
-              <Divider style={{ margin: '0' }} titlePlacement='start'>
-                <Form.Item name="use_count_method" valuePropName="checked" noStyle>
-                  <Checkbox>Метод подсчёта</Checkbox>
-                </Form.Item>
-              </Divider>
-              <Form.Item label="Камеры единиц">
-                <DeviceResourceListEditor
-                  deviceType="camera"
-                  ids={watched?.unit_camera_ids ?? []}
-                  labels={resourceLabels.unitCameraLabels ?? {}}
-                  onChange={(ids) => {
-                    form.setFieldValue('unit_camera_ids', ids);
-                    setResourceLabels((prev) => {
-                      const idSet = new Set(ids);
-                      const unitCameraLabels = Object.fromEntries(
-                        Object.entries(prev.unitCameraLabels ?? {}).filter(([key]) =>
-                          idSet.has(Number(key)),
-                        ),
-                      );
-                      return { ...prev, unitCameraLabels };
-                    });
-                  }}
-                  onLabelChange={(id, label) => {
-                    setResourceLabels((prev) => ({
-                      ...prev,
-                      unitCameraLabels: { ...prev.unitCameraLabels, [id]: label },
-                    }));
-                  }}
-                />
-              </Form.Item>
-              <Form.Item name="unit_camera_ids" hidden>
-                <Input />
-              </Form.Item>
-              <Form.Item label="Принтеры">
-                <DeviceResourceListEditor
-                  deviceType="printer"
-                  enableReorder
-                  ids={watched?.printer_ids ?? []}
-                  labels={resourceLabels.printerLabels ?? {}}
-                  onChange={(ids) => {
-                    form.setFieldValue('printer_ids', ids);
-                    setResourceLabels((prev) => {
-                      const idSet = new Set(ids);
-                      const printerLabels = Object.fromEntries(
-                        Object.entries(prev.printerLabels ?? {}).filter(([key]) =>
-                          idSet.has(Number(key)),
-                        ),
-                      );
-                      return { ...prev, printerLabels };
-                    });
-                  }}
-                  onLabelChange={(id, label) => {
-                    setResourceLabels((prev) => ({
-                      ...prev,
-                      printerLabels: { ...prev.printerLabels, [id]: label },
-                    }));
-                  }}
-                />
-              </Form.Item>
-              <Form.Item name="printer_ids" hidden>
-                <Input />
-              </Form.Item>
-              <Divider style={{ margin: '0' }} titlePlacement='start'>
-                <Form.Item name="print_on_error" valuePropName="checked" noStyle>
-                  <Checkbox>Печать пустой этикетки при ошибке</Checkbox>
-                </Form.Item>
-              </Divider>
-
-              <LineResourcePickerField
-                name="template_id"
-                label="Шаблон"
-                kind="template"
-                valueLabel={resourceLabels.templateLabel}
-                onChange={(_id, nextLabel) => {
-                  setResourceLabels((prev) => ({ ...prev, templateLabel: nextLabel }));
-                }}
-              />
-
-              {showPrintCamera ? (
-                <LineResourcePickerField
-                  name="print_camera_id"
-                  label="Камера печати кода агрегата"
-                  kind="device"
-                  deviceType="camera"
-                  valueLabel={resourceLabels.printCameraLabel}
-                  onChange={(_id, nextLabel) => {
-                    setResourceLabels((prev) => ({
-                      ...prev,
-                      printCameraLabel: nextLabel,
-                    }));
-                  }}
-                />
-              ) : null}
-
-              <LineResourcePickerField
-                name="camera_id"
-                label="Камера агрегации"
-                kind="device"
-                deviceType="camera"
-                valueLabel={resourceLabels.cameraLabel}
-                onChange={(_id, nextLabel) => {
-                  setResourceLabels((prev) => ({ ...prev, cameraLabel: nextLabel }));
-                }}
-              />
-          </div>
-        </Flex>
-
-        <LineResourcePickerField
-          name="controller_id"
-          layout="horizontal"
-          label="Контроллер"
-          kind="device"
-          deviceType="controller"
-          valueLabel={resourceLabels.controllerLabel}
-          onChange={(_id, nextLabel) => {
-            setResourceLabels((prev) => ({ ...prev, controllerLabel: nextLabel }));
-          }}
+        <AutomatedAggregationLevelFields
+          initialLevel={initialLevel}
+          resourceLabels={resourceLabels}
+          setResourceLabels={setResourceLabels}
+          isSettingsLoading={isSettingsLoading}
+          onGeneratorChange={handleGeneratorChange}
         />
-        <LineResourcePickerField
-          name="divider_id"
-          layout="horizontal"
-          label="Делитель"
-          kind="device"
-          deviceType="divider"
-          valueLabel={resourceLabels.dividerLabel}
-          onChange={(_id, nextLabel) => {
-            setResourceLabels((prev) => ({ ...prev, dividerLabel: nextLabel }));
-          }}
-        />
-        <Typography.Text
-          style={{
-            display: 'block',
-            border: '1px solid var(--ant-color-border, #d9d9d9)',
-            borderRadius: 6,
-            padding: '6px 12px',
-            margin: 0,
-            textAlign: 'center',
-            whiteSpace: 'pre-wrap',
-            color: modeLabel.isValid ? '#008800' : '#880000',
-          }}
-        >
-          {modeLabel.text || '\u00a0'}
-        </Typography.Text>
       </Form>
     </Modal>
   );

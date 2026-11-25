@@ -35,38 +35,30 @@ export default function IntegrationsPage() {
 
       <IntegrationActionsCard onOpen={(key) => setOpenDrawer(key)} />
 
-      <DataMarkSettingsDrawer
-        open={openDrawer === 'datamark'}
-        onClose={() => setOpenDrawer(null)}
-      />
-      <UtraceSettingsDrawer
-        open={openDrawer === 'utrace'}
-        onClose={() => setOpenDrawer(null)}
-      />
-      <OneCExchangeSettingsDrawer
-        open={openDrawer === 'one-c-exchange'}
-        onClose={() => setOpenDrawer(null)}
-      />
-      <WmsEfkoSettingsDrawer
-        open={openDrawer === 'wms-efko'}
-        onClose={() => setOpenDrawer(null)}
-      />
-      <AutoorderSettingsDrawer
-        open={openDrawer === 'autoorder'}
-        onClose={() => setOpenDrawer(null)}
-      />
-      <AutosendSettingsDrawer
-        open={openDrawer === 'autosend'}
-        onClose={() => setOpenDrawer(null)}
-      />
-      <CrptTemplatesDrawer
-        open={openDrawer === 'crpt-templates'}
-        onClose={() => setOpenDrawer(null)}
-      />
-      <LineTaskTypeDrawer
-        open={openDrawer === 'line-task-types'}
-        onClose={() => setOpenDrawer(null)}
-      />
+      {openDrawer === 'datamark' ? (
+        <DataMarkSettingsDrawer open onClose={() => setOpenDrawer(null)} />
+      ) : null}
+      {openDrawer === 'utrace' ? (
+        <UtraceSettingsDrawer open onClose={() => setOpenDrawer(null)} />
+      ) : null}
+      {openDrawer === 'one-c-exchange' ? (
+        <OneCExchangeSettingsDrawer open onClose={() => setOpenDrawer(null)} />
+      ) : null}
+      {openDrawer === 'wms-efko' ? (
+        <WmsEfkoSettingsDrawer open onClose={() => setOpenDrawer(null)} />
+      ) : null}
+      {openDrawer === 'autoorder' ? (
+        <AutoorderSettingsDrawer open onClose={() => setOpenDrawer(null)} />
+      ) : null}
+      {openDrawer === 'autosend' ? (
+        <AutosendSettingsDrawer open onClose={() => setOpenDrawer(null)} />
+      ) : null}
+      {openDrawer === 'crpt-templates' ? (
+        <CrptTemplatesDrawer open onClose={() => setOpenDrawer(null)} />
+      ) : null}
+      {openDrawer === 'line-task-types' ? (
+        <LineTaskTypeDrawer open onClose={() => setOpenDrawer(null)} />
+      ) : null}
     </Space>
   );
 }

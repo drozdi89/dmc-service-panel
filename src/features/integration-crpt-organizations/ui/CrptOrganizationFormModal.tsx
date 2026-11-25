@@ -64,8 +64,6 @@ export function CrptOrganizationFormModal({
     onSubmit(values);
   };
 
-  const autoBill = Form.useWatch('auto_bill', form);
-  
   return (
     <Modal
       title={mode === 'create' ? 'Новая организация ЧЗ' : 'Редактирование организации ЧЗ'}
@@ -75,6 +73,7 @@ export function CrptOrganizationFormModal({
       okText="Сохранить"
       cancelText="Отмена"
       width={864}
+      forceRender
       style={{ top: '1rem' }}
       styles={{ 
         body: { 

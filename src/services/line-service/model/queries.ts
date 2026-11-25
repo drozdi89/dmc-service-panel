@@ -1,17 +1,15 @@
 import { invalidateLineQueries, type LineEditorFormState } from '@/entities/line';
 import { createIdempotencyKey } from '@/shared/api';
 import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query';
-import {
-  createLineSaveMutator,
-  saveLineConfiguration,
-  type LineSaveResult,
-} from './lineSaveOrchestration';
+import { saveLineConfiguration, type LineSaveResult } from './lineSaveOrchestration';
 
 /** Variables for {@link useSaveLineConfigurationMutation}. */
 export interface SaveLineConfigurationVariables {
   state: LineEditorFormState;
   /** Undefined for create. */
   lineId: number | undefined;
+  /** Persisted aggregation levels removed in the editor. */
+  deletedAggregationLevelIds: number[];
   /** Current `line_printed_dm_use` JSON string. */
   printedDmRaw: string | null;
 }
@@ -27,12 +25,16 @@ export function useSaveLineConfigurationMutation(): UseMutationResult<
 > {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ state, lineId, printedDmRaw }: SaveLineConfigurationVariables) =>
+    mutationFn: ({
+      state,
+      lineId,
+      deletedAggregationLevelIds,
+      printedDmRaw,
+    }: SaveLineConfigurationVariables) =>
       saveLineConfiguration(
         state,
-        lineId,
-        printedDmRaw,
-        createLineSaveMutator(createIdempotencyKey()),
+        { existingLineId: lineId, deletedAggregationLevelIds, printedDmRaw },
+        createIdempotencyKey(),
       ),
     onSuccess: () => {
       void invalidateLineQueries(queryClient);

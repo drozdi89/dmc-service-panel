@@ -206,6 +206,41 @@ const fsdEntryPointPolicies = [
   },
 ];
 
+const modulesImportRestriction = {
+  group: ['@/modules', '@/modules/*', '@/modules/**'],
+  message:
+    'Legacy modules/ removed (FSD #17). Import from pages/features/entities/… via public index.ts.',
+};
+
+/** Ban transport helpers outside entity api folders and shared/api (merged with modules ban). */
+const nonEntityApiImportRestriction = {
+  paths: [
+    {
+      name: '@/shared/api',
+      importNames: ['apiRequest', 'apiRequestData', 'fetchPaginatedList'],
+      message:
+        'HTTP только в entities/*/api (транспорт shared/api). Вызывайте публичные функции entity-api.',
+    },
+    {
+      name: '@/shared/api/client',
+      importNames: ['apiRequest', 'apiRequestData'],
+      message:
+        'HTTP только в entities/*/api (транспорт shared/api). Вызывайте публичные функции entity-api.',
+    },
+    {
+      name: '@/shared/api/listQuery',
+      importNames: ['fetchPaginatedList'],
+      message:
+        'HTTP только в entities/*/api (транспорт shared/api). Вызывайте публичные функции entity-api.',
+    },
+    {
+      name: 'axios',
+      message: 'Используйте @/shared/api (http client). Прямой axios вне shared/api запрещён.',
+    },
+  ],
+  patterns: [modulesImportRestriction],
+};
+
 export default tseslint.config(
   { ignores: ['dist', 'node_modules', 'src/shared/api/schema.d.ts'] },
   {
@@ -257,13 +292,7 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          patterns: [
-            {
-              group: ['@/modules', '@/modules/*', '@/modules/**'],
-              message:
-                'Legacy modules/ removed (FSD #17). Import from pages/features/entities/… via public index.ts.',
-            },
-          ],
+          patterns: [modulesImportRestriction],
         },
       ],
       ...boundaries.configs.recommended.rules,
@@ -285,6 +314,19 @@ export default tseslint.config(
           policies: fsdEntryPointPolicies,
         },
       ],
+    },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: [
+      'src/entities/*/api/**',
+      'src/shared/api/**',
+      'src/shared/lib/Axios-Interceptor.ts',
+      '**/*.test.ts',
+      '**/*.test.tsx',
+    ],
+    rules: {
+      'no-restricted-imports': ['error', nonEntityApiImportRestriction],
     },
   },
 );

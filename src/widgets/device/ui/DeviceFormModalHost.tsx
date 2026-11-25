@@ -1,4 +1,5 @@
 import {
+  DEFAULT_DEVICE_TYPE,
   isSameDeviceFormDialog,
   resetDeviceFormUiStore,
   useDeviceActions,
@@ -30,6 +31,7 @@ export function DeviceFormModalHost() {
   const dialog = useDeviceFormUiStore((state) => state.dialog);
   const close = useDeviceFormUiStore((state) => state.close);
   const setLastSaved = useDeviceFormUiStore((state) => state.setLastSaved);
+  const setCreateDeviceType = useDeviceFormUiStore((state) => state.setCreateDeviceType);
   const mountGenerationRef = useRef(0);
 
 
@@ -76,10 +78,16 @@ export function DeviceFormModalHost() {
       }
 
 
+      const submittedType = submitted.deviceType ?? DEFAULT_DEVICE_TYPE;
+
       try {
         const editId =
           submitted.kind === 'edit' ? submitted.deviceId : undefined;
-        const saved = await saveDevice(values, editId);
+        const saved = await saveDevice({
+          deviceType: submittedType,
+          values,
+          editId,
+        });
 
 
         if (mountGenerationRef.current !== submittedGeneration) {
@@ -107,7 +115,7 @@ export function DeviceFormModalHost() {
         } else if (submitted.kind === 'create') {
           useDeviceFormUiStore.getState().openEdit(saved.id, {
             consumerId: submitted.consumerId,
-            deviceType: values.device_type,
+            deviceType: submittedType,
             lockDeviceType: submitted.lockDeviceType ?? true,
           });
         }
@@ -128,6 +136,7 @@ export function DeviceFormModalHost() {
       lockDeviceType={lockDeviceType}
       defaultScaleType={defaultScaleType}
       submitting={isPending}
+      onDeviceTypeChange={setCreateDeviceType}
       onCancel={close}
       onSubmit={(values, options) => {
         void handleSubmit(values, options);

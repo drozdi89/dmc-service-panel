@@ -1,19 +1,20 @@
 import {
   FACTORY_NUMBERS_QUERY_KEY,
-  factoryNumbersQueries,
   fetchFactoryNumbers,
+  useFactoryNumbersActions,
   type FactoryNumberRow,
 } from '@/entities/parameters';
 import type { ListQueryParams } from '@/shared/types/listQuery';
 import { ServerDataTable } from '@/shared/ui/ServerDataTable';
 import { ButtonLoading } from '@/shared/ui/loading';
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
-import { Button, Checkbox, Form, Input, Modal, Popconfirm, Space, message } from 'antd';
+import { Button, Checkbox, Form, Input, Modal, Popconfirm, Space } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useCallback, useMemo, useState } from 'react';
 
 /**
  * Factory numbers CRUD table with server-side search, sort, and pagination.
+ * Mutations and toasts come from the entity hook.
  */
 export function FactoryNumbersSection() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -25,34 +26,9 @@ export function FactoryNumbersSection() {
     [],
   );
 
-  const showSaveError = (error: Error) => message.error(error.message || 'Ошибка сохранения');
-
-  const createMutation = factoryNumbersQueries.useCreateMutation({
-    onSuccess: () => {
-      message.success('Заводской номер добавлен');
-      setModalOpen(false);
-    },
-    onError: showSaveError,
+  const { save, deleteRow, isSaving, deletingId } = useFactoryNumbersActions({
+    onSaved: () => setModalOpen(false),
   });
-
-  const updateMutation = factoryNumbersQueries.useUpdateMutation({
-    onSuccess: () => {
-      message.success('Заводской номер обновлён');
-      setModalOpen(false);
-    },
-    onError: showSaveError,
-  });
-
-  const deleteMutation = factoryNumbersQueries.useDeleteMutation({
-    onSuccess: () => {
-      message.success('Заводской номер удалён');
-    },
-    onError: (error) => {
-      message.error(error.message || 'Ошибка удаления');
-    },
-  });
-  const deletingId = deleteMutation.isPending ? deleteMutation.variables : null;
-  const saving = createMutation.isPending || updateMutation.isPending;
 
   const openCreate = useCallback(() => {
     setEditingRow(null);
@@ -69,21 +45,10 @@ export function FactoryNumbersSection() {
     [form],
   );
 
-  const handleDelete = useCallback(
-    (row: FactoryNumberRow) => {
-      deleteMutation.mutate(row.id);
-    },
-    [deleteMutation],
-  );
-
   const handleModalOk = useCallback(async () => {
     const values = await form.validateFields();
-    if (editingRow) {
-      updateMutation.mutate({ ...values, id: editingRow.id });
-    } else {
-      createMutation.mutate(values);
-    }
-  }, [createMutation, editingRow, form, updateMutation]);
+    save(values, editingRow?.id ?? null);
+  }, [editingRow, form, save]);
 
   const columns = useMemo<ColumnsType<FactoryNumberRow>>(
     () => [
@@ -115,7 +80,7 @@ export function FactoryNumbersSection() {
               okText="Удалить"
               cancelText="Отмена"
               okButtonProps={{ danger: true }}
-              onConfirm={() => handleDelete(record)}
+              onConfirm={() => deleteRow(record)}
             >
               <Button
                 type="text"
@@ -129,7 +94,7 @@ export function FactoryNumbersSection() {
         ),
       },
     ],
-    [deletingId, handleDelete, openEdit],
+    [deletingId, deleteRow, openEdit],
   );
 
   return (
@@ -152,7 +117,7 @@ export function FactoryNumbersSection() {
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         onOk={() => void handleModalOk()}
-        confirmLoading={saving}
+        confirmLoading={isSaving}
       >
         <Form form={form} layout="vertical">
           <Form.Item

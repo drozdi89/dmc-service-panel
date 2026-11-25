@@ -95,7 +95,7 @@ Deep-import (`@/entities/product/api/...`) в новом коде не испо�
 | `layouts/` | `AdminLayout`: sider / header / content |
 | `widgets/` | Host модалки ресурса. Монтируется один раз в `AppProviders` |
 | `features/` | Разметка сценария (форма, drawer, секция). Данные и сохранение — из entity |
-| `services/` | Оркестрация нескольких entity без UI |
+| `services/` | Оркестрация нескольких entity без UI (только вызовы entity-api / queries, без HTTP и URL) |
 | `entities/` | Контракт API, запросы, UI-store диалога, примитивы сущности |
 | `shared/` | Клиент, фабрика запросов, UI-kit, общие типы |
 
@@ -167,7 +167,7 @@ export type ProductUpdatePayload = components['schemas']['UpdateProductsSchema']
 
 Новый эндпоинт описывается в OpenAPI, затем типы перегенерируются (`generate:api-types`). Пока поля нет в `schema.d.ts`, код опирается на то, что спецификация неполная: узкое расширение типа сущности, а не параллельная модель формы.
 
-HTTP только в `entities/*/api` и, если сценарий без UI, в `services/*/model`. Feature ходит в API через хуки и функции entity.
+**HTTP и URL:** литералы путей `/api/...` и вызовы `apiRequest` / `apiRequestData` / `fetchPaginatedList` — только в `src/entities/*/api/**` (транспорт — `src/shared/api/**`). Пути держать именованными константами `*_PATH` в entity `api`. `services/` оркестрирует сценарии без UI, вызывая публичные функции entity (`@/entities/<domain>`), без путей и без транспорта. Вне `api/` из `@/shared/api` допустимы `createIdempotencyKey`, `ApiError` и типы. Feature ходит в API через хуки и функции entity.
 
 ## 8. Creating new slices
 
@@ -199,6 +199,7 @@ mkdir -p src/pages/<name>/ui
 3. **Форма получает объект API.** Дополнительные переменные в объект формы не класть.
 4. **Контракт — `schema.d.ts`.** `openapi.json` неполный; `schema.d.ts` не править руками.
 5. **antd — UI-kit проекта.**
+6. **HTTP только в `entities/*/api`.** URL и `apiRequest*` не живут в `services/`, features, pages, queries, hooks.
 
 ## 11. Architecture proposals
 
@@ -209,7 +210,7 @@ mkdir -p src/pages/<name>/ui
 - Какой FSD-слой затронут и что он импортирует вниз?
 - Серверные данные — React Query в `entities/*/queries` через `@/shared/queries`; UI-события и композиция save — в `entities/*/hooks`. Флаги диалога — Zustand в `entities/*/model`.
 - Публичный API слайса — `index.ts`.
-- HTTP — в `entities/*/api`. Тип запроса и ответа — схема из `schema.d.ts`; пробел спецификации закрывается расширением этого типа, не новой моделью формы.
+- HTTP и URL — только в `entities/*/api` (транспорт `shared/api`). `services/` вызывает entity-api, не `apiRequest*`. Тип запроса и ответа — схема из `schema.d.ts`; пробел спецификации закрывается расширением этого типа, не новой моделью формы.
 - В форму уходит объект API. Поля, которых в этом объекте нет, в форму не добавляются.
 - Нет `feature → feature`, `entity → feature/widget/page`, нет слоя `modules/`.
 - Новый экран: `pages/` + feature + entity (api/queries). Маршрут — в `pages/*/routes.ts` и `app/menuRegistry.ts`. Host модалки — в `widgets/` и `AppProviders`.

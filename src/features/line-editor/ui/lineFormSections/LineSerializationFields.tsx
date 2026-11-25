@@ -3,15 +3,17 @@ import {
   SCALE_TYPE_CHECKWEIR,
 } from '@/entities/device';
 import {
-  applyOutputModeChange,
-  applyOutputModeLabelsChange,
+  LINE_TYPE,
+  outputModeToFields,
+  resolveAutomatedSubtype,
+  resolveOutputMode,
+  type AutomatedLineSubtype,
   type LineEditorFormState,
   type LineEditorResourceLabels,
   type LineEditorVisibility,
   type LineOutputMode,
 } from '@/entities/line';
 import { Alert, Checkbox, Divider, Form, Radio, Tooltip } from 'antd';
-import { useEffect, useRef } from 'react';
 import { LineResourcePickerField } from '../LineResourcePickerField';
 
 /** Props for automated serialization fields. */
@@ -21,13 +23,6 @@ export interface LineSerializationFieldsProps {
   onResourceLabelsChange: (next: LineEditorResourceLabels) => void;
 }
 
-function FormStoreField(_props: {
-  value?: unknown;
-  onChange?: (value: unknown) => void;
-}): null {
-  return null;
-}
-
 function patchTopLevelLabel(
   labels: LineEditorResourceLabels,
   patch: Partial<Omit<LineEditorResourceLabels, 'scale_stations' | 'aggregation_levels'>>,
@@ -35,11 +30,21 @@ function patchTopLevelLabel(
   return { ...labels, ...patch };
 }
 
+/** Subtype radio ↔ `line_type` DOYPACK / DEFAULT. */
+const automatedSubtypeProps = {
+  getValueProps: (lineType: string | null | undefined) => ({
+    value: resolveAutomatedSubtype(lineType),
+  }),
+  normalize: (subtype: AutomatedLineSubtype): string =>
+    subtype === 'doypack' ? LINE_TYPE.DOYPACK : LINE_TYPE.DEFAULT,
+} as const;
+
 /**
  * Output mode, subtype, cameras/printers/templates/controller pickers.
  *
  * Must render inside an antd {@link Form} bound to {@link LineEditorFormState}.
- * Output-mode changes migrate scale ids/labels via {@link applyOutputModeChange}.
+ * The output mode radio writes API `output` / `is_scale`; one `scale_id` backs
+ * both the «Новый ЧВ» (printer mode) and «Весы» (checkweir mode) pickers.
  */
 export function LineSerializationFields({
   visibility,
@@ -47,76 +52,9 @@ export function LineSerializationFields({
   onResourceLabelsChange,
 }: LineSerializationFieldsProps) {
   const form = Form.useFormInstance<LineEditorFormState>();
-  const outputMode = Form.useWatch('outputMode', form) as LineOutputMode | undefined;
-  const watchedNewChwScaleId = Form.useWatch('new_chw_scale_id', form) as number | null | undefined;
-  const watchedScaleId = Form.useWatch('scale_id', form) as number | null | undefined;
-  const prevOutputModeRef = useRef<LineOutputMode | undefined>(outputMode);
-  const resourceLabelsRef = useRef(resourceLabels);
-  const scaleIdsRef = useRef({
-    new_chw_scale_id: null as number | null,
-    scale_id: null as number | null,
-  });
-  resourceLabelsRef.current = resourceLabels;
-
-  useEffect(() => {
-    if (watchedNewChwScaleId !== undefined) {
-      scaleIdsRef.current.new_chw_scale_id = watchedNewChwScaleId;
-    }
-    if (watchedScaleId !== undefined) {
-      scaleIdsRef.current.scale_id = watchedScaleId;
-    }
-  }, [watchedNewChwScaleId, watchedScaleId]);
-
-  useEffect(() => {
-    if (!visibility.showAutomatedSerialization) {
-      return;
-    }
-    const values = form.getFieldsValue(true) as LineEditorFormState;
-    scaleIdsRef.current = {
-      new_chw_scale_id: values.new_chw_scale_id ?? null,
-      scale_id: values.scale_id ?? null,
-    };
-  }, [form, visibility.showAutomatedSerialization]);
-
-  const handleOutputSideFields = (newOutputMode: LineOutputMode) => {
-    if (newOutputMode === 'printer') {
-      form.setFieldsValue({ output: 0, is_scale: false });
-      return;
-    }
-    if (newOutputMode === 'checkweir') {
-      form.setFieldsValue({ output: 1, is_scale: false });
-      return;
-    }
-    form.setFieldsValue({ output: 1, is_scale: true });
-  };
-
-  useEffect(() => {
-    const previousMode = prevOutputModeRef.current;
-    const nextMode = outputMode;
-    if (previousMode === undefined || nextMode === undefined || previousMode === nextMode) {
-      prevOutputModeRef.current = nextMode;
-      return;
-    }
-
-    const state = {
-      ...(form.getFieldsValue(true) as LineEditorFormState),
-      outputMode: previousMode,
-      new_chw_scale_id: scaleIdsRef.current.new_chw_scale_id,
-      scale_id: scaleIdsRef.current.scale_id,
-    };
-    const formPatch = applyOutputModeChange(state, nextMode);
-    const labelsPatch = applyOutputModeLabelsChange(
-      resourceLabelsRef.current,
-      previousMode,
-      nextMode,
-    );
-
-    form.setFieldsValue(formPatch);
-    if (Object.keys(labelsPatch).length > 0) {
-      onResourceLabelsChange(patchTopLevelLabel(resourceLabelsRef.current, labelsPatch));
-    }
-    prevOutputModeRef.current = nextMode;
-  }, [form, onResourceLabelsChange, outputMode]);
+  const output = Form.useWatch('output', form);
+  const isScale = Form.useWatch('is_scale', form);
+  const outputMode = resolveOutputMode({ output: output ?? 0, is_scale: Boolean(isScale) });
 
   return (
     <>
@@ -129,18 +67,12 @@ export function LineSerializationFields({
       ) : null}
 
       {visibility.showAutomatedSerialization ? (
-        <>
-        <Form.Item name="scale_id" hidden preserve noStyle>
-          <FormStoreField />
-        </Form.Item>
-        <Form.Item name="new_chw_scale_id" hidden preserve noStyle>
-          <FormStoreField />
-        </Form.Item>
-        <Form.Item name="outputMode" label="Сериализация" style={{ marginBottom: 0 }}>
+        <Form.Item label="Сериализация" style={{ marginBottom: 0 }}>
           <Radio.Group
             style={{ marginBottom: 8 }}
+            value={outputMode}
             onChange={({ target: { value } }) => {
-              handleOutputSideFields(value as LineOutputMode);
+              form.setFieldsValue(outputModeToFields(value as LineOutputMode));
             }}
           >
             <Radio.Button value="printer">Принтер</Radio.Button>
@@ -150,13 +82,12 @@ export function LineSerializationFields({
             </Tooltip>
           </Radio.Group>
         </Form.Item>
-        </>
       ) : null}
 
       {visibility.showSerializationSubtype && (
         <>
           <Form.Item label="Тип линии" style={{ marginBottom: 0 }}>
-            <Form.Item name="automatedSubtype" noStyle>
+            <Form.Item name="line_type" {...automatedSubtypeProps} noStyle>
               <Radio.Group style={{ marginBottom: 8 }}>
                 <Radio.Button value="default">Стандартная</Radio.Button>
                 <Radio.Button value="doypack">Дойпак</Radio.Button>
@@ -174,11 +105,11 @@ export function LineSerializationFields({
             }
             kind="device"
             deviceType="camera"
-            name="printed_codes_camera_id"
-            valueLabel={resourceLabels.printedCodesCameraLabel}
+            name="printed_camera_id"
+            valueLabel={resourceLabels.printedCameraLabel}
             onChange={(_id, label) => {
               onResourceLabelsChange(
-                patchTopLevelLabel(resourceLabels, { printedCodesCameraLabel: label }),
+                patchTopLevelLabel(resourceLabels, { printedCameraLabel: label }),
               );
             }}
             layout="horizontal"
@@ -221,7 +152,7 @@ export function LineSerializationFields({
                 label="Второй принтер"
                 kind="device"
                 deviceType="printer"
-                name="printer_2_id"
+                name="printer_id_s"
                 valueLabel={resourceLabels.printer2Label}
                 onChange={(_id, label) => {
                   onResourceLabelsChange(patchTopLevelLabel(resourceLabels, { printer2Label: label }));
@@ -265,13 +196,10 @@ export function LineSerializationFields({
                 label="Новый ЧВ"
                 kind="device"
                 deviceType="scale"
-                value={watchedNewChwScaleId ?? null}
-                valueLabel={resourceLabels.newChwScaleLabel}
-                onChange={(id, label) => {
-                  form.setFieldValue('new_chw_scale_id', id);
-                  onResourceLabelsChange(
-                    patchTopLevelLabel(resourceLabels, { newChwScaleLabel: label }),
-                  );
+                name="scale_id"
+                valueLabel={resourceLabels.scaleLabel}
+                onChange={(_id, label) => {
+                  onResourceLabelsChange(patchTopLevelLabel(resourceLabels, { scaleLabel: label }));
                 }}
                 scaleTypes={[SCALE_TYPE_CHECKWEIGHT_NEW]}
                 defaultScaleType={SCALE_TYPE_CHECKWEIGHT_NEW}
@@ -284,10 +212,9 @@ export function LineSerializationFields({
               label="Весы"
               kind="device"
               deviceType="scale"
-              value={watchedScaleId ?? null}
+              name="scale_id"
               valueLabel={resourceLabels.scaleLabel}
-              onChange={(id, label) => {
-                form.setFieldValue('scale_id', id);
+              onChange={(_id, label) => {
                 onResourceLabelsChange(patchTopLevelLabel(resourceLabels, { scaleLabel: label }));
               }}
               scaleTypes={[SCALE_TYPE_CHECKWEIR]}

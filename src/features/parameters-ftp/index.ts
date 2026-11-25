@@ -1,5 +1,1 @@
-export {
-  FtpSection,
-  normalizeFtpConfig,
-  type FtpSectionProps,
-} from './ui/FtpSection';
+export { FtpSection } from './ui/FtpSection';

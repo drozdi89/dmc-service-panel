@@ -32,12 +32,16 @@ vi.mock('@/services/line-service', () => ({
     mutateAsync: async (variables: {
       state: LineEditorFormState;
       lineId: number | undefined;
+      deletedAggregationLevelIds: number[];
       printedDmRaw: string | null;
     }) => {
       const result = await saveLineConfiguration(
         variables.state,
-        variables.lineId,
-        variables.printedDmRaw,
+        {
+          existingLineId: variables.lineId,
+          deletedAggregationLevelIds: variables.deletedAggregationLevelIds,
+          printedDmRaw: variables.printedDmRaw,
+        },
       );
       invalidateLineQueries();
       return result;
@@ -54,9 +58,10 @@ vi.mock('@/features/line-editor', () => ({
           onClick={() =>
             onSubmit(
               {
-                name: 'Saved Line',
+                linename: 'Saved Line',
               } as LineEditorFormState,
               { close: true },
+              { deletedAggregationLevelIds: [9] },
             )
           }
         >
@@ -97,6 +102,14 @@ describe('LineFormModalHost', () => {
     screen.getByRole('button', { name: 'submit' }).click();
 
     await waitFor(() => {
+      expect(saveLineConfiguration).toHaveBeenCalledWith(
+        expect.objectContaining({ linename: 'Saved Line' }),
+        {
+          existingLineId: undefined,
+          deletedAggregationLevelIds: [9],
+          printedDmRaw: '{}',
+        },
+      );
       const state = useLineFormUiStore.getState();
       expect(state.dialog).toEqual({ kind: 'none' });
       expect(state.lastSaved).toEqual({
@@ -212,9 +225,12 @@ describe('LineFormModalHost', () => {
 
     await waitFor(() => {
       expect(saveLineConfiguration).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'Saved Line' }),
-        9,
-        '{}',
+        expect.objectContaining({ linename: 'Saved Line' }),
+        {
+          existingLineId: 9,
+          deletedAggregationLevelIds: [9],
+          printedDmRaw: '{}',
+        },
       );
     });
   });

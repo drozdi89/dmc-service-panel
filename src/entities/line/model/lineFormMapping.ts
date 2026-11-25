@@ -11,6 +11,7 @@ import type {
   LineKind,
   LineOptionsFormState,
   LineOutputMode,
+  LineWritePayload,
   ScaleWorkplaceConfiguration,
   ScaleWorkplaceFormState,
   ScaleWorkplaceLabels,
@@ -53,26 +54,22 @@ export function createDefaultLineFormState(): LineEditorFormState {
   return {
     id: undefined,
     slaveid: null,
-    loaded_is_manual: false,
-    name: '',
-    one_s_code: '',
+    linename: '',
+    one_s_line_code: '',
+    is_manual: false,
     is_scale: false,
     output: 0,
-    lineKind: 'automated',
-    automatedSubtype: 'default',
-    outputMode: 'printer',
+    line_type: LINE_TYPE.DEFAULT,
     external_line: false,
-    print_only_no_verify: false,
     group_scan: false,
     allow_printed_dm: false,
     camera_id: null,
-    printed_codes_camera_id: null,
+    printed_camera_id: null,
     printer_id: null,
-    printer_2_id: null,
+    printer_id_s: null,
     template_id: null,
     plain_template_id: null,
     scale_id: null,
-    new_chw_scale_id: null,
     controller_id: null,
     options: { ...DEFAULT_OPTIONS },
     scale_stations: {
@@ -80,9 +77,7 @@ export function createDefaultLineFormState(): LineEditorFormState {
       second: { ...EMPTY_WORKPLACE },
     },
     aggregation_levels: [],
-    deleted_aggregation_level_ids: [],
     favourite_gtins: [],
-    has_lines_options: false,
   };
 }
 
@@ -118,14 +113,69 @@ function mapWorkplaceToLabels(
 }
 
 /**
+ * Line kind radio value from `is_manual` (Qt frmLineType).
+ *
+ * @param state - Form fields with `is_manual`.
+ */
+export function resolveLineKind(state: Pick<LineWritePayload, 'is_manual'>): LineKind {
+  return state.is_manual ? 'manual' : 'automated';
+}
+
+/**
+ * Automated subtype radio value from `line_type`.
+ *
+ * @param lineType - API `line_type`.
+ */
+export function resolveAutomatedSubtype(lineType?: string | null): AutomatedLineSubtype {
+  return lineType === LINE_TYPE.DOYPACK ? 'doypack' : 'default';
+}
+
+/**
+ * Whether `line_type` marks a print-only line without verification.
+ *
+ * @param lineType - API `line_type`.
+ */
+export function isPrintOnlyNoVerify(lineType?: string | null): boolean {
+  return lineType === LINE_TYPE.PRINT_NO_VERIFY;
+}
+
+/**
+ * Serialization output mode from `output` / `is_scale` (Qt print_options).
+ *
+ * @param state - Form fields with `output` and `is_scale`.
+ */
+export function resolveOutputMode(
+  state: Pick<LineWritePayload, 'output' | 'is_scale'>,
+): LineOutputMode {
+  if (state.output === 0) {
+    return 'printer';
+  }
+  return state.is_scale ? 'scale' : 'checkweir';
+}
+
+/**
+ * API `output` / `is_scale` for an output mode radio value.
+ *
+ * @param mode - Selected output mode.
+ */
+export function outputModeToFields(
+  mode: LineOutputMode,
+): Pick<LineWritePayload, 'output' | 'is_scale'> {
+  if (mode === 'printer') {
+    return { output: 0, is_scale: false };
+  }
+  return { output: 1, is_scale: mode === 'scale' };
+}
+
+/**
  * Computes visibility and disable flags from editor state
  * (паритет Qt `LineConfiguration` / `gbSerialization` / `tabWidget`).
  *
  * Qt mapping:
- * - `external_line` / `print_only_no_verify` → `_switch_ui_for_no_options` (extended tabs)
- * - `lineKind` automated / manual / scale → `gbSerialization` pages 0 / 1 / 2
- * - `outputMode` printer / checkweir → print branch inside automated page
- * - `loaded_is_manual` → `tabFavProducts.setEnabled(False)` at load
+ * - `external_line` / print-only `line_type` → `_switch_ui_for_no_options` (extended tabs)
+ * - `is_manual` → `gbSerialization` pages automated / manual
+ * - `output` / `is_scale` → print branch inside automated page
+ * - `loadedIsManual` → `tabFavProducts.setEnabled(False)` at load
  * - `!isNewLine` → `frmLineType.setEnabled(False)`
  *
  * Consumers should only read {@link LineEditorVisibility} flags — do not re-derive
@@ -133,21 +183,25 @@ function mapWorkplaceToLabels(
  *
  * @param state - Current line editor form state.
  * @param isNewLine - Whether the editor is creating a new line (kind toggle enabled).
+ * @param loadedIsManual - `is_manual` of the loaded configuration (existing line).
  */
 export function computeLineEditorVisibility(
   state: LineEditorFormState,
   isNewLine: boolean,
+  loadedIsManual = false,
 ): LineEditorVisibility {
-  const hideExtendedTabs = state.external_line || state.print_only_no_verify;
+  const hideExtendedTabs =
+    Boolean(state.external_line) || isPrintOnlyNoVerify(state.line_type);
 
-  const isManual = state.lineKind === 'manual';
-  const isAutomated = state.lineKind === 'automated';
-  
-  const isScale = state.outputMode === 'scale';
-  const isPrinter = state.outputMode === 'printer';
-  const isCheckweir = state.outputMode === 'checkweir';
+  const isManual = resolveLineKind(state) === 'manual';
+  const isAutomated = !isManual;
 
-  const isDoypack = state.automatedSubtype === 'doypack';
+  const outputMode = resolveOutputMode(state);
+  const isScale = outputMode === 'scale';
+  const isPrinter = outputMode === 'printer';
+  const isCheckweir = outputMode === 'checkweir';
+
+  const isDoypack = resolveAutomatedSubtype(state.line_type) === 'doypack';
 
   return {
     showExtendedTabs: !hideExtendedTabs,
@@ -165,93 +219,11 @@ export function computeLineEditorVisibility(
 
     /** Qt: hide Aggregation + Products (and Main) via `tabWidget.setHidden`. */
     hideExtendedTabs: hideExtendedTabs,
-    disableProductsTab: state.loaded_is_manual,
+    disableProductsTab: loadedIsManual,
     showGroupScan: !isDoypack,
     useDoypackCameraLabels: isDoypack,
     disableAutoAggregationAdd: isManual,
   };
-}
-
-/**
- * Resolves line kind from configuration flags.
- */
-export function resolveLineKind(config: LineConfiguration): LineKind {
-  if (config.is_manual) {
-    return 'manual';
-  }
-  return 'automated';
-}
-
-/**
- * Resolves automated subtype from line_type.
- */
-export function resolveAutomatedSubtype(lineType?: string | null): AutomatedLineSubtype {
-  return lineType === LINE_TYPE.DOYPACK ? 'doypack' : 'default';
-}
-
-/**
- * Resolves output mode from output field.
- */
-export function resolveOutputMode(output: number): LineOutputMode {
-  return output === 1 ? 'checkweir' : 'printer';
-}
-
-/**
- * Migrates scale id/label when toggling printer ↔ checkweir (Qt uses single scale field).
- *
- * @param state - Current editor state.
- * @param newOutputMode - Selected output mode.
- */
-export function applyOutputModeChange(
-  state: LineEditorFormState,
-  newOutputMode: LineOutputMode,
-): Partial<LineEditorFormState> {
-  if (state.outputMode === newOutputMode) {
-    return { outputMode: newOutputMode };
-  }
-
-  if (newOutputMode === 'checkweir') {
-    return {
-      outputMode: newOutputMode,
-      scale_id: state.new_chw_scale_id,
-      new_chw_scale_id: null,
-    };
-  }
-
-  return {
-    outputMode: newOutputMode,
-    new_chw_scale_id: state.scale_id,
-    scale_id: null,
-  };
-}
-
-/**
- * Migrates scale display labels when toggling printer ↔ checkweir.
- */
-export function applyOutputModeLabelsChange(
-  labels: LineEditorResourceLabels,
-  fromMode: LineOutputMode,
-  toMode: LineOutputMode,
-): Partial<LineEditorResourceLabels> {
-  if (fromMode === toMode) {
-    return {};
-  }
-
-  if (toMode === 'checkweir') {
-    return {
-      scaleLabel: labels.newChwScaleLabel,
-      newChwScaleLabel: undefined,
-    };
-  }
-
-  if (fromMode === 'checkweir' && toMode === 'printer') {
-    return {
-      newChwScaleLabel: labels.scaleLabel,
-      scaleLabel: undefined,
-    };
-  }
-
-  return {};
 }
 
 /**
@@ -325,7 +297,8 @@ export function mapAggregationLevelToLabels(
 }
 
 /**
- * Maps full line configuration and allow-printed flag to editor form state.
+ * Maps full line configuration (GET get_line) to the `/lines/` write fields
+ * plus nested slices edited by the same dialog.
  *
  * @param config - Line configuration from GET get_line.
  * @param allowPrintedDm - Parsed line_printed_dm_use flag.
@@ -334,40 +307,25 @@ export function mapLineConfigurationToForm(
   config: LineConfiguration,
   allowPrintedDm = false,
 ): LineEditorFormState {
-  const outputMode = config.output === 0 ? 'printer' : config.is_scale ? 'scale' : 'checkweir';
-  const is_scale = config.output === 0 ? false : config.is_scale;
-
-  const mappedScaleId = mapDeviceId(config.scale);
-          
-  
   return {
-    print_only_no_verify: config.line_type === LINE_TYPE.PRINT_NO_VERIFY,
-    lineKind: resolveLineKind(config),
-
-    outputMode,
-    output: config.output,
-
-
     id: config.id ?? undefined,
     slaveid: config.slaveid ?? null,
-    loaded_is_manual: config.is_manual,
-    name: config.name,
-    one_s_code: config.one_s_code ?? '',
-    
-    automatedSubtype: resolveAutomatedSubtype(config.line_type),
-    is_scale,
+    linename: config.name,
+    one_s_line_code: config.one_s_code ?? '',
+    is_manual: config.is_manual,
+    is_scale: config.output === 0 ? false : config.is_scale,
+    output: config.output,
+    line_type: config.line_type ?? LINE_TYPE.DEFAULT,
     external_line: config.external_line,
-    
     group_scan: config.group_scan,
     allow_printed_dm: allowPrintedDm,
     camera_id: mapDeviceId(config.camera),
-    printed_codes_camera_id: mapDeviceId(config.printed_codes_camera),
+    printed_camera_id: mapDeviceId(config.printed_codes_camera),
     printer_id: mapDeviceId(config.printer),
-    printer_2_id: mapDeviceId(config.printer_2),
+    printer_id_s: mapDeviceId(config.printer_2),
     template_id: mapDeviceId(config.template),
     plain_template_id: mapDeviceId(config.plain_template),
-    scale_id: outputMode === 'checkweir' ? mappedScaleId : null,
-    new_chw_scale_id: outputMode === 'printer' ? mappedScaleId : null,
+    scale_id: mapDeviceId(config.scale),
     controller_id: mapDeviceId(config.controller),
     options: {
       must_scan_before_start: config.options?.must_scan_before_start ?? false,
@@ -384,11 +342,9 @@ export function mapLineConfigurationToForm(
       second: mapWorkplace(config.scale_stations?.second),
     },
     aggregation_levels: (config.aggregation_levels ?? []).map(mapAggregationLevelToForm),
-    deleted_aggregation_level_ids: [],
     favourite_gtins: (config.wares ?? [])
       .map((ware) => ware.gtin)
-      .filter((gtin): gtin is string => Boolean(gtin)),
-    has_lines_options: Boolean(config.options),
+      .filter((gtin): gtin is string => typeof gtin === 'string' && gtin.length > 0),
   };
 }
 
@@ -398,18 +354,14 @@ export function mapLineConfigurationToForm(
 export function mapLineConfigurationToLabels(
   config: LineConfiguration,
 ): LineEditorResourceLabels {
-  const outputMode =
-    config.output === 0 ? 'printer' : config.is_scale ? 'scale' : 'checkweir';
-
   return {
     cameraLabel: config.camera?.name,
-    printedCodesCameraLabel: config.printed_codes_camera?.name,
+    printedCameraLabel: config.printed_codes_camera?.name,
     printerLabel: config.printer?.name,
     printer2Label: config.printer_2?.name,
     templateLabel: config.template?.name,
     plainTemplateLabel: config.plain_template?.name,
-    scaleLabel: outputMode === 'checkweir' ? config.scale?.name : undefined,
-    newChwScaleLabel: outputMode === 'printer' ? config.scale?.name : undefined,
+    scaleLabel: config.scale?.name,
     controllerLabel: config.controller?.name,
     scale_stations: {
       first: mapWorkplaceToLabels(config.scale_stations?.first),
@@ -476,17 +428,17 @@ export function canSwapAggregationLevels(
  * Validates line form before save; returns user-facing error or null.
  */
 export function validateLineForm(state: LineEditorFormState): string | null {
-  if (!state.name.trim()) {
+  if (!state.linename?.trim()) {
     return 'Укажите название производственной линии';
   }
   const isAutomatedSerialization =
-    state.lineKind === 'automated' && !state.print_only_no_verify;
+    !state.is_manual && !isPrintOnlyNoVerify(state.line_type);
   if (
     isAutomatedSerialization &&
-    state.outputMode === 'printer' &&
-    state.printer_id !== null &&
-    state.printer_2_id !== null &&
-    state.printer_id === state.printer_2_id
+    resolveOutputMode(state) === 'printer' &&
+    state.printer_id != null &&
+    state.printer_id_s != null &&
+    state.printer_id === state.printer_id_s
   ) {
     return 'Второй принтер не может совпадать с принтером сериализации';
   }
@@ -506,50 +458,45 @@ export function validateLineForm(state: LineEditorFormState): string | null {
 }
 
 /**
- * Builds line_type string for API from form state.
+ * Normalizes `line_type` for API: doypack applies only to automated lines.
  */
 export function buildLineType(state: LineEditorFormState): string {
-  if (state.print_only_no_verify) {
+  if (isPrintOnlyNoVerify(state.line_type)) {
     return LINE_TYPE.PRINT_NO_VERIFY;
   }
-  if (state.lineKind === 'automated' && state.automatedSubtype === 'doypack') {
+  if (!state.is_manual && state.line_type === LINE_TYPE.DOYPACK) {
     return LINE_TYPE.DOYPACK;
   }
   return LINE_TYPE.DEFAULT;
 }
 
 /**
- * Builds POST/PATCH body for /lines/ from editor state.
+ * Builds POST/PATCH body for /lines/ from editor state
+ * (clears devices that do not apply to the selected kind / output mode).
  */
-export function buildLinePayload(state: LineEditorFormState) {
-  const isManual = state.lineKind === 'manual' || state.print_only_no_verify;
-  const isScale = state.outputMode === 'scale';
+export function buildLinePayload(state: LineEditorFormState): LineWritePayload {
+  const isManual = state.is_manual || isPrintOnlyNoVerify(state.line_type);
+  const outputMode = resolveOutputMode(state);
+  const isScale = outputMode === 'scale';
+  const noSerialization = isManual || isScale;
+  const noPrinter = noSerialization || outputMode !== 'printer';
 
   return {
-    linename: state.name.trim(),
+    linename: state.linename.trim(),
     is_manual: isManual,
     is_scale: isScale,
-    camera_id: isManual || isScale ? null : state.camera_id,
-    printed_camera_id: isManual || isScale ? null : state.printed_codes_camera_id,
-    printer_id:
-      isManual || isScale || state.outputMode !== 'printer' ? null : state.printer_id,
-    printer_id_s:
-      isManual || isScale || state.outputMode !== 'printer' ? null : state.printer_2_id,
-    template_id:
-      isManual || isScale || state.outputMode !== 'printer' ? null : state.template_id,
-    plain_template_id:
-      isManual || isScale || state.outputMode !== 'printer' ? null : state.plain_template_id,
-    scale_id:
-      isManual || isScale
-        ? null
-        : state.outputMode === 'checkweir'
-          ? state.scale_id
-          : state.new_chw_scale_id,
-    output: state.outputMode === 'printer' ? 0 : 1, 
-    controller_id: isManual || isScale ? null : state.controller_id,
-    one_s_line_code: state.one_s_code.trim() || null,
-    group_scan: isManual || isScale ? false : state.group_scan,
-    external_line: state.external_line,
+    camera_id: noSerialization ? null : (state.camera_id ?? null),
+    printed_camera_id: noSerialization ? null : (state.printed_camera_id ?? null),
+    printer_id: noPrinter ? null : (state.printer_id ?? null),
+    printer_id_s: noPrinter ? null : (state.printer_id_s ?? null),
+    template_id: noPrinter ? null : (state.template_id ?? null),
+    plain_template_id: noPrinter ? null : (state.plain_template_id ?? null),
+    scale_id: noSerialization ? null : (state.scale_id ?? null),
+    output: outputMode === 'printer' ? 0 : 1,
+    controller_id: noSerialization ? null : (state.controller_id ?? null),
+    one_s_line_code: state.one_s_line_code?.trim() || null,
+    group_scan: noSerialization ? false : Boolean(state.group_scan),
+    external_line: Boolean(state.external_line),
     line_type: buildLineType(state),
   };
 }
