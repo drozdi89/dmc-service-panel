@@ -6,7 +6,7 @@ import { normalizeCounterConfig } from './counterValidation';
  *
  * @param rows - Counter rows from the form.
  */
-export function counterConfigToApiPayload(
+export function prepareSave(
   rows: CounterSpecSchema[] | undefined,
 ): CounterSpecSchema[] {
   return normalizeCounterConfig(rows);

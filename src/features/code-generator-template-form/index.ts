@@ -6,7 +6,7 @@ export {
   createDefaultCounterRow,
   createDefaultFormValues,
   createDefaultPreviewFormValues,
-  mapTemplateToFormValues,
+  selectFormData,
 } from './model/defaults';
 export {
   normalizeCounterConfig,

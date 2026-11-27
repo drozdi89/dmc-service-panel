@@ -83,7 +83,7 @@ export function buildLinkedResourceNameMap(
  *
  * @param station - Station detail from GET.
  */
-export function mapPrintStationToFormValues(station: PrintStation): CreatePrintStationPayload {
+export function selectFormData(station: PrintStation): CreatePrintStationPayload {
   return {
     ...station,
     printer: mapApiDeviceIdToForm(station.printer),
@@ -97,7 +97,7 @@ export function mapPrintStationToFormValues(station: PrintStation): CreatePrintS
  *
  * @param values - Validated form values.
  */
-export function mapFormValuesToCreatePayload(
+export function prepareSave(
   values: CreatePrintStationPayload,
 ): CreatePrintStationPayload {
   return {
@@ -116,7 +116,7 @@ export function mapFormValuesToCreatePayload(
  *
  * @param values - Validated form values.
  */
-export function mapFormValuesToUpdatePayload(
+export function prepareUpdate(
   values: CreatePrintStationPayload,
 ): UpdatePrintStationPayload {
   return {

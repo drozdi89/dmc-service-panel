@@ -303,7 +303,7 @@ export function mapAggregationLevelToLabels(
  * @param config - Line configuration from GET get_line.
  * @param allowPrintedDm - Parsed line_printed_dm_use flag.
  */
-export function mapLineConfigurationToForm(
+export function selectFormData(
   config: LineConfiguration,
   allowPrintedDm = false,
 ): LineEditorFormState {
@@ -474,7 +474,8 @@ export function buildLineType(state: LineEditorFormState): string {
  * Builds POST/PATCH body for /lines/ from editor state
  * (clears devices that do not apply to the selected kind / output mode).
  */
-export function buildLinePayload(state: LineEditorFormState): LineWritePayload {
+/** prepareSave for POST/PATCH `/lines/` (other resources have their own builders). */
+export function prepareSave(state: LineEditorFormState): LineWritePayload {
   const isManual = state.is_manual || isPrintOnlyNoVerify(state.line_type);
   const outputMode = resolveOutputMode(state);
   const isScale = outputMode === 'scale';

@@ -1,6 +1,6 @@
 import { App } from 'antd';
 import { useCallback } from 'react';
-import { markingFormToBatchEntries } from '../lib/markingFormToBatchEntries';
+import { prepareSave } from '../lib/markingFormToBatchEntries';
 import { validateBatchTemplate } from '../lib/validateBatchTemplate';
 import { PARAMETERS_MESSAGES } from '../model/messages';
 import type { ParametersSettingsBundle } from '../model/types';
@@ -36,7 +36,7 @@ export function useMarkingSettings() {
         message.error(templateError);
         return;
       }
-      mutate(markingFormToBatchEntries(values, isSlaveMode));
+      mutate(prepareSave(values, isSlaveMode));
     },
     [isSlaveMode, message, mutate],
   );

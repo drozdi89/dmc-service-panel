@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { counterConfigToApiPayload } from './counterConfigPayload';
+import { prepareSave } from './counterConfigPayload';
 
-describe('counterConfigToApiPayload', () => {
+describe('prepareSave', () => {
   it('normalizes named counters to CounterSpecSchema', () => {
     expect(
-      counterConfigToApiPayload([
+      prepareSave([
         {
           name: 'serial',
           width: 8,
@@ -26,7 +26,7 @@ describe('counterConfigToApiPayload', () => {
 
   it('drops unnamed rows', () => {
     expect(
-      counterConfigToApiPayload([
+      prepareSave([
         { name: '', width: 6, key_fields: [], min: 1, max: 0 },
         { name: 's', width: 6, key_fields: [], min: 1, max: 0 },
       ]),

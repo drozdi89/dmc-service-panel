@@ -1,7 +1,7 @@
 import {
   createDefaultLineEditorLabels,
   createDefaultLineFormState,
-  mapLineConfigurationToForm,
+  selectFormData,
   mapLineConfigurationToLabels,
   useLineAllowPrintedDmQuery,
   useLineConfigurationQuery,
@@ -134,7 +134,7 @@ export function LineFormModal({
     if (configQuery.isSuccess && allowPrintedQuery.isSuccess) {
       setHydrated({
         key: lineKey,
-        values: mapLineConfigurationToForm(configQuery.data, allowPrintedQuery.data),
+        values: selectFormData(configQuery.data, allowPrintedQuery.data),
         resourceLabels: mapLineConfigurationToLabels(configQuery.data),
       });
     }

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildLinePayload,
+  prepareSave,
   buildLinePrintedDmSettings,
   canAddAutomatedAggregationLevel,
   canSwapAggregationLevels,
   computeLineEditorVisibility,
   createDefaultLineFormState,
-  mapLineConfigurationToForm,
+  selectFormData,
   mapLineConfigurationToLabels,
   outputModeToFields,
   reindexAggregationLevels,
@@ -204,7 +204,7 @@ describe('validateLineForm', () => {
   });
 });
 
-describe('mapLineConfigurationToForm', () => {
+describe('selectFormData', () => {
   const baseConfig = {
     name: 'Line 1',
     is_manual: false,
@@ -215,7 +215,7 @@ describe('mapLineConfigurationToForm', () => {
   };
 
   it('maps GET nested devices onto LinesSchema write fields', () => {
-    const form = mapLineConfigurationToForm({
+    const form = selectFormData({
       ...baseConfig,
       output: 0,
       one_s_code: '1C-1',
@@ -244,7 +244,7 @@ describe('mapLineConfigurationToForm', () => {
   });
 
   it('maps checkweir scale onto the same scale_id field', () => {
-    const form = mapLineConfigurationToForm({
+    const form = selectFormData({
       ...baseConfig,
       output: 1,
       scale: { id: 7, name: 'Checkweir' },
@@ -255,7 +255,7 @@ describe('mapLineConfigurationToForm', () => {
   });
 });
 
-describe('buildLinePayload', () => {
+describe('prepareSave', () => {
   it('clears devices for manual line', () => {
     const state = {
       ...createDefaultLineFormState(),
@@ -264,7 +264,7 @@ describe('buildLinePayload', () => {
       camera_id: 5,
       printer_id: 6,
     };
-    const payload = buildLinePayload(state);
+    const payload = prepareSave(state);
     expect(payload.is_manual).toBe(true);
     expect(payload.camera_id).toBeNull();
     expect(payload.printer_id).toBeNull();
@@ -277,7 +277,7 @@ describe('buildLinePayload', () => {
       line_type: LINE_TYPE.PRINT_NO_VERIFY,
       is_manual: false,
     };
-    const payload = buildLinePayload(state);
+    const payload = prepareSave(state);
     expect(payload.line_type).toBe(LINE_TYPE.PRINT_NO_VERIFY);
     expect(payload.is_manual).toBe(true);
   });
@@ -290,7 +290,7 @@ describe('buildLinePayload', () => {
       is_scale: false,
       scale_id: 12,
     };
-    const payload = buildLinePayload(state);
+    const payload = prepareSave(state);
     expect(payload.output).toBe(1);
     expect(payload.scale_id).toBe(12);
   });
@@ -303,7 +303,7 @@ describe('buildLinePayload', () => {
       is_scale: false,
       scale_id: 99,
     };
-    const payload = buildLinePayload(state);
+    const payload = prepareSave(state);
     expect(payload.output).toBe(0);
     expect(payload.scale_id).toBe(99);
   });
@@ -318,7 +318,7 @@ describe('buildLinePayload', () => {
       printer_id: 10,
       printer_id_s: 20,
     };
-    const payload = buildLinePayload(state);
+    const payload = prepareSave(state);
     expect(payload.printer_id).toBe(10);
     expect(payload.printer_id_s).toBe(20);
   });
@@ -333,13 +333,13 @@ describe('buildLinePayload', () => {
       printer_id: 10,
       printer_id_s: 20,
     };
-    const payload = buildLinePayload(state);
+    const payload = prepareSave(state);
     expect(payload.printer_id).toBeNull();
     expect(payload.printer_id_s).toBeNull();
   });
 
   it('excludes serialization printers for manual and scale lines', () => {
-    const manual = buildLinePayload({
+    const manual = prepareSave({
       ...createDefaultLineFormState(),
       linename: 'Manual',
       is_manual: true,
@@ -350,7 +350,7 @@ describe('buildLinePayload', () => {
     expect(manual.printer_id).toBeNull();
     expect(manual.printer_id_s).toBeNull();
 
-    const scale = buildLinePayload({
+    const scale = prepareSave({
       ...createDefaultLineFormState(),
       linename: 'Scale',
       is_manual: false,

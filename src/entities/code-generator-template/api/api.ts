@@ -1,6 +1,6 @@
 import { apiRequestData, fetchPaginatedList } from '@/shared/api';
 import type { ListQueryParams } from '@/shared/types/listQuery';
-import { counterConfigToApiPayload } from '../lib/counterConfigPayload';
+import { prepareSave } from '../lib/counterConfigPayload';
 import type {
   CodeGeneratorTemplate,
   CodeGeneratorTemplatePreviewQuery,
@@ -18,8 +18,8 @@ function withApiCounterConfig<
   }
   return {
     ...payload,
-    counter_config: counterConfigToApiPayload(
-      payload.counter_config as Parameters<typeof counterConfigToApiPayload>[0],
+    counter_config: prepareSave(
+      payload.counter_config as Parameters<typeof prepareSave>[0],
     ),
   };
 }

@@ -207,7 +207,7 @@ export function resolveCommissioningType(product: Product): CommissioningType {
  *
  * @param product - Product from GET /api/v2/products/{gtin}.
  */
-export function mapProductToFormValues(product: Product): ProductFormValues {
+export function selectFormData(product: Product): ProductFormValues {
   const vetControl = product.vet_control ?? false;
 
   return {
@@ -645,7 +645,7 @@ function mapArticleRow(
  *
  * @param values - Validated form values including gtin.
  */
-export function mapFormValuesToCreatePayload(
+export function prepareCreate(
   values: ProductFormValues,
 ): Omit<ProductCreatePayload, 'controller_params'> {
   return {
@@ -660,7 +660,7 @@ export function mapFormValuesToCreatePayload(
  * @param values - Validated form values.
  * @param _product - Loaded product detail (kept for call-site compatibility).
  */
-export function mapFormValuesToUpdatePayload(
+export function prepareUpdate(
   values: ProductFormValues,
   _product?: Product | null,
 ): Omit<ProductUpdatePayload, 'controller_params'> {

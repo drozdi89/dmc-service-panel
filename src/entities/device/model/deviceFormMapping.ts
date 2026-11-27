@@ -240,7 +240,7 @@ export function createDefaultFormValues(
  * @param deviceType - Device type.
  * @param detail - API response from GET by id.
  */
-export function mapDeviceDetailToFormValues(
+export function selectFormData(
   deviceType: DeviceType,
   detail: DeviceDetail,
 ): DeviceFormValues {
@@ -291,7 +291,7 @@ export function mapDeviceDetailToFormValues(
  * @param deviceType - Device type (target endpoint).
  * @param values - Validated form values.
  */
-export function mapFormValuesToPayload(
+export function prepareSave(
   deviceType: DeviceType,
   values: DeviceFormValues,
 ): CameraInput | PrinterInput | ScalesInput | ControllerInput | DividerInput {

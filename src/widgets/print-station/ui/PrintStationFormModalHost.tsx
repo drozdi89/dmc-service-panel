@@ -1,7 +1,7 @@
 import {
   isSamePrintStationFormDialog,
-  mapFormValuesToCreatePayload,
-  mapFormValuesToUpdatePayload,
+  prepareSave,
+  prepareUpdate,
   usePrintStationActions,
   resetPrintStationFormUiStore,
   usePrintStationFormUiStore,
@@ -70,10 +70,10 @@ export function PrintStationFormModalHost() {
         if (submitted.kind === 'edit') {
           saved = await updateMutation.mutateAsync({
             id: submitted.stationId,
-            ...mapFormValuesToUpdatePayload(values),
+            ...prepareUpdate(values),
           });
         } else {
-          saved = await createMutation.mutateAsync(mapFormValuesToCreatePayload(values));
+          saved = await createMutation.mutateAsync(prepareSave(values));
         }
 
 

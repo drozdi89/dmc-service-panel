@@ -1,7 +1,7 @@
 import {
   DEFAULT_PRODUCT_FORM_VALUES,
   EMPTY_PRODUCT_FORM_REMOVED_IDS,
-  mapProductToFormValues,
+  selectFormData,
   useProductAggregatesQuery,
   useProductArticlesQuery,
   useProductCertificatesQuery,
@@ -98,7 +98,7 @@ export function ProductFormModal({
     }
     if (canLoad) {
       if (product) {
-        form.setFieldsValue(mapProductToFormValues(product));
+        form.setFieldsValue(selectFormData(product));
         setRemovedIds(EMPTY_PRODUCT_FORM_REMOVED_IDS);
         // Re-apply nested lists after product hydrate — product refetch must not
         // leave packaging/certs empty when related queries already have data.

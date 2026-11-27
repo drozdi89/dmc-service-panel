@@ -1,7 +1,7 @@
 import { deviceDetailQueryOptions } from '@/entities/device';
 import {
   DEFAULT_PRINT_STATION_FORM_VALUES,
-  mapPrintStationToFormValues,
+  selectFormData,
   printStationQueries,
   type CreatePrintStationPayload,
   type PrintStationResourceLabels,
@@ -155,7 +155,7 @@ export function PrintStationFormModal({
     }
 
     if (loadedStation) {
-      form.setFieldsValue(mapPrintStationToFormValues(loadedStation));
+      form.setFieldsValue(selectFormData(loadedStation));
       void resolveResourceLabels(loadedStation);
     }
   }, [form, isEdit, loadedStation, open, resolveResourceLabels]);

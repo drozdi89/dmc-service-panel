@@ -5,7 +5,7 @@ import type { MarkingOptionEntry, ParametersSettingsBundle } from '../model/type
  *
  * @param bundle - Settings bundle from API.
  */
-export function bundleToMarkingFormValues(
+export function selectFormData(
   bundle: ParametersSettingsBundle,
 ): ParametersSettingsBundle {
   return {
@@ -20,7 +20,7 @@ export function bundleToMarkingFormValues(
  * @param values - Form values (settings bundle shape).
  * @param isSlaveMode - When true, slave-hidden fields are omitted.
  */
-export function markingFormToBatchEntries(
+export function prepareSave(
   values: ParametersSettingsBundle,
   isSlaveMode: boolean,
 ): MarkingOptionEntry[] {

@@ -22,7 +22,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } fr
 import {
   createDefaultFormValues,
   createDefaultPreviewFormValues,
-  mapTemplateToFormValues,
+  selectFormData,
 } from '../model/defaults';
 import { CodeGeneratorTemplateHelpContent } from '../model/helpContent';
 import type {
@@ -145,14 +145,14 @@ export function CodeGeneratorTemplateFormModal({
   const mappedFromInitial = useMemo(
     () =>
       initialValues
-        ? mapTemplateToFormValues(initialValues)
+        ? selectFormData(initialValues)
         : createDefaultFormValues(),
     [initialValues],
   );
 
   const mappedFromLoaded = useMemo(
     () =>
-      loadedTemplate ? mapTemplateToFormValues(loadedTemplate) : undefined,
+      loadedTemplate ? selectFormData(loadedTemplate) : undefined,
     [loadedTemplate],
   );
 

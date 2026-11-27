@@ -47,7 +47,7 @@ export function createDefaultCounterRow(): CounterSpecSchema {
  *
  * @param template - Partial template from list or `fetchById`.
  */
-export function mapTemplateToFormValues(
+export function selectFormData(
   template: Partial<CodeGeneratorTemplate>,
 ): CodeGeneratorTemplate {
   return {

@@ -1,7 +1,7 @@
 import {
   createDefaultFormValues,
   DEFAULT_DEVICE_TYPE,
-  mapDeviceDetailToFormValues,
+  selectFormData,
   SelectDeviceType,
   useDeviceDetailQuery,
   type DeviceFormValues,
@@ -96,7 +96,7 @@ export function DeviceFormModal({
 
     if (loadedDevice && deviceType) {
       form.resetFields();
-      form.setFieldsValue(mapDeviceDetailToFormValues(deviceType, loadedDevice));
+      form.setFieldsValue(selectFormData(deviceType, loadedDevice));
     }
   }, [open, mode, form, initialCreateValues, loadedDevice, deviceType]);
 

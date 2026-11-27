@@ -20,8 +20,8 @@ import {
   mapArticlesToPayload,
   mapCertificatesToPayload,
   mapControllerParamsToPayload,
-  mapFormValuesToCreatePayload,
-  mapFormValuesToUpdatePayload,
+  prepareCreate,
+  prepareUpdate,
   mapLicencesToPayload,
   mapRemovedPersistedIds,
   type AggregatePayloadCandidate,
@@ -291,12 +291,12 @@ export async function persistProductFormValues(
   if (editGtin) {
     saved = await updateProduct(
       editGtin,
-      mapFormValuesToUpdatePayload(values, cachedProduct),
+      prepareUpdate(values, cachedProduct),
       createIdempotencyKey(),
     );
     gtin = saved.gtin || editGtin;
   } else {
-    saved = await createProduct(mapFormValuesToCreatePayload(values), createIdempotencyKey());
+    saved = await createProduct(prepareCreate(values), createIdempotencyKey());
     gtin = saved.gtin;
     if (!gtin) {
       throw new Error('Сервер не вернул GTIN созданной продукции');

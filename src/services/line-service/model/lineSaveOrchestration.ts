@@ -1,6 +1,6 @@
 import {
   buildAggregationLevelPayload,
-  buildLinePayload,
+  prepareSave,
   buildLinePrintedDmSettings,
   buildLinesOptionsPayload,
   buildWeightStationsPayload,
@@ -56,7 +56,7 @@ export async function saveLineConfiguration(
     throw new Error(validationError);
   }
 
-  const linePayload = buildLinePayload(state);
+  const linePayload = prepareSave(state);
   let lineId = existingLineId;
 
   if (lineId === undefined) {

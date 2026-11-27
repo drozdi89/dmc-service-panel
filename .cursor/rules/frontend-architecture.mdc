@@ -136,7 +136,8 @@ form.setFieldsValue(product) // product — запись из GET, тип compon
 
 - Тип формы — алиас схемы (`Product`, `DataMarkCredentials`, …) или сама схема `components['schemas']['…']`.
 - Тело создания и обновления — схема create/update из того же контракта (или тот же объект, если бэкенд принимает его).
-- Пустые значения и формат дат приводятся на границе `entities/*/api` или в `queries` при сборке тела запроса.
+- Два шага в `entities/<domain>/lib` (не отдельные FSD-слои). `selectFormData(server)` — что класть в форму; по умолчанию это тот же объект, отдельную функцию не заводят. `prepareSave(form)` — тело POST/PATCH, только если оно отличается от формы (write-схема, read-only, пустые строки, даты). Если create и update различаются — `prepareCreate` / `prepareUpdate`.
+- Вычисляемые флаги (видимость, radio) живут в компоненте под `<Form>` (`Form.useWatch`). Функцию выносят, только если тот же расчёт вызывается из двух мест.
 
 В объект формы не добавляются переменные, которых нет в объекте API: отдельные `*FormValues`, переименованные поля, UI-алиасы, списки `*_removed`, временные id, `clientKey`, `*Label`, флаги только для экрана.
 
@@ -196,7 +197,7 @@ mkdir -p src/pages/<name>/ui
 
 1. **Import only downward.** Публичный API слайса — `index.ts`.
 2. **RQ for server, Zustand for UI.** Кэш и мутации — в `entities/<domain>/queries`; тосты/confirm/сценарий save — в `entities/<domain>/hooks` (hooks вызывают queries). UI-store домена — в `entities/<domain>/model`.
-3. **Форма получает объект API.** Дополнительные переменные в объект формы не класть.
+3. **Форма получает объект API.** `selectFormData` / `prepareSave` — только если объект формы и тело записи расходятся. Дополнительные переменные в объект формы не класть.
 4. **Контракт — `schema.d.ts`.** `openapi.json` неполный; `schema.d.ts` не править руками.
 5. **antd — UI-kit проекта.**
 6. **HTTP только в `entities/*/api`.** URL и `apiRequest*` не живут в `services/`, features, pages, queries, hooks.

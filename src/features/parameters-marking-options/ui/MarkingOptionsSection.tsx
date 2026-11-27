@@ -1,6 +1,6 @@
 import {
   MINIMAL_GRADE_OPTIONS,
-  bundleToMarkingFormValues,
+  selectFormData,
   useMarkingSettings,
   type ParametersSettingsBundle,
 } from '@/entities/parameters';
@@ -223,7 +223,7 @@ export function MarkingOptionsSection() {
   // Fill once: other sections (statistics) invalidate the same bundle and must not reset unsaved edits.
   useEffect(() => {
     if (!isLoading && values && !initializedRef.current) {
-      form.setFieldsValue(bundleToMarkingFormValues(values));
+      form.setFieldsValue(selectFormData(values));
       initializedRef.current = true;
     }
   }, [form, isLoading, values]);

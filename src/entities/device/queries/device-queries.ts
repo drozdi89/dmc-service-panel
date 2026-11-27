@@ -28,7 +28,7 @@ import {
 } from '../api/api';
 import {
   mapDeviceDetailToRef,
-  mapFormValuesToPayload,
+  prepareSave,
   type DeviceDetail,
   type DeviceFormValues,
 } from '../model/deviceFormMapping';
@@ -220,7 +220,7 @@ export function useSaveDeviceMutation(
   return useMutation({
     ...options,
     mutationFn: ({ deviceType, values, editId }) => {
-      const payload = mapFormValuesToPayload(deviceType, values);
+      const payload = prepareSave(deviceType, values);
       const resolvedEditId = editId ?? values.id;
       const key = createIdempotencyKey();
       if (resolvedEditId !== undefined) {

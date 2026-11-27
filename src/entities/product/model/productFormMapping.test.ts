@@ -6,10 +6,10 @@ import {
   mapArticlesToPayload,
   mapCertificatesToPayload,
   mapControllerParamsToPayload,
-  mapFormValuesToCreatePayload,
-  mapFormValuesToUpdatePayload,
+  prepareCreate,
+  prepareUpdate,
   mapLicencesToPayload,
-  mapProductToFormValues,
+  selectFormData,
   mapRemovedPersistedIds,
   toPersistedNumericId,
 } from './productFormMapping';
@@ -52,9 +52,9 @@ function minimalProduct(overrides: Partial<Product> = {}): Product {
   };
 }
 
-describe('mapProductToFormValues', () => {
+describe('selectFormData', () => {
   it('maps API fields including vet_control', () => {
-    const values = mapProductToFormValues(minimalProduct());
+    const values = selectFormData(minimalProduct());
     expect(values.gtin).toBe('04601234567890');
     expect(values.auto_send_aggregate).toBe(true);
     expect(values.vet_control).toBe(true);
@@ -63,7 +63,7 @@ describe('mapProductToFormValues', () => {
   });
 
   it('maps package_weight, weight bounds and auto_export_to_1c', () => {
-    const values = mapProductToFormValues(
+    const values = selectFormData(
       minimalProduct({
         package_weight: 120,
         weight_min_g: 900,
@@ -79,7 +79,7 @@ describe('mapProductToFormValues', () => {
   });
 
   it('keeps owner_inn and producer_inn from API', () => {
-    const values = mapProductToFormValues(
+    const values = selectFormData(
       minimalProduct({
         contract_commissioning: true,
         owner_inn: '7707083893',
@@ -91,7 +91,7 @@ describe('mapProductToFormValues', () => {
   });
 
   it('keeps producer_inn when owner is empty', () => {
-    const values = mapProductToFormValues(
+    const values = selectFormData(
       minimalProduct({
         contract_commissioning: true,
         owner_inn: '',
@@ -103,7 +103,7 @@ describe('mapProductToFormValues', () => {
   });
 });
 
-describe('mapFormValuesToCreatePayload / Update', () => {
+describe('prepareCreate / Update', () => {
   const baseForm: ProductFormValues = {
     ...DEFAULT_PRODUCT_FORM_VALUES,
     gtin: '04601234567890',
@@ -114,7 +114,7 @@ describe('mapFormValuesToCreatePayload / Update', () => {
   } as ProductFormValues;
 
   it('includes gtin on create and maps auto_send_aggregate', () => {
-    const payload = mapFormValuesToCreatePayload(baseForm);
+    const payload = prepareCreate(baseForm);
     expect(payload.gtin).toBe('04601234567890');
     expect(payload.name).toBe('Milk');
     expect(payload.auto_send_aggregate).toBe(true);
@@ -125,7 +125,7 @@ describe('mapFormValuesToCreatePayload / Update', () => {
   });
 
   it('saves package_weight and auto_export_to_1c from form on update', () => {
-    const payload = mapFormValuesToUpdatePayload({
+    const payload = prepareUpdate({
       ...baseForm,
       package_weight: 250,
       auto_export_to_1c: true,
@@ -136,7 +136,7 @@ describe('mapFormValuesToCreatePayload / Update', () => {
   });
 
   it('autofills barcode from gtin when barcode is empty', () => {
-    const payload = mapFormValuesToCreatePayload({
+    const payload = prepareCreate({
       ...baseForm,
       barcode: '',
     });
@@ -144,7 +144,7 @@ describe('mapFormValuesToCreatePayload / Update', () => {
   });
 
   it('maps weight bounds for measure_unit W and clears them otherwise', () => {
-    const withWeight = mapFormValuesToCreatePayload({
+    const withWeight = prepareCreate({
       ...baseForm,
       measure_unit: 'W',
       weight_min_g: 900,
@@ -154,7 +154,7 @@ describe('mapFormValuesToCreatePayload / Update', () => {
     expect(withWeight.weight_min_g).toBe(900);
     expect(withWeight.weight_max_g).toBe(1100);
 
-    const withoutWeight = mapFormValuesToCreatePayload({
+    const withoutWeight = prepareCreate({
       ...baseForm,
       measure_unit: 'U',
       weight_min_g: 900,
@@ -165,7 +165,7 @@ describe('mapFormValuesToCreatePayload / Update', () => {
   });
 
   it('coerces zero weight bounds to null', () => {
-    const payload = mapFormValuesToCreatePayload({
+    const payload = prepareCreate({
       ...baseForm,
       measure_unit: 'W',
       weight_min_g: 0,
@@ -176,7 +176,7 @@ describe('mapFormValuesToCreatePayload / Update', () => {
   });
 
   it('maps owner commissioning inn', () => {
-    const payload = mapFormValuesToCreatePayload({
+    const payload = prepareCreate({
       ...baseForm,
       contract_commissioning: true,
       owner_inn: '7707083893',
@@ -188,7 +188,7 @@ describe('mapFormValuesToCreatePayload / Update', () => {
   });
 
   it('maps producer commissioning inn', () => {
-    const payload = mapFormValuesToCreatePayload({
+    const payload = prepareCreate({
       ...baseForm,
       contract_commissioning: true,
       owner_inn: null,
@@ -199,7 +199,7 @@ describe('mapFormValuesToCreatePayload / Update', () => {
   });
 
   it('clears inns when contract commissioning is off', () => {
-    const payload = mapFormValuesToCreatePayload({
+    const payload = prepareCreate({
       ...baseForm,
       contract_commissioning: false,
       owner_inn: '7707083893',
@@ -218,8 +218,8 @@ describe('mapFormValuesToCreatePayload / Update', () => {
       articles: [],
       controller_params: [],
     };
-    const createPayload = mapFormValuesToCreatePayload(nestedForm);
-    const updatePayload = mapFormValuesToUpdatePayload(nestedForm);
+    const createPayload = prepareCreate(nestedForm);
+    const updatePayload = prepareUpdate(nestedForm);
 
     for (const payload of [createPayload, updatePayload]) {
       expect(payload).not.toHaveProperty('aggregates');

@@ -3,8 +3,8 @@ import {
   formatLinkedResourceId,
   mapApiDeviceIdToForm,
   mapFormDeviceIdToApi,
-  mapFormValuesToCreatePayload,
-  mapPrintStationToFormValues,
+  prepareSave,
+  selectFormData,
 } from './printStationFormMapping';
 import type { PrintStation } from './types';
 
@@ -41,7 +41,7 @@ describe('printStationFormMapping', () => {
       grade_percent: 25,
     };
 
-    expect(mapPrintStationToFormValues(station)).toEqual({
+    expect(selectFormData(station)).toEqual({
       station_id: 3,
       name: 'Station A',
       printer: 10,
@@ -53,7 +53,7 @@ describe('printStationFormMapping', () => {
   });
 
   it('maps form values to create payload', () => {
-    const payload = mapFormValuesToCreatePayload({
+    const payload = prepareSave({
       name: '  New station  ',
       printer: null,
       camera: 4,
